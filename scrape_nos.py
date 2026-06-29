@@ -223,6 +223,15 @@ def main() -> None:
 
     print(f"\nKlaar: {len(articles)} artikelen opgeslagen in {output_path}")
 
+    html_path = Path("nos_artikelen.html")
+    try:
+        from generate_html import generate_page
+
+        html_path.write_text(generate_page(payload), encoding="utf-8")
+        print(f"HTML-overzicht: {html_path}")
+    except Exception as exc:
+        print(f"HTML genereren mislukt: {exc}")
+
 
 if __name__ == "__main__":
     main()
