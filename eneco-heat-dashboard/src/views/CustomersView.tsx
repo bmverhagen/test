@@ -1,56 +1,59 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
+import type { DashboardFilters, ViewId } from '../types';
 import { customers, contracts, tariffs, profitCenters, SEGMENTS } from '../data/dummyData';
+import { connections } from '../data/connections';
 import { formatCurrency, formatNumber, formatDate } from '../utils/format';
+import { drillToCustomer, drillToConnection } from '../utils/drill';
 import { Card, Badge } from '../components/ui';
 import { KpiCard } from '../components/KpiCard';
-import { Users, FileText, Tag } from 'lucide-react';
+import { DrillBreadcrumb } from '../components/DrillBreadcrumb';
+import { DrillDownTable } from '../components/DrillDownTable';
+import { Users, FileText, Tag, Map } from 'lucide-react';
 
-export function CustomersView() {
-  const [selectedCustomer, setSelectedCustomer] = useState<string | null>(null);
-  const [segmentFilter, setSegmentFilter] = useState('alle');
+interface CustomersViewProps {
+  filters: DashboardFilters;
+  onFilterChange: (f: DashboardFilters) => void;
+  onNavigate: (view: ViewId) => void;
+}
 
+export function CustomersView({ filters, onFilterChange, onNavigate }: CustomersViewProps) {
   const filtered = useMemo(() => {
-    if (segmentFilter === 'alle') return customers;
-    return customers.filter((c) => c.segment === segmentFilter);
-  }, [segmentFilter]);
+    let list = customers;
+    if (filters.segment !== 'alle') list = list.filter((c) => c.segment === filters.segment);
+    if (filters.profitCenterId !== 'alle') list = list.filter((c) => c.profitCenterId === filters.profitCenterId);
+    return list;
+  }, [filters]);
 
-  const selected = customers.find((c) => c.id === selectedCustomer);
+  const selectedId = filters.customerId !== 'alle' ? filters.customerId : null;
+  const selected = selectedId ? customers.find((c) => c.id === selectedId) : null;
   const customerContract = selected ? contracts.find((c) => c.customerId === selected.id) : null;
   const customerTariff = customerContract ? tariffs.find((t) => t.id === customerContract.tariffId) : null;
   const profitCenter = selected ? profitCenters.find((pc) => pc.id === selected.profitCenterId) : null;
+  const customerConnections = selected ? connections.filter((c) => c.customerId === selected.id) : [];
 
   return (
     <div className="space-y-6">
+      <DrillBreadcrumb filters={filters} onNavigate={onFilterChange} />
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <KpiCard label="Klanten" value={String(customers.length)} icon={<Users size={18} />} />
+        <KpiCard label="Klanten" value={String(filtered.length)} icon={<Users size={18} />} />
         <KpiCard label="Actieve contracten" value={String(contracts.filter((c) => c.status === 'actief').length)} icon={<FileText size={18} />} />
         <KpiCard label="Tarieven" value={String(tariffs.length)} icon={<Tag size={18} />} />
       </div>
 
-      <div className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-        <label className="text-xs font-medium text-gray-500">Segment</label>
-        <select
-          value={segmentFilter}
-          onChange={(e) => { setSegmentFilter(e.target.value); setSelectedCustomer(null); }}
-          className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm"
-        >
-          <option value="alle">Alle segmenten</option>
-          {SEGMENTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-        </select>
-      </div>
-
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card title="Klantenoverzicht" subtitle="Selecteer voor detail" className="lg:col-span-1">
+        <Card title="Klantenoverzicht" subtitle="Klik om te drillen" className="lg:col-span-1">
           <div className="space-y-2 max-h-[500px] overflow-y-auto">
             {filtered.map((c) => {
               const margin = c.revenue - c.cost - c.sprucingCost + c.heatLossRevenue;
               const seg = SEGMENTS.find((s) => s.id === c.segment);
+              const lossConns = connections.filter((x) => x.customerId === c.id && x.isLossMaking).length;
               return (
                 <button
                   key={c.id}
-                  onClick={() => setSelectedCustomer(c.id)}
+                  onClick={() => onFilterChange(drillToCustomer(filters, c.id))}
                   className={`w-full text-left rounded-lg border p-3 transition-colors ${
-                    selectedCustomer === c.id ? 'border-eneco-green bg-eneco-light/50' : 'border-gray-100 hover:bg-gray-50'
+                    selectedId === c.id ? 'border-eneco-green bg-eneco-light/50' : 'border-gray-100 hover:bg-gray-50'
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -58,6 +61,7 @@ export function CustomersView() {
                     <span className="h-2 w-2 rounded-full" style={{ backgroundColor: seg?.color }} />
                   </div>
                   <p className="text-xs text-gray-500 mt-1">{seg?.label} · {formatCurrency(margin, true)} marge</p>
+                  {lossConns > 0 && <Badge variant="danger">{lossConns} piekverlies</Badge>}
                 </button>
               );
             })}
@@ -67,24 +71,46 @@ export function CustomersView() {
         <div className="lg:col-span-2 space-y-6">
           {selected ? (
             <>
-              <Card title={selected.name} subtitle={`${profitCenter?.name} · ${SEGMENTS.find((s) => s.id === selected.segment)?.label}`}>
+              <Card
+                title={selected.name}
+                subtitle={`${profitCenter?.name} · ${SEGMENTS.find((s) => s.id === selected.segment)?.label}`}
+                action={
+                  <button
+                    onClick={() => onNavigate('kaart')}
+                    className="flex items-center gap-1 text-sm text-eneco-green hover:underline"
+                  >
+                    <Map size={14} /> Bekijk op kaart
+                  </button>
+                }
+              >
                 <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
                   <div><p className="text-xs text-gray-500">Omzet</p><p className="font-semibold">{formatCurrency(selected.revenue, true)}</p></div>
                   <div><p className="text-xs text-gray-500">Kosten</p><p className="font-semibold">{formatCurrency(selected.cost, true)}</p></div>
                   <div><p className="text-xs text-gray-500">Volume</p><p className="font-semibold">{formatNumber(selected.volumeGJ)} GJ</p></div>
                   <div><p className="text-xs text-gray-500">Bruto marge</p><p className="font-semibold text-eneco-green">{formatCurrency(selected.revenue - selected.cost - selected.sprucingCost + selected.heatLossRevenue, true)}</p></div>
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-4">
-                  <div className="rounded-lg bg-gray-50 p-3">
-                    <p className="text-xs font-medium text-gray-500 mb-2">Omzet structuur</p>
-                    <div className="flex justify-between text-sm"><span>Vast</span><span>{formatCurrency(selected.revenueFixed, true)}</span></div>
-                    <div className="flex justify-between text-sm mt-1"><span>Variabel</span><span>{formatCurrency(selected.revenueVariable, true)}</span></div>
-                  </div>
-                  <div className="rounded-lg bg-gray-50 p-3">
-                    <p className="text-xs font-medium text-gray-500 mb-2">Kosten structuur</p>
-                    <div className="flex justify-between text-sm"><span>Vast</span><span>{formatCurrency(selected.costFixed, true)}</span></div>
-                    <div className="flex justify-between text-sm mt-1"><span>Variabel</span><span>{formatCurrency(selected.costVariable, true)}</span></div>
-                  </div>
+              </Card>
+
+              <Card title="Aansluitingen" subtitle="Klik op aansluiting voor detailniveau">
+                <div className="space-y-2">
+                  {customerConnections.map((conn) => (
+                    <button
+                      key={conn.id}
+                      onClick={() => onFilterChange(drillToConnection(filters, conn.id))}
+                      className={`w-full flex items-center justify-between rounded-lg border px-4 py-3 text-left transition-colors ${
+                        filters.connectionId === conn.id ? 'border-eneco-green bg-eneco-light/30' : 'border-gray-100 hover:bg-gray-50'
+                      }`}
+                    >
+                      <div>
+                        <p className="font-medium text-sm">{conn.address}</p>
+                        <p className="text-xs text-gray-500 capitalize">{conn.type} · {conn.volumeGJ} GJ</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-semibold text-sm">{formatCurrency(conn.revenue)}</p>
+                        {conn.isLossMaking && <Badge variant="danger">Piekverlies</Badge>}
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </Card>
 
@@ -131,12 +157,14 @@ export function CustomersView() {
               )}
             </>
           ) : (
-            <Card title="Selecteer een klant" subtitle="Klik op een klant links voor contract- en tariefdetails">
-              <p className="text-gray-500 text-sm">Alle klantdata inclusief contracten, tarieven en tariefcomponenten is beschikbaar na selectie.</p>
+            <Card title="Selecteer een klant" subtitle="Klik op een klant links of gebruik drill-down hieronder">
+              <p className="text-gray-500 text-sm">Alle klantdata inclusief contracten, tarieven, tariefcomponenten en aansluitingen.</p>
             </Card>
           )}
         </div>
       </div>
+
+      <DrillDownTable filters={filters} onDrill={onFilterChange} />
     </div>
   );
 }

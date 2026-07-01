@@ -1,5 +1,6 @@
 import type { DashboardFilters } from '../types';
 import { SEGMENTS, profitCenters, customers } from '../data/dummyData';
+import { connections } from '../data/connections';
 
 interface FilterBarProps {
   filters: DashboardFilters;
@@ -15,6 +16,12 @@ export function FilterBar({ filters, onChange, showDrillDown = true }: FilterBar
   const filteredCustomers = filters.profitCenterId === 'alle'
     ? (filters.segment === 'alle' ? customers : customers.filter((c) => c.segment === filters.segment))
     : customers.filter((c) => c.profitCenterId === filters.profitCenterId);
+
+  const filteredConnections = filters.customerId === 'alle'
+    ? (filters.profitCenterId === 'alle'
+      ? connections.filter((c) => filters.segment === 'alle' || c.segment === filters.segment)
+      : connections.filter((c) => c.profitCenterId === filters.profitCenterId))
+    : connections.filter((c) => c.customerId === filters.customerId);
 
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -46,6 +53,7 @@ export function FilterBar({ filters, onChange, showDrillDown = true }: FilterBar
                 segment: e.target.value as DashboardFilters['segment'],
                 profitCenterId: 'alle',
                 customerId: 'alle',
+                connectionId: 'alle',
               })}
               className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm focus:border-eneco-green focus:outline-none focus:ring-1 focus:ring-eneco-green"
             >
@@ -64,6 +72,7 @@ export function FilterBar({ filters, onChange, showDrillDown = true }: FilterBar
                 ...filters,
                 profitCenterId: e.target.value,
                 customerId: 'alle',
+                connectionId: 'alle',
               })}
               className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm focus:border-eneco-green focus:outline-none focus:ring-1 focus:ring-eneco-green"
             >
@@ -78,12 +87,27 @@ export function FilterBar({ filters, onChange, showDrillDown = true }: FilterBar
             <label className="text-xs font-medium text-gray-500">Klant</label>
             <select
               value={filters.customerId}
-              onChange={(e) => onChange({ ...filters, customerId: e.target.value })}
+              onChange={(e) => onChange({ ...filters, customerId: e.target.value, connectionId: 'alle' })}
               className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm focus:border-eneco-green focus:outline-none focus:ring-1 focus:ring-eneco-green"
             >
               <option value="alle">Alle klanten</option>
               {filteredCustomers.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-medium text-gray-500">Aansluiting</label>
+            <select
+              value={filters.connectionId}
+              onChange={(e) => onChange({ ...filters, connectionId: e.target.value })}
+              className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm focus:border-eneco-green focus:outline-none focus:ring-1 focus:ring-eneco-green"
+              disabled={filteredConnections.length === 0}
+            >
+              <option value="alle">Alle aansluitingen</option>
+              {filteredConnections.map((c) => (
+                <option key={c.id} value={c.id}>{c.address}</option>
               ))}
             </select>
           </div>

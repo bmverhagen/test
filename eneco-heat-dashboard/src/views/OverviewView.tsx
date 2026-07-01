@@ -1,11 +1,15 @@
 import { useMemo } from 'react';
-import type { DashboardFilters } from '../types';
+import type { DashboardFilters, Segment } from '../types';
 import { profitCenters, customers, getMarginBridge } from '../data/dummyData';
+import { connections } from '../data/connections';
 import { formatCurrency, formatPercent } from '../utils/format';
+import { drillToSegment } from '../utils/drill';
 import { KpiCard } from '../components/KpiCard';
 import { Card } from '../components/ui';
 import { MarginBridgeChart } from '../components/MarginBridgeChart';
 import { FilterBar } from '../components/FilterBar';
+import { DrillBreadcrumb } from '../components/DrillBreadcrumb';
+import { DrillDownTable } from '../components/DrillDownTable';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell,
 } from 'recharts';
@@ -21,12 +25,16 @@ export function OverviewView({ filters, onFilterChange }: OverviewViewProps) {
     segment: filters.segment,
     profitCenterId: filters.profitCenterId,
     customerId: filters.customerId,
+    connectionId: filters.connectionId,
   }), [filters]);
 
   const totals = useMemo(() => {
-    let items = profitCenters;
-    if (filters.segment !== 'alle') items = items.filter((pc) => pc.segment === filters.segment);
-    if (filters.profitCenterId !== 'alle') items = items.filter((pc) => pc.id === filters.profitCenterId);
+    if (filters.connectionId !== 'alle') {
+      const conn = connections.find((c) => c.id === filters.connectionId);
+      if (conn) {
+        return { revenue: conn.revenue, cost: conn.cost, margin: conn.revenue - conn.cost, volume: conn.volumeGJ, sprucing: 0, heatLoss: 0 };
+      }
+    }
     if (filters.customerId !== 'alle') {
       const c = customers.find((x) => x.id === filters.customerId);
       if (c) {
@@ -36,6 +44,9 @@ export function OverviewView({ filters, onFilterChange }: OverviewViewProps) {
         return { revenue: rev, cost, margin, volume: c.volumeGJ, sprucing: c.sprucingCost, heatLoss: c.heatLossRevenue };
       }
     }
+    let items = profitCenters;
+    if (filters.segment !== 'alle') items = items.filter((pc) => pc.segment === filters.segment);
+    if (filters.profitCenterId !== 'alle') items = items.filter((pc) => pc.id === filters.profitCenterId);
     const revenue = items.reduce((s, i) => {
       const r = filters.revenueType === 'fixed' ? i.revenueFixed : filters.revenueType === 'variable' ? i.revenueVariable : i.revenue;
       return s + r;
@@ -59,12 +70,11 @@ export function OverviewView({ filters, onFilterChange }: OverviewViewProps) {
       const spr = pcs.reduce((s, i) => s + i.sprucingCost, 0);
       const hl = pcs.reduce((s, i) => s + i.heatLossRevenue, 0);
       return {
+        segmentId: seg,
         segment: seg.charAt(0).toUpperCase() + seg.slice(1),
         revenue: rev,
         cost,
         margin: rev - cost - spr + hl,
-        revenueFixed: pcs.reduce((s, i) => s + i.revenueFixed, 0),
-        revenueVariable: pcs.reduce((s, i) => s + i.revenueVariable, 0),
       };
     });
   }, []);
@@ -78,8 +88,16 @@ export function OverviewView({ filters, onFilterChange }: OverviewViewProps) {
 
   const marginPct = totals.revenue > 0 ? (totals.margin / totals.revenue) * 100 : 0;
 
+  const handleSegmentClick = (data: { payload?: { segmentId?: Segment } }) => {
+    const segmentId = data?.payload?.segmentId;
+    if (segmentId) {
+      onFilterChange(drillToSegment(filters, segmentId));
+    }
+  };
+
   return (
     <div className="space-y-6">
+      <DrillBreadcrumb filters={filters} onNavigate={onFilterChange} />
       <FilterBar filters={filters} onChange={onFilterChange} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -109,7 +127,7 @@ export function OverviewView({ filters, onFilterChange }: OverviewViewProps) {
         </Card>
       </div>
 
-      <Card title="Marge per segment" subtitle="Doorklik naar profit center en klant via filters">
+      <Card title="Marge per segment" subtitle="Klik op segment om door te drillen">
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={segmentData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
@@ -117,12 +135,14 @@ export function OverviewView({ filters, onFilterChange }: OverviewViewProps) {
             <YAxis tickFormatter={(v) => formatCurrency(v, true)} tick={{ fontSize: 11 }} />
             <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0), true)} />
             <Legend />
-            <Bar dataKey="revenue" name="Omzet" fill="#00a651" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="cost" name="Kosten" fill="#ef4444" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="margin" name="Bruto marge" fill="#003d2e" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="revenue" name="Omzet" fill="#00a651" radius={[4, 4, 0, 0]} onClick={handleSegmentClick} style={{ cursor: 'pointer' }} />
+            <Bar dataKey="cost" name="Kosten" fill="#ef4444" radius={[4, 4, 0, 0]} onClick={handleSegmentClick} style={{ cursor: 'pointer' }} />
+            <Bar dataKey="margin" name="Bruto marge" fill="#003d2e" radius={[4, 4, 0, 0]} onClick={handleSegmentClick} style={{ cursor: 'pointer' }} />
           </BarChart>
         </ResponsiveContainer>
       </Card>
+
+      <DrillDownTable filters={filters} onDrill={onFilterChange} />
     </div>
   );
 }

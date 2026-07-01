@@ -1,10 +1,13 @@
 import { useMemo } from 'react';
 import type { DashboardFilters } from '../types';
-import { profitCenters, customers, getMarginBridge } from '../data/dummyData';
+import { getMarginBridge } from '../data/dummyData';
 import { formatCurrency, formatPercent } from '../utils/format';
+import { getDrillRows } from '../utils/drill';
 import { Card, Badge } from '../components/ui';
 import { MarginBridgeChart } from '../components/MarginBridgeChart';
 import { FilterBar } from '../components/FilterBar';
+import { DrillBreadcrumb } from '../components/DrillBreadcrumb';
+import { DrillDownTable } from '../components/DrillDownTable';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
@@ -19,61 +22,17 @@ export function MarginView({ filters, onFilterChange }: MarginViewProps) {
     segment: filters.segment,
     profitCenterId: filters.profitCenterId,
     customerId: filters.customerId,
+    connectionId: filters.connectionId,
   }), [filters]);
 
-  const drillData = useMemo(() => {
-    if (filters.customerId !== 'alle') {
-      const c = customers.find((x) => x.id === filters.customerId);
-      return c ? [{
-        name: c.name,
-        revenue: c.revenue,
-        revenueFixed: c.revenueFixed,
-        revenueVariable: c.revenueVariable,
-        cost: c.cost,
-        costFixed: c.costFixed,
-        costVariable: c.costVariable,
-        sprucing: c.sprucingCost,
-        heatLoss: c.heatLossRevenue,
-        margin: c.revenue - c.cost - c.sprucingCost + c.heatLossRevenue,
-      }] : [];
-    }
-    if (filters.profitCenterId !== 'alle') {
-      return customers
-        .filter((c) => c.profitCenterId === filters.profitCenterId)
-        .map((c) => ({
-          name: c.name,
-          revenue: c.revenue,
-          revenueFixed: c.revenueFixed,
-          revenueVariable: c.revenueVariable,
-          cost: c.cost,
-          costFixed: c.costFixed,
-          costVariable: c.costVariable,
-          sprucing: c.sprucingCost,
-          heatLoss: c.heatLossRevenue,
-          margin: c.revenue - c.cost - c.sprucingCost + c.heatLossRevenue,
-        }));
-    }
-    let pcs = profitCenters;
-    if (filters.segment !== 'alle') pcs = pcs.filter((pc) => pc.segment === filters.segment);
-    return pcs.map((pc) => ({
-      name: pc.name,
-      revenue: pc.revenue,
-      revenueFixed: pc.revenueFixed,
-      revenueVariable: pc.revenueVariable,
-      cost: pc.cost,
-      costFixed: pc.costFixed,
-      costVariable: pc.costVariable,
-      sprucing: pc.sprucingCost,
-      heatLoss: pc.heatLossRevenue,
-      margin: pc.revenue - pc.cost - pc.sprucingCost + pc.heatLossRevenue,
-    }));
-  }, [filters]);
+  const drillData = useMemo(() => getDrillRows(filters), [filters]);
 
   const brutoMarge = bridge.find((b) => b.type === 'total')?.value ?? 0;
   const omzet = bridge.find((b) => b.type === 'start')?.value ?? 0;
 
   return (
     <div className="space-y-6">
+      <DrillBreadcrumb filters={filters} onNavigate={onFilterChange} />
       <FilterBar filters={filters} onChange={onFilterChange} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -98,44 +57,9 @@ export function MarginView({ filters, onFilterChange }: MarginViewProps) {
         <MarginBridgeChart data={bridge} />
       </Card>
 
-      <Card title="Drill-down detail" subtitle={
-        filters.customerId !== 'alle' ? 'Klantniveau' :
-        filters.profitCenterId !== 'alle' ? 'Klanten per profit center' :
-        filters.segment !== 'alle' ? 'Profit centers per segment' : 'Alle profit centers'
-      }>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-200 text-left text-xs font-medium uppercase text-gray-500">
-                <th className="pb-3 pr-4">Naam</th>
-                <th className="pb-3 pr-4 text-right">Omzet vast</th>
-                <th className="pb-3 pr-4 text-right">Omzet var.</th>
-                <th className="pb-3 pr-4 text-right">Kosten vast</th>
-                <th className="pb-3 pr-4 text-right">Kosten var.</th>
-                <th className="pb-3 pr-4 text-right">Sprucing</th>
-                <th className="pb-3 pr-4 text-right">Heat loss</th>
-                <th className="pb-3 text-right">Bruto marge</th>
-              </tr>
-            </thead>
-            <tbody>
-              {drillData.map((row) => (
-                <tr key={row.name} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="py-3 pr-4 font-medium text-eneco-dark">{row.name}</td>
-                  <td className="py-3 pr-4 text-right text-gray-600">{formatCurrency(row.revenueFixed, true)}</td>
-                  <td className="py-3 pr-4 text-right text-gray-600">{formatCurrency(row.revenueVariable, true)}</td>
-                  <td className="py-3 pr-4 text-right text-gray-600">{formatCurrency(row.costFixed, true)}</td>
-                  <td className="py-3 pr-4 text-right text-gray-600">{formatCurrency(row.costVariable, true)}</td>
-                  <td className="py-3 pr-4 text-right text-eneco-accent">{formatCurrency(row.sprucing, true)}</td>
-                  <td className="py-3 pr-4 text-right text-blue-600">{formatCurrency(row.heatLoss, true)}</td>
-                  <td className="py-3 text-right font-semibold text-eneco-green">{formatCurrency(row.margin, true)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      <DrillDownTable filters={filters} onDrill={onFilterChange} title="Drill-down detail" />
 
-      <Card title="Vast vs. variabel vergelijking" subtitle="Omzet en kosten per entiteit">
+      <Card title="Vast vs. variabel vergelijking" subtitle="Omzet en kosten per entiteit — klik rij hierboven om te drillen">
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={drillData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />

@@ -1,14 +1,17 @@
-import type { ViewId } from '../types';
+import type { ViewId, DashboardFilters } from '../types';
 import {
-  LayoutDashboard, TrendingUp, CalendarRange, Zap, Users, FileText, Tag, Flame,
+  LayoutDashboard, TrendingUp, CalendarRange, Zap, Users, FileText, Tag, Flame, Map, AlertTriangle,
 } from 'lucide-react';
-import { cn } from '../utils/format';
+import { cn, formatCurrency } from '../utils/format';
+import { getTotalLossAmount } from '../data/connections';
 
 const NAV_ITEMS: { id: ViewId; label: string; icon: React.ReactNode; group: string }[] = [
   { id: 'overzicht', label: 'Overzicht', icon: <LayoutDashboard size={18} />, group: 'Finance' },
   { id: 'bruto-marge', label: 'Bruto marge', icon: <TrendingUp size={18} />, group: 'Finance' },
   { id: 'revenue-ytd', label: 'Revenue YTD', icon: <CalendarRange size={18} />, group: 'Finance' },
+  { id: 'piekverlies', label: 'Piekverlies', icon: <AlertTriangle size={18} />, group: 'Finance' },
   { id: 'sourcing', label: 'Sourcing', icon: <Zap size={18} />, group: 'Operations' },
+  { id: 'kaart', label: 'Kaart', icon: <Map size={18} />, group: 'Operations' },
   { id: 'klanten', label: 'Klanten', icon: <Users size={18} />, group: 'Data' },
   { id: 'contracten', label: 'Contracten', icon: <FileText size={18} />, group: 'Data' },
   { id: 'tarieven', label: 'Tarieven', icon: <Tag size={18} />, group: 'Data' },
@@ -17,11 +20,13 @@ const NAV_ITEMS: { id: ViewId; label: string; icon: React.ReactNode; group: stri
 interface LayoutProps {
   currentView: ViewId;
   onNavigate: (view: ViewId) => void;
+  filters: DashboardFilters;
   children: React.ReactNode;
 }
 
-export function Layout({ currentView, onNavigate, children }: LayoutProps) {
+export function Layout({ currentView, onNavigate, filters, children }: LayoutProps) {
   const groups = [...new Set(NAV_ITEMS.map((i) => i.group))];
+  const totalLoss = getTotalLossAmount();
 
   return (
     <div className="flex min-h-screen">
@@ -52,7 +57,12 @@ export function Layout({ currentView, onNavigate, children }: LayoutProps) {
                   )}
                 >
                   {item.icon}
-                  {item.label}
+                  <span className="flex-1 text-left">{item.label}</span>
+                  {item.id === 'piekverlies' && (
+                    <span className="rounded-full bg-red-500/80 px-1.5 py-0.5 text-[9px] font-bold">
+                      {formatCurrency(totalLoss, true)}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -61,7 +71,7 @@ export function Layout({ currentView, onNavigate, children }: LayoutProps) {
 
         <div className="border-t border-white/10 px-5 py-4">
           <p className="text-[10px] text-white/40">Demo data · YTD 2025</p>
-          <p className="text-[10px] text-white/30 mt-0.5">v1.0 — Finance & Sourcing</p>
+          <p className="text-[10px] text-white/30 mt-0.5">v1.1 — Drill-down & Kaart</p>
         </div>
       </aside>
 
@@ -81,6 +91,11 @@ export function Layout({ currentView, onNavigate, children }: LayoutProps) {
               <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600">
                 Periode: YTD 2025
               </span>
+              {filters.connectionId !== 'alle' && (
+                <span className="rounded-full bg-blue-100 px-3 py-1 text-xs text-blue-700">
+                  Aansluiting geselecteerd
+                </span>
+              )}
             </div>
           </div>
         </header>

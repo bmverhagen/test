@@ -1,17 +1,37 @@
+import type { DashboardFilters } from '../types';
 import { contracts, tariffs, customers } from '../data/dummyData';
 import { formatCurrency, formatNumber, formatDate } from '../utils/format';
+import { drillToCustomer } from '../utils/drill';
 import { Card, Badge } from '../components/ui';
+import { DrillBreadcrumb } from '../components/DrillBreadcrumb';
+import { DrillDownTable } from '../components/DrillDownTable';
 
-export function ContractsView() {
+interface ContractsViewProps {
+  filters: DashboardFilters;
+  onFilterChange: (f: DashboardFilters) => void;
+}
+
+export function ContractsView({ filters, onFilterChange }: ContractsViewProps) {
   const statusVariant = (s: string) => {
     if (s === 'actief') return 'success' as const;
     if (s === 'verlopen') return 'danger' as const;
     return 'warning' as const;
   };
 
+  const filteredContracts = contracts.filter((ctr) => {
+    if (filters.customerId !== 'alle' && ctr.customerId !== filters.customerId) return false;
+    if (filters.segment !== 'alle') {
+      const c = customers.find((x) => x.id === ctr.customerId);
+      if (c?.segment !== filters.segment) return false;
+    }
+    return true;
+  });
+
   return (
     <div className="space-y-6">
-      <Card title="Alle contracten" subtitle={`${contracts.length} contracten · koppeling klant ↔ tarief`}>
+      <DrillBreadcrumb filters={filters} onNavigate={onFilterChange} />
+
+      <Card title="Contracten" subtitle={`${filteredContracts.length} contracten · klik klant om te drillen`}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -27,13 +47,17 @@ export function ContractsView() {
               </tr>
             </thead>
             <tbody>
-              {contracts.map((ctr) => {
+              {filteredContracts.map((ctr) => {
                 const tariff = tariffs.find((t) => t.id === ctr.tariffId);
                 const customer = customers.find((c) => c.id === ctr.customerId);
                 return (
-                  <tr key={ctr.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <tr
+                    key={ctr.id}
+                    onClick={() => onFilterChange(drillToCustomer(filters, ctr.customerId))}
+                    className="border-b border-gray-100 hover:bg-eneco-light/30 cursor-pointer"
+                  >
                     <td className="py-3 pr-4 font-mono text-xs">{ctr.id}</td>
-                    <td className="py-3 pr-4 font-medium">{ctr.customerName}</td>
+                    <td className="py-3 pr-4 font-medium text-eneco-green">{ctr.customerName}</td>
                     <td className="py-3 pr-4"><Badge variant={statusVariant(ctr.status)}>{ctr.status}</Badge></td>
                     <td className="py-3 pr-4 text-gray-600 text-xs">{formatDate(ctr.startDate)} — {formatDate(ctr.endDate)}</td>
                     <td className="py-3 pr-4 text-gray-600">{tariff?.name}</td>
@@ -47,6 +71,8 @@ export function ContractsView() {
           </table>
         </div>
       </Card>
+
+      <DrillDownTable filters={filters} onDrill={onFilterChange} />
     </div>
   );
 }

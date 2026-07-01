@@ -5,6 +5,8 @@ import { OverviewView } from './views/OverviewView';
 import { MarginView } from './views/MarginView';
 import { RevenueYTDView } from './views/RevenueYTDView';
 import { SourcingView } from './views/SourcingView';
+import { MapView } from './views/MapView';
+import { PeakLossView } from './views/PeakLossView';
 import { CustomersView } from './views/CustomersView';
 import { ContractsView } from './views/ContractsView';
 import { TariffsView } from './views/TariffsView';
@@ -13,6 +15,7 @@ const defaultFilters: DashboardFilters = {
   segment: 'alle',
   profitCenterId: 'alle',
   customerId: 'alle',
+  connectionId: 'alle',
   period: 'ytd',
   costType: 'alle',
   revenueType: 'alle',
@@ -32,10 +35,14 @@ export default function App() {
         return <RevenueYTDView />;
       case 'sourcing':
         return <SourcingView />;
+      case 'kaart':
+        return <MapView filters={filters} onFilterChange={setFilters} onNavigate={setCurrentView} />;
+      case 'piekverlies':
+        return <PeakLossView filters={filters} onFilterChange={setFilters} />;
       case 'klanten':
-        return <CustomersView />;
+        return <CustomersView filters={filters} onFilterChange={setFilters} onNavigate={setCurrentView} />;
       case 'contracten':
-        return <ContractsView />;
+        return <ContractsView filters={filters} onFilterChange={setFilters} />;
       case 'tarieven':
         return <TariffsView />;
       default:
@@ -44,7 +51,7 @@ export default function App() {
   };
 
   return (
-    <Layout currentView={currentView} onNavigate={setCurrentView}>
+    <Layout currentView={currentView} onNavigate={setCurrentView} filters={filters}>
       {renderView()}
     </Layout>
   );

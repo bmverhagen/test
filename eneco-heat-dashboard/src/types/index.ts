@@ -1,6 +1,7 @@
 export type Segment = 'residentieel' | 'zakelijk' | 'industrie' | 'overheid';
 export type CostType = 'fixed' | 'variable';
 export type RevenueType = 'fixed' | 'variable';
+export type ConnectionType = 'woning' | 'bedrijfspand' | 'industrie' | 'gebouw';
 
 export interface MarginBridgeItem {
   label: string;
@@ -39,6 +40,41 @@ export interface Customer {
   heatLossRevenue: number;
   volumeGJ: number;
   contractId: string;
+}
+
+export interface Connection {
+  id: string;
+  customerId: string;
+  profitCenterId: string;
+  segment: Segment;
+  type: ConnectionType;
+  address: string;
+  mapX: number;
+  mapY: number;
+  revenue: number;
+  cost: number;
+  volumeGJ: number;
+  tariffRatePerGJ: number;
+  effectiveCostPerGJ: number;
+  peakSharePct: number;
+  isLossMaking: boolean;
+  lossAmount: number;
+}
+
+export interface PeakLossProfile {
+  customerId: string;
+  customerName: string;
+  segment: Segment;
+  tariffRatePerGJ: number;
+  effectiveCostPerGJ: number;
+  spreadPerGJ: number;
+  volumeGJ: number;
+  peakSharePct: number;
+  annualLoss: number;
+  connectionCount: number;
+  lossConnectionCount: number;
+  peakHours: string[];
+  hourlyProfile: { hour: number; consumptionPct: number; marketPrice: number }[];
 }
 
 export interface Contract {
@@ -96,9 +132,21 @@ export interface DashboardFilters {
   segment: Segment | 'alle';
   profitCenterId: string | 'alle';
   customerId: string | 'alle';
+  connectionId: string | 'alle';
   period: 'ytd' | 'q1' | 'q2' | 'q3' | 'q4' | 'jaar';
   costType: CostType | 'alle';
   revenueType: RevenueType | 'alle';
+}
+
+export type DrillLevel = 'portfolio' | 'segment' | 'profitCenter' | 'customer' | 'connection';
+
+export interface DrillTarget {
+  level: DrillLevel;
+  segment?: Segment | 'alle';
+  profitCenterId?: string;
+  customerId?: string;
+  connectionId?: string;
+  label: string;
 }
 
 export type ViewId =
@@ -106,6 +154,8 @@ export type ViewId =
   | 'bruto-marge'
   | 'revenue-ytd'
   | 'sourcing'
+  | 'kaart'
+  | 'piekverlies'
   | 'klanten'
   | 'contracten'
   | 'tarieven';

@@ -7,6 +7,7 @@ import type {
   RevenueYTDMonth,
   MarginBridgeItem,
 } from '../types';
+import { connections } from './connections';
 
 export const SEGMENTS = [
   { id: 'residentieel', label: 'Residentieel', color: '#00a651' },
@@ -352,7 +353,21 @@ export function getMarginBridge(filters?: {
   segment?: string;
   profitCenterId?: string;
   customerId?: string;
+  connectionId?: string;
 }): MarginBridgeItem[] {
+  if (filters?.connectionId && filters.connectionId !== 'alle') {
+    const conn = connections.find((c) => c.id === filters.connectionId);
+    if (!conn) return [];
+    const revenue = conn.revenue;
+    const cost = conn.cost;
+    const brutoMarge = revenue - cost;
+    return [
+      { label: 'Omzet', value: revenue, type: 'start' },
+      { label: 'Inkoopkosten', value: -cost, type: 'negative' },
+      { label: 'Bruto marge', value: brutoMarge, type: 'total' },
+    ];
+  }
+
   let items = profitCenters;
 
   if (filters?.segment && filters.segment !== 'alle') {
