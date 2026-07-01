@@ -4,6 +4,15 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  // '/' lokaal (telefoon), '/test/' voor GitHub Pages
   base: process.env.VITE_BASE ?? '/',
+  server: {
+    host: true,
+    port: 5173,
+    strictPort: false,
+    open: true,
+  },
+  preview: {
+    host: true,
+    port: 4173,
+  },
 })
