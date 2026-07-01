@@ -4,6 +4,7 @@ import {
 import type { MarginBridgeItem } from '../types';
 import { formatCurrency } from '../utils/format';
 import { chartTooltipStyle, chartAxisStyle, ENECO_COLORS } from '../theme/chartTheme';
+import { ChartWrap } from './ChartWrap';
 
 interface MarginBridgeChartProps {
   data: MarginBridgeItem[];
@@ -47,7 +48,8 @@ export function MarginBridgeChart({ data }: MarginBridgeChartProps) {
   });
 
   return (
-    <ResponsiveContainer width="100%" height={400}>
+    <ChartWrap height={400}>
+      <ResponsiveContainer width="100%" height="100%">
       <BarChart data={chartData} margin={{ top: 24, right: 24, left: 8, bottom: 8 }} barCategoryGap="20%">
         <defs>
           <linearGradient id="grad-green" x1="0" y1="0" x2="0" y2="1">
@@ -88,6 +90,7 @@ export function MarginBridgeChart({ data }: MarginBridgeChartProps) {
         </Bar>
       </BarChart>
     </ResponsiveContainer>
+    </ChartWrap>
   );
 }
 

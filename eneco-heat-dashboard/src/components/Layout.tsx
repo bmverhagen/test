@@ -100,7 +100,7 @@ export function Layout({ currentView, onNavigate, children }: LayoutProps) {
   );
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen w-full max-w-full overflow-x-hidden">
       {/* Mobile overlay */}
       {menuOpen && (
         <div
@@ -120,7 +120,7 @@ export function Layout({ currentView, onNavigate, children }: LayoutProps) {
       </aside>
 
       {/* Main */}
-      <main className="flex-1 lg:ml-64 app-bg min-w-0">
+      <main className="flex-1 w-full min-w-0 max-w-full lg:ml-64 app-bg">
         <header className="sticky top-0 z-20 border-b border-eneco-green/10 bg-white/80 backdrop-blur-xl">
           <div className="px-4 py-4 sm:px-6 lg:px-8 lg:py-5">
             <div className="flex items-center justify-between gap-3">
@@ -152,7 +152,7 @@ export function Layout({ currentView, onNavigate, children }: LayoutProps) {
           <div className="h-0.5 bg-gradient-to-r from-transparent via-eneco-green to-transparent opacity-60" />
         </header>
 
-        <div className="p-4 sm:p-6 lg:p-8">{children}</div>
+        <div className="w-full max-w-full p-4 sm:p-6 lg:p-8">{children}</div>
       </main>
     </div>
   );

@@ -23,7 +23,7 @@ export function DrillBreadcrumb({ filters, onNavigate, className }: DrillBreadcr
 
   return (
     <div className={cn(
-      'flex flex-wrap items-center gap-2 rounded-2xl border border-eneco-green/15 bg-white/80 px-5 py-3.5 shadow-card backdrop-blur-sm',
+      'flex flex-wrap items-center gap-2 rounded-2xl border border-eneco-green/15 bg-white/80 px-3 py-3 sm:px-5 sm:py-3.5 shadow-card backdrop-blur-sm w-full max-w-full',
       className,
     )}>
       <div className="flex items-center gap-1.5 text-eneco-green mr-1">
@@ -62,7 +62,7 @@ export function DrillBreadcrumb({ filters, onNavigate, className }: DrillBreadcr
         );
       })}
 
-      <span className="ml-auto flex items-center gap-1.5 rounded-full bg-eneco-dark px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-eneco-mint">
+      <span className="sm:ml-auto flex items-center gap-1.5 rounded-full bg-eneco-dark px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-eneco-mint w-full sm:w-auto justify-center sm:justify-start mt-2 sm:mt-0">
         <span className="h-1.5 w-1.5 rounded-full bg-eneco-green animate-pulse" />
         {LEVEL_LABELS[currentLevel]}
       </span>

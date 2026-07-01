@@ -10,6 +10,7 @@ import { MarginBridgeChart } from '../components/MarginBridgeChart';
 import { FilterBar } from '../components/FilterBar';
 import { DrillBreadcrumb } from '../components/DrillBreadcrumb';
 import { DrillDownTable } from '../components/DrillDownTable';
+import { ChartWrap } from '../components/ChartWrap';
 import { chartTooltipStyle, chartAxisStyle, SEGMENT_COLORS, ENECO_COLORS } from '../theme/chartTheme';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell,
@@ -78,9 +79,9 @@ export function OverviewView({ filters, onFilterChange }: OverviewViewProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 w-full max-w-full">
       {/* Hero banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-eneco-dark via-[#004d35] to-eneco-darker p-8 shadow-eneco animate-fade-up">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-eneco-dark via-[#004d35] to-eneco-darker p-4 sm:p-8 shadow-eneco animate-fade-up w-full">
         <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-eneco-green/20 blur-3xl" />
         <div className="absolute -bottom-8 -left-8 h-48 w-48 rounded-full bg-eneco-teal/15 blur-2xl" />
         <div className="relative flex flex-wrap items-center justify-between gap-6">
@@ -93,7 +94,7 @@ export function OverviewView({ filters, onFilterChange }: OverviewViewProps) {
               Real-time inzicht in omzet, marge en aansluitingen — YTD 2025
             </p>
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:gap-3 w-full">
             <StatPill label="Portfolio omzet" value={formatCurrency(totalPortfolioRevenue, true)} color="green" />
             <StatPill label="Aansluitingen" value={String(connections.length)} color="teal" />
             <StatPill label="Verliesgevend" value={String(connections.filter((c) => c.isLossMaking).length)} color="red" />
@@ -119,7 +120,8 @@ export function OverviewView({ filters, onFilterChange }: OverviewViewProps) {
         </Card>
 
         <Card title="Vast vs. Variabel" subtitle="Omzet- en kostenstructuur">
-          <ResponsiveContainer width="100%" height={340}>
+          <ChartWrap height={340}>
+            <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={fixedVarData}
@@ -141,11 +143,13 @@ export function OverviewView({ filters, onFilterChange }: OverviewViewProps) {
               <Legend wrapperStyle={{ fontSize: 11, fontFamily: 'Plus Jakarta Sans' }} />
             </PieChart>
           </ResponsiveContainer>
+          </ChartWrap>
         </Card>
       </div>
 
       <Card title="Marge per segment" subtitle="Klik op een segment om door te drillen" variant="elevated">
-        <ResponsiveContainer width="100%" height={320}>
+        <ChartWrap height={320}>
+          <ResponsiveContainer width="100%" height="100%">
           <BarChart data={segmentData} barGap={4}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,166,81,0.1)" vertical={false} />
             <XAxis dataKey="segment" tick={chartAxisStyle} axisLine={false} tickLine={false} />
@@ -157,6 +161,7 @@ export function OverviewView({ filters, onFilterChange }: OverviewViewProps) {
             <Bar dataKey="margin" name="Bruto marge" fill={ENECO_COLORS.dark} radius={[6, 6, 0, 0]} onClick={handleSegmentClick} style={{ cursor: 'pointer' }} maxBarSize={48} />
           </BarChart>
         </ResponsiveContainer>
+        </ChartWrap>
       </Card>
 
       <DrillDownTable filters={filters} onDrill={onFilterChange} />

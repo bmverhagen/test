@@ -24,10 +24,10 @@ export function FilterBar({ filters, onChange, showDrillDown = true }: FilterBar
       : connections.filter((c) => c.profitCenterId === filters.profitCenterId))
     : connections.filter((c) => c.customerId === filters.customerId);
 
-  const selectClass = 'rounded-xl border border-gray-200/80 bg-white px-3 py-2 text-sm font-medium text-eneco-dark shadow-sm transition-all focus:border-eneco-green focus:outline-none focus:ring-2 focus:ring-eneco-green/20 hover:border-eneco-green/40';
+  const selectClass = 'w-full sm:w-auto rounded-xl border border-gray-200/80 bg-white px-3 py-2 text-sm font-medium text-eneco-dark shadow-sm transition-all focus:border-eneco-green focus:outline-none focus:ring-2 focus:ring-eneco-green/20 hover:border-eneco-green/40';
 
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-eneco-green/10 bg-white/90 px-5 py-4 shadow-card backdrop-blur-sm">
+    <div className="flex flex-col gap-3 rounded-2xl border border-eneco-green/10 bg-white/90 px-4 py-4 sm:px-5 sm:py-4 shadow-card backdrop-blur-sm w-full max-w-full">
       <div className="flex items-center gap-2 text-eneco-green">
         <Filter size={15} />
         <span className="text-xs font-bold uppercase tracking-wider">Filters</span>
@@ -35,7 +35,7 @@ export function FilterBar({ filters, onChange, showDrillDown = true }: FilterBar
 
       <div className="h-5 w-px bg-eneco-green/15" />
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 w-full sm:w-auto">
         <label className="text-xs font-semibold text-gray-400">Periode</label>
         <select value={filters.period} onChange={(e) => onChange({ ...filters, period: e.target.value as DashboardFilters['period'] })} className={selectClass}>
           <option value="ytd">YTD 2025</option>

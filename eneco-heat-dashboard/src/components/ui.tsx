@@ -77,7 +77,7 @@ export function StatPill({ label, value, color = 'green' }: StatPillProps) {
   };
 
   return (
-    <div className={cn('rounded-xl border bg-gradient-to-br px-4 py-3', colors[color])}>
+    <div className={cn('rounded-xl border bg-gradient-to-br px-4 py-3 w-full', colors[color])}>
       <p className="text-xs font-medium opacity-70">{label}</p>
       <p className="mt-0.5 text-xl font-extrabold tracking-tight">{value}</p>
     </div>
