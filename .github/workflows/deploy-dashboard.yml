@@ -33,7 +33,7 @@ jobs:
         working-directory: eneco-heat-dashboard
         run: |
           npm ci
-          npm run build
+          VITE_BASE=/test/ npm run build
 
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -4,5 +4,6 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: '/test/',
+  // '/' lokaal (telefoon), '/test/' voor GitHub Pages
+  base: process.env.VITE_BASE ?? '/',
 })
