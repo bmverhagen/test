@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# Mac/Linux — op Windows gebruik start.bat
 set -e
 cd "$(dirname "$0")"
 echo "→ Eneco Heat Dashboard starten..."
