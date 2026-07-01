@@ -27,78 +27,108 @@ interface LayoutProps {
 export function Layout({ currentView, onNavigate, filters, children }: LayoutProps) {
   const groups = [...new Set(NAV_ITEMS.map((i) => i.group))];
   const totalLoss = getTotalLossAmount();
+  const currentItem = NAV_ITEMS.find((i) => i.id === currentView);
 
   return (
     <div className="flex min-h-screen">
-      <aside className="fixed left-0 top-0 z-30 flex h-full w-60 flex-col border-r border-gray-200 bg-eneco-dark text-white">
-        <div className="flex items-center gap-3 border-b border-white/10 px-5 py-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-eneco-green">
-            <Flame size={20} />
+      {/* Sidebar */}
+      <aside className="sidebar-bg fixed left-0 top-0 z-30 flex h-full w-64 flex-col border-r border-white/5">
+        {/* Logo */}
+        <div className="relative flex items-center gap-3 border-b border-white/10 px-6 py-6">
+          <div className="relative flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-eneco-green to-eneco-green-bright shadow-lg shadow-eneco-green/40">
+            <Flame size={22} className="text-white" />
+            <div className="absolute inset-0 rounded-2xl bg-white/20 opacity-0 hover:opacity-100 transition-opacity" />
           </div>
           <div>
-            <p className="text-sm font-bold leading-tight">Eneco Heat</p>
-            <p className="text-[10px] text-white/60">Finance Dashboard</p>
+            <p className="text-base font-extrabold tracking-tight text-white">Eneco</p>
+            <p className="text-[11px] font-medium text-eneco-mint/80">Heat Finance</p>
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-4">
+        {/* Nav */}
+        <nav className="relative flex-1 overflow-y-auto px-3 py-5">
           {groups.map((group) => (
-            <div key={group} className="mb-4">
-              <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-white/40">{group}</p>
-              {NAV_ITEMS.filter((i) => i.group === group).map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => onNavigate(item.id)}
-                  className={cn(
-                    'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors',
-                    currentView === item.id
-                      ? 'bg-eneco-green text-white font-medium'
-                      : 'text-white/70 hover:bg-white/10 hover:text-white',
-                  )}
-                >
-                  {item.icon}
-                  <span className="flex-1 text-left">{item.label}</span>
-                  {item.id === 'piekverlies' && (
-                    <span className="rounded-full bg-red-500/80 px-1.5 py-0.5 text-[9px] font-bold">
-                      {formatCurrency(totalLoss, true)}
+            <div key={group} className="mb-5">
+              <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-widest text-white/30">{group}</p>
+              {NAV_ITEMS.filter((i) => i.group === group).map((item) => {
+                const isActive = currentView === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => onNavigate(item.id)}
+                    className={cn(
+                      'mb-1 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all duration-200',
+                      isActive
+                        ? 'nav-active font-semibold text-white'
+                        : 'text-white/60 hover:bg-white/8 hover:text-white',
+                    )}
+                  >
+                    <span className={cn('flex h-8 w-8 items-center justify-center rounded-lg transition-colors', isActive ? 'bg-white/20' : 'bg-white/5')}>
+                      {item.icon}
                     </span>
-                  )}
-                </button>
-              ))}
+                    <span className="flex-1 text-left">{item.label}</span>
+                    {item.id === 'piekverlies' && (
+                      <span className="rounded-full bg-eneco-red/90 px-2 py-0.5 text-[9px] font-bold text-white shadow-sm">
+                        {formatCurrency(totalLoss, true)}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           ))}
         </nav>
 
-        <div className="border-t border-white/10 px-5 py-4">
-          <p className="text-[10px] text-white/40">Demo data · YTD 2025</p>
-          <p className="text-[10px] text-white/30 mt-0.5">v1.1 — Drill-down & Kaart</p>
+        {/* Footer */}
+        <div className="relative border-t border-white/10 px-6 py-5">
+          <div className="rounded-xl bg-white/5 p-3 ring-1 ring-white/10">
+            <div className="flex items-center gap-2">
+              <div className="h-2 w-2 rounded-full bg-eneco-green animate-pulse" />
+              <p className="text-[11px] font-medium text-white/70">Live demo · YTD 2025</p>
+            </div>
+            <p className="mt-1 text-[10px] text-white/35">Eneco Warmte Finance Platform</p>
+          </div>
         </div>
       </aside>
 
-      <main className="ml-60 flex-1">
-        <header className="sticky top-0 z-20 border-b border-gray-200 bg-white/90 backdrop-blur-sm px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-bold text-eneco-dark">
-                {NAV_ITEMS.find((i) => i.id === currentView)?.label}
-              </h1>
-              <p className="text-sm text-gray-500">Eneco Warmte — Finance & Operations</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="rounded-full bg-eneco-light px-3 py-1 text-xs font-medium text-eneco-dark">
-                Demo modus
-              </span>
-              <span className="rounded-full bg-gray-100 px-3 py-1 text-xs text-gray-600">
-                Periode: YTD 2025
-              </span>
-              {filters.connectionId !== 'alle' && (
-                <span className="rounded-full bg-blue-100 px-3 py-1 text-xs text-blue-700">
-                  Aansluiting geselecteerd
+      {/* Main */}
+      <main className="ml-64 flex-1 app-bg">
+        {/* Header */}
+        <header className="sticky top-0 z-20 border-b border-eneco-green/10 bg-white/80 backdrop-blur-xl">
+          <div className="px-8 py-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl font-extrabold tracking-tight text-gradient-eneco">
+                    {currentItem?.label}
+                  </h1>
+                  {currentItem && (
+                    <span className="hidden sm:flex h-8 w-8 items-center justify-center rounded-xl bg-eneco-light text-eneco-green">
+                      {currentItem.icon}
+                    </span>
+                  )}
+                </div>
+                <p className="mt-0.5 text-sm text-gray-500">Eneco Warmte — Finance & Operations Intelligence</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-gradient-to-r from-eneco-light to-white px-4 py-1.5 text-xs font-semibold text-eneco-dark ring-1 ring-eneco-green/20">
+                  Demo modus
                 </span>
-              )}
+                <span className="rounded-full bg-eneco-dark px-4 py-1.5 text-xs font-semibold text-white">
+                  YTD 2025
+                </span>
+                {filters.connectionId !== 'alle' && (
+                  <span className="rounded-full bg-eneco-teal/10 px-4 py-1.5 text-xs font-semibold text-eneco-teal ring-1 ring-eneco-teal/20">
+                    Aansluiting actief
+                  </span>
+                )}
+              </div>
             </div>
           </div>
+          {/* Green accent bar */}
+          <div className="h-0.5 bg-gradient-to-r from-transparent via-eneco-green to-transparent opacity-60" />
         </header>
+
         <div className="p-8">{children}</div>
       </main>
     </div>

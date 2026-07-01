@@ -3,11 +3,12 @@ import type { DashboardFilters } from '../types';
 import { getMarginBridge } from '../data/dummyData';
 import { formatCurrency, formatPercent } from '../utils/format';
 import { getDrillRows } from '../utils/drill';
-import { Card, Badge } from '../components/ui';
+import { Card, StatPill } from '../components/ui';
 import { MarginBridgeChart } from '../components/MarginBridgeChart';
 import { FilterBar } from '../components/FilterBar';
 import { DrillBreadcrumb } from '../components/DrillBreadcrumb';
 import { DrillDownTable } from '../components/DrillDownTable';
+import { chartTooltipStyle, chartAxisStyle } from '../theme/chartTheme';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
@@ -36,21 +37,9 @@ export function MarginView({ filters, onFilterChange }: MarginViewProps) {
       <FilterBar filters={filters} onChange={onFilterChange} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-eneco-green/30 bg-eneco-light/30 p-4">
-          <p className="text-sm text-gray-600">Bruto marge</p>
-          <p className="text-2xl font-bold text-eneco-dark">{formatCurrency(brutoMarge, true)}</p>
-          <p className="text-xs text-gray-500">{formatPercent(omzet > 0 ? (brutoMarge / omzet) * 100 : 0)} van omzet</p>
-        </div>
-        <div className="rounded-xl border border-orange-200 bg-orange-50/50 p-4">
-          <p className="text-sm text-gray-600">Sprucing cost</p>
-          <p className="text-2xl font-bold text-eneco-accent">{formatCurrency(Math.abs(bridge.find((b) => b.category === 'sprucing')?.value ?? 0), true)}</p>
-          <Badge variant="warning">Netwerk verlies</Badge>
-        </div>
-        <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4">
-          <p className="text-sm text-gray-600">Heat loss revenue</p>
-          <p className="text-2xl font-bold text-blue-700">{formatCurrency(bridge.find((b) => b.category === 'heatloss')?.value ?? 0, true)}</p>
-          <Badge variant="info">Compensatie</Badge>
-        </div>
+        <StatPill label="Bruto marge" value={`${formatCurrency(brutoMarge, true)} (${formatPercent(omzet > 0 ? (brutoMarge / omzet) * 100 : 0)})`} color="green" />
+        <StatPill label="Sprucing cost" value={formatCurrency(Math.abs(bridge.find((b) => b.category === 'sprucing')?.value ?? 0), true)} color="warm" />
+        <StatPill label="Heat loss revenue" value={formatCurrency(bridge.find((b) => b.category === 'heatloss')?.value ?? 0, true)} color="teal" />
       </div>
 
       <Card title="Waterfall bruto marge" subtitle="Sprucing cost, heat loss revenues en bruto marge in brug">
@@ -64,8 +53,8 @@ export function MarginView({ filters, onFilterChange }: MarginViewProps) {
           <BarChart data={drillData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
             <XAxis dataKey="name" tick={{ fontSize: 10 }} interval={0} angle={-20} textAnchor="end" height={80} />
-            <YAxis tickFormatter={(v) => formatCurrency(v, true)} tick={{ fontSize: 11 }} />
-            <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0), true)} />
+            <YAxis tickFormatter={(v) => formatCurrency(v, true)} tick={chartAxisStyle} axisLine={false} tickLine={false} />
+            <Tooltip formatter={(v) => formatCurrency(Number(v ?? 0), true)} contentStyle={chartTooltipStyle} />
             <Legend />
             <Bar dataKey="revenueFixed" name="Omzet vast" stackId="rev" fill="#00a651" />
             <Bar dataKey="revenueVariable" name="Omzet variabel" stackId="rev" fill="#4ade80" />

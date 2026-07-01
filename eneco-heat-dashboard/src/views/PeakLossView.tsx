@@ -36,13 +36,15 @@ export function PeakLossView({ filters, onFilterChange }: PeakLossViewProps) {
     <div className="space-y-6">
       <DrillBreadcrumb filters={filters} onNavigate={onFilterChange} />
 
-      <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
-        <AlertTriangle className="text-red-600 mt-0.5 shrink-0" size={22} />
+      <div className="relative overflow-hidden rounded-2xl border border-eneco-red/20 bg-gradient-to-r from-red-50 via-orange-50/50 to-red-50 p-6 flex items-start gap-4 shadow-card">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-eneco-red to-red-500 text-white shadow-lg shadow-red-500/30">
+          <AlertTriangle size={24} />
+        </div>
         <div>
-          <p className="font-semibold text-red-900">Piekverbruik verliesanalyse</p>
-          <p className="text-sm text-red-800 mt-1">
-            Klanten waarvan de effectieve kostprijs boven het contracttarief uitkomt doordat zij warmte afnemen
-            op dure momenten (ochtend- en avondpiek 07–09 en 17–20 uur). Het vaste tarief dekt deze piek-kosten niet.
+          <p className="text-lg font-extrabold text-eneco-red tracking-tight">Piekverbruik verliesanalyse</p>
+          <p className="text-sm text-red-800/80 mt-1.5 leading-relaxed">
+            Klanten waarvan de <strong>effectieve kostprijs boven het contracttarief</strong> uitkomt doordat zij warmte afnemen
+            op dure momenten (ochtend- en avondpiek <span className="font-semibold">07–09 & 17–20 uur</span>). Het vaste tarief dekt deze piek-kosten niet.
           </p>
         </div>
       </div>

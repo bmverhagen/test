@@ -2,10 +2,19 @@
 
 @theme {
   --color-eneco-green: #00a651;
+  --color-eneco-green-bright: #00c965;
   --color-eneco-dark: #003d2e;
-  --color-eneco-light: #e8f5ee;
-  --color-eneco-accent: #ff6b35;
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --color-eneco-darker: #002419;
+  --color-eneco-light: #e8f8ef;
+  --color-eneco-mint: #b8f0d0;
+  --color-eneco-red: #e30613;
+  --color-eneco-warm: #ff8c42;
+  --color-eneco-teal: #00857c;
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+
+  --shadow-eneco: 0 4px 24px -4px rgba(0, 166, 81, 0.15);
+  --shadow-card: 0 1px 3px rgba(0, 61, 46, 0.06), 0 8px 24px -6px rgba(0, 61, 46, 0.08);
+  --shadow-card-hover: 0 4px 12px rgba(0, 61, 46, 0.08), 0 16px 40px -8px rgba(0, 166, 81, 0.18);
 }
 
 * {
@@ -15,21 +24,156 @@
 body {
   margin: 0;
   font-family: var(--font-sans);
-  background: #f4f6f8;
+  background: #f0f4f2;
   color: #1a2b3c;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
   min-height: 100vh;
 }
 
+/* Ambient page background */
+.app-bg {
+  background:
+    radial-gradient(ellipse 80% 50% at 20% -10%, rgba(0, 166, 81, 0.08) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 40% at 90% 10%, rgba(0, 133, 124, 0.06) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 30% at 50% 100%, rgba(0, 61, 46, 0.04) 0%, transparent 50%),
+    #f0f4f2;
+}
+
+/* Sidebar texture */
+.sidebar-bg {
+  background:
+    linear-gradient(165deg, #003d2e 0%, #002419 45%, #001a12 100%);
+  position: relative;
+}
+
+.sidebar-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 30% 20%, rgba(0, 166, 81, 0.12) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(0, 200, 101, 0.06) 0%, transparent 40%);
+  pointer-events: none;
+}
+
+/* Card shine */
+.card-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-shine::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--color-eneco-green), var(--color-eneco-green-bright), transparent);
+  opacity: 0.7;
+}
+
+/* KPI glow ring */
+.kpi-glow {
+  box-shadow:
+    0 0 0 1px rgba(0, 166, 81, 0.08),
+    0 4px 20px -4px rgba(0, 166, 81, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+/* Animated pipe flow on map */
+@keyframes pipe-flow {
+  to { stroke-dashoffset: -20; }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.4; r: 4; }
+  50% { opacity: 0.8; r: 6; }
+}
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.5s ease-out both;
+}
+
+.animate-fade-up-delay-1 { animation-delay: 0.05s; }
+.animate-fade-up-delay-2 { animation-delay: 0.1s; }
+.animate-fade-up-delay-3 { animation-delay: 0.15s; }
+.animate-fade-up-delay-4 { animation-delay: 0.2s; }
+
+.pipe-animated {
+  stroke-dasharray: 8 4;
+  animation: pipe-flow 2s linear infinite;
+}
+
+/* Scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 ::-webkit-scrollbar-thumb {
-  background: #c5cdd6;
+  background: rgba(0, 61, 46, 0.2);
   border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 166, 81, 0.4);
+}
+
+/* Recharts tooltip override */
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  border-radius: 12px !important;
+  border: 1px solid rgba(0, 166, 81, 0.15) !important;
+  box-shadow: 0 8px 32px -8px rgba(0, 61, 46, 0.2) !important;
+  font-family: var(--font-sans) !important;
+}
+
+/* Table row hover */
+.drill-row {
+  transition: all 0.2s ease;
+}
+
+.drill-row:hover {
+  background: linear-gradient(90deg, rgba(0, 166, 81, 0.04) 0%, rgba(0, 166, 81, 0.08) 100%);
+  transform: translateX(2px);
+}
+
+/* Nav active glow */
+.nav-active {
+  background: linear-gradient(135deg, #00a651 0%, #00c965 100%);
+  box-shadow: 0 4px 16px -2px rgba(0, 166, 81, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Hero gradient text */
+.text-gradient-eneco {
+  background: linear-gradient(135deg, #003d2e 0%, #00a651 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Map tooltip glass */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 166, 81, 0.15);
+  box-shadow: 0 8px 32px -8px rgba(0, 0, 0, 0.15);
 }
