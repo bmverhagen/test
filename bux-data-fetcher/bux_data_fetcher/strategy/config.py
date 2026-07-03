@@ -39,6 +39,9 @@ class StrategyConfig:
     stop_loss_pct: float = 2.5         # Bruto % verlies limiet
     max_hold_bars: int = 78            # Max ~2 handelsdagen (6.5u × 12)
 
+    # Overnight: gap close→open kan stop/TP triggeren vóór intraday bar
+    model_overnight_gaps: bool = True
+
     # Risico filters
     min_net_profit_eur: float = 3.0    # Minimale netto winst na fees
     max_open_trades: int = 1           # Per instrument

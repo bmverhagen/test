@@ -80,6 +80,14 @@ python3 fetch_yahoo.py test --profile pro  # TODO: wire pro profile
 5. **Position:** ≥€1000 (fee drag <0.2%)
 6. **Validate:** Maandelijks OOS check met `validate` commando
 
+### Overnight gaps
+
+Backtest modelleert **close → next open** prijsveranderingen. Posities die overnight blijven:
+- Stop/TP wordt eerst gecheckt op **session open** (gap fill)
+- Daarna intrabar low/high (conservatief: stop vóór TP)
+
+Zet `model_overnight_gaps=False` in config om uit te schakelen (niet aanbevolen).
+
 ## Eerlijkheid over "consistent profitable"
 
 Geen intraday strategie is **universeel** winstgevend op 100 random aandelen met €1 fees. Research toont edge in:

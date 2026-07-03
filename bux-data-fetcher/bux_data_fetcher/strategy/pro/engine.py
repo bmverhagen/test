@@ -8,8 +8,9 @@ from ..backtest import BacktestResult
 from ..config import StrategyConfig
 from ..metrics import PerformanceSummary, summarize
 from ..trades import ClosedTrade, ExitReason, OpenTrade, calc_net_pnl, calc_shares
+from ..sessions import annotate_sessions, evaluate_bar_exit_pro
 from .config import ProStrategyConfig
-from .signals import enrich_pro_bars, pro_entry_signal, pro_should_exit
+from .signals import enrich_pro_bars, pro_entry_signal
 
 
 def _map_exit_reason(reason: str | None) -> ExitReason:
@@ -42,6 +43,8 @@ class ProBacktestEngine:
             return BacktestResult(config=_legacy_cfg(cfg))
 
         enriched = enrich_pro_bars(df, cfg)
+        if cfg.model_overnight_gaps:
+            enriched = annotate_sessions(enriched)
         trades: list[ClosedTrade] = []
         open_trade: OpenTrade | None = None
         cooldown_until = -1
@@ -49,22 +52,45 @@ class ProBacktestEngine:
         equity_points: list[tuple[object, float]] = []
 
         for i, (ts, row) in enumerate(enriched.iterrows()):
-            price = float(row["close"])
-
             if open_trade is not None:
                 hold_bars = i - open_trade.entry_bar_index
-                exit_now, reason = pro_should_exit(
-                    entry_price=open_trade.entry_price,
-                    current_price=price,
-                    hold_bars=hold_bars,
-                    row=row,
-                    cfg=cfg,
-                )
-                if exit_now and reason:
+                exit_price: float | None = None
+                reason: ExitReason | None = None
+
+                if cfg.model_overnight_gaps:
+                    bar_exit = evaluate_bar_exit_pro(
+                        entry_price=open_trade.entry_price,
+                        row=row,
+                        hold_bars=hold_bars,
+                        take_profit_pct=cfg.min_take_profit_pct,
+                        stop_loss_pct=cfg.max_stop_pct,
+                        max_stop_pct=cfg.max_stop_pct,
+                        max_hold_bars=cfg.max_hold_bars,
+                        atr=float(row.get("atr", 0) or 0),
+                        stop_atr_mult=cfg.stop_atr_mult,
+                        exit_at_mean=cfg.exit_at_mean,
+                        fee_pct=cfg.fee_pct,
+                    )
+                    if bar_exit:
+                        exit_price, reason = bar_exit
+                else:
+                    from .signals import pro_should_exit
+                    exit_now, reason_str = pro_should_exit(
+                        entry_price=open_trade.entry_price,
+                        current_price=float(row["close"]),
+                        hold_bars=hold_bars,
+                        row=row,
+                        cfg=cfg,
+                    )
+                    if exit_now and reason_str:
+                        exit_price = float(row["close"])
+                        reason = _map_exit_reason(reason_str)
+
+                if exit_price is not None and reason:
                     gross, fees, net = calc_net_pnl(
                         open_trade.shares,
                         open_trade.entry_price,
-                        price,
+                        exit_price,
                         cfg.buy_fee_eur,
                         cfg.sell_fee_eur,
                     )
@@ -76,7 +102,7 @@ class ProBacktestEngine:
                             entry_time=open_trade.entry_time,
                             exit_time=ts,
                             entry_price=open_trade.entry_price,
-                            exit_price=price,
+                            exit_price=exit_price,
                             shares=open_trade.shares,
                             gross_pnl_eur=gross,
                             fees_eur=fees,
@@ -92,6 +118,7 @@ class ProBacktestEngine:
                     cooldown_until = i + cfg.cooldown_bars
 
             elif i >= cooldown_until and pro_entry_signal(row, cfg):
+                price = float(row["close"])
                 shares = calc_shares(cfg.position_eur, price, cfg.buy_fee_eur)
                 if shares > 0:
                     open_trade = OpenTrade(

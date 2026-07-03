@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 import pandas as pd
 
 from .config import StrategyConfig
+from .sessions import annotate_sessions, evaluate_bar_exit_long
 from .signals import enrich_bars, entry_signal, mark_drop_events
 from .trades import (
     ClosedTrade,
@@ -51,6 +52,8 @@ class BacktestEngine:
 
         enriched = enrich_bars(df, cfg)
         enriched = mark_drop_events(enriched, cfg)
+        if cfg.model_overnight_gaps:
+            enriched = annotate_sessions(enriched)
 
         trades: list[ClosedTrade] = []
         open_trade: OpenTrade | None = None
@@ -59,24 +62,42 @@ class BacktestEngine:
         equity_points: list[tuple[object, float]] = []
 
         for i, (ts, row) in enumerate(enriched.iterrows()):
-            price = float(row["close"])
-
             if open_trade is not None:
                 hold_bars = i - open_trade.entry_bar_index
-                exit_now, reason = should_exit(
-                    entry_price=open_trade.entry_price,
-                    current_price=price,
-                    hold_bars=hold_bars,
-                    take_profit_pct=take_profit,
-                    stop_loss_pct=cfg.stop_loss_pct,
-                    max_hold_bars=cfg.max_hold_bars,
-                )
+                exit_price: float | None = None
+                reason: ExitReason | None = None
 
-                if exit_now and reason:
+                if cfg.model_overnight_gaps:
+                    bar_exit = evaluate_bar_exit_long(
+                        entry_price=open_trade.entry_price,
+                        open_=float(row["open"]),
+                        high=float(row["high"]),
+                        low=float(row["low"]),
+                        close=float(row["close"]),
+                        is_session_open=bool(row.get("is_session_open", False)),
+                        take_profit_pct=take_profit,
+                        stop_loss_pct=cfg.stop_loss_pct,
+                    )
+                    if bar_exit:
+                        exit_price, reason = bar_exit
+
+                if exit_price is None:
+                    exit_now, reason = should_exit(
+                        entry_price=open_trade.entry_price,
+                        current_price=float(row["close"]),
+                        hold_bars=hold_bars,
+                        take_profit_pct=take_profit,
+                        stop_loss_pct=cfg.stop_loss_pct,
+                        max_hold_bars=cfg.max_hold_bars,
+                    )
+                    if exit_now and reason:
+                        exit_price = float(row["close"])
+
+                if exit_price is not None and reason:
                     gross, fees, net = calc_net_pnl(
                         open_trade.shares,
                         open_trade.entry_price,
-                        price,
+                        exit_price,
                         cfg.buy_fee_eur,
                         cfg.sell_fee_eur,
                     )
@@ -90,7 +111,7 @@ class BacktestEngine:
                             entry_time=open_trade.entry_time,
                             exit_time=ts,
                             entry_price=open_trade.entry_price,
-                            exit_price=price,
+                            exit_price=exit_price,
                             shares=open_trade.shares,
                             gross_pnl_eur=gross,
                             fees_eur=fees,
@@ -108,6 +129,7 @@ class BacktestEngine:
             elif i >= cooldown_until and entry_signal(
                 row, cfg, news_articles=news_articles, timestamp=ts
             ):
+                price = float(row["close"])
                 shares = calc_shares(cfg.position_eur, price, cfg.buy_fee_eur)
                 if shares <= 0:
                     continue

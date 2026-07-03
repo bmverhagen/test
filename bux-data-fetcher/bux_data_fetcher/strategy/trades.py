@@ -9,6 +9,7 @@ class ExitReason(str, Enum):
     STOP_LOSS = "stop_loss"
     TIME_STOP = "time_stop"
     END_OF_DATA = "end_of_data"
+    OVERNIGHT_GAP = "overnight_gap"
 
 
 @dataclass

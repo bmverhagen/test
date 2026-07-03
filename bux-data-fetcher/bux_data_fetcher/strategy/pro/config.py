@@ -46,6 +46,8 @@ class ProStrategyConfig:
     cooldown_bars: int = 24
     max_open_trades: int = 1
 
+    model_overnight_gaps: bool = True
+
     @property
     def round_trip_fee_eur(self) -> float:
         return self.buy_fee_eur + self.sell_fee_eur

@@ -39,6 +39,16 @@ EXIT (market sell, €1 fee)
 - **Sell:** €1,00 per market order
 - **Round-trip:** €2,00
 
+### Overnight gaps (close → open)
+
+Posities die overnight blijven lopen worden getest tegen de **open prijs** van de volgende sessie, niet alleen de close van de vorige bar. Als de markt gap-down door je stop gaat, exit @ open (realistischer).
+
+- Session open = eerste bar van elke kalenderdag
+- Stop/TP check op: open (gap) → intrabar low/high → close
+- `model_overnight_gaps: true` (default) in config
+
+Bij volatile small caps zijn overnight gaps gemiddeld **~3%** — negeren leidt tot te optimistische backtests.
+
 Bij €500 positie = 0,4% fee drag → je hebt minimaal ~2,5% koersherstel nodig voor winst.
 Bij €1000 positie = 0,2% fee drag → rendabeler.
 
