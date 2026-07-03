@@ -81,9 +81,8 @@ def analyze_requirements(
             max_pct_bars_in_correction=min(40, float(winners["pct_bars_in_correction"].quantile(0.75)) * 1.2),
             min_price_eur=max(1, float(winners["price_avg"].quantile(0.1))),
             max_price_eur=float(winners["price_avg"].quantile(0.9)) * 2,
-            min_dip_win_rate_pct=75.0,
-            min_dip_trades=5,
             min_dip_expectancy_eur=0.0,
+            min_dip_pnl_eur=0.0,
             min_dip_vs_buyhold_eur=0.0,
         )
 
@@ -154,8 +153,8 @@ def format_requirements(req: StockRequirements, analysis: RequirementAnalysis) -
         f"  Min bounce na drop:   {req.min_bounce_after_drop_pct:+.1f}%",
         f"  Max % in correctie:   {req.max_pct_bars_in_correction:.0f}%",
         f"  Prijs range:          €{req.min_price_eur:.0f} – €{req.max_price_eur:.0f}",
-        f"  Min dip win rate:     {req.min_dip_win_rate_pct:.0f}% (netto na fees)",
-        f"  Min dip trades:       {req.min_dip_trades}",
+        f"  Min OOS expectancy:   €{req.min_dip_expectancy_eur:.2f}",
+        f"  Min OOS netto PnL:    €{req.min_dip_pnl_eur:.2f}",
         "",
         f"  {analysis.best_bucket_notes}",
         "-" * 50,

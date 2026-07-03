@@ -71,12 +71,14 @@ class TrainTestReport:
 
     @property
     def test_score(self) -> float:
-        """Score op out-of-sample data (test set)."""
+        """Score op OOS: winstgevendheid (expectancy + net PnL), niet win rate."""
         if self.test.total_trades == 0:
             return -1e9
-        score = self.test.expectancy_eur * 10 + self.test.win_rate_pct * 0.3
+        score = self.test.expectancy_eur * 25 + self.test.total_net_pnl_eur * 0.05
         if self.test.expectancy_eur <= 0:
-            score *= 0.25
+            score *= 0.1
+        if self.test.total_net_pnl_eur <= 0:
+            score *= 0.5
         if self.overfit_warning:
             score *= 0.5
         return score

@@ -77,8 +77,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--sell-fee", type=float, default=1.0)
     parser.add_argument(
         "--profile",
-        choices=("default", "high-win-rate"),
-        default="high-win-rate",
+        choices=("default", "high-win-rate", "pro"),
+        default="pro",
     )
     parser.add_argument("--show", action="store_true", help="Toon interactief (desktop)")
     args = parser.parse_args(argv)
@@ -106,7 +106,15 @@ def main(argv: list[str] | None = None) -> int:
         print("Geen tickers gevonden. Geef --tickers of run fetch_yahoo.py eerst.")
         return 1
 
-    if args.profile == "high-win-rate":
+    if args.profile == "pro":
+        from bux_data_fetcher.strategy.pro import ProBacktestEngine, ProStrategyConfig
+        cfg = ProStrategyConfig(
+            buy_fee_eur=args.buy_fee,
+            sell_fee_eur=args.sell_fee,
+            position_eur=args.position,
+        )
+        engine = ProBacktestEngine(cfg)
+    elif args.profile == "high-win-rate":
         cfg = StrategyConfig.high_win_rate(
             buy_fee_eur=args.buy_fee,
             sell_fee_eur=args.sell_fee,

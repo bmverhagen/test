@@ -153,13 +153,13 @@ def cmd_test(args: argparse.Namespace) -> int:
         print(format_loo_report(folds))
 
         positive = sum(1 for f in folds if f.summary.total_net_pnl_eur > 0)
-        wr_above_75 = sum(
+        profitable_oos = sum(
             1 for f in folds
-            if f.summary.total_trades >= 3 and f.summary.win_rate_pct >= 75
+            if f.summary.total_trades >= 3 and f.summary.expectancy_eur > 0
         )
         print(
             f"\n  Per aandeel: {positive}/{len(folds)} positief PnL, "
-            f"{wr_above_75}/{len(folds)} met ≥75% win rate (min 3 trades)"
+            f"{profitable_oos}/{len(folds)} met positieve expectancy (min 3 trades)"
         )
 
     if args.output:
@@ -223,8 +223,8 @@ def main(argv: list[str] | None = None) -> int:
     p_test.add_argument("--position", type=float, default=1000.0)
     p_test.add_argument(
         "--profile",
-        choices=("default", "high-win-rate"),
-        default="high-win-rate",
+        choices=("default", "high-win-rate", "pro"),
+        default="pro",
     )
     p_test.add_argument("--output", default=None, help="CSV per aandeel")
     p_test.set_defaults(func=cmd_test)

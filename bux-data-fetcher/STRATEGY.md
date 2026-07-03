@@ -166,37 +166,25 @@ python3 screen_stocks.py --strict       # strengere filters
 | **Hyper-vol (TSLA, AMD, NVDA)** | ✗ Underperformt B&H | Veel dips maar geen consistente edge vs passief |
 | **Defensive low-vol (ALV, HEIA)** | ✗ Te weinig kansen | Weinig paniek-events, lage bounce |
 
-### Backtest-filters (indien data beschikbaar)
+### Backtest-filters (OOS — focus winstgevendheid)
 
-- **Win rate dip-trades ≥ 75%** (netto na €1 buy + €1 sell fees)
-- Minimaal 5 trades voor betrouwbare statistiek
-- Expectancy ≥ €0 per trade
-- Alpha vs buy-and-hold ≥ €0
+- **Expectancy ≥ €0** per trade (netto na fees)
+- **OOS netto PnL > €0** per aandeel
+- Minimaal 3 trades op holdout periode
+- Alpha vs buy-and-hold ≥ €0 (optioneel)
 
-### 75% win rate preset
+Win rate is **geen filter** — zie [PROFIT.md](./PROFIT.md).
 
-De standaard 4% take-profit levert ~41–59% win rate. Voor **≥75% win rate na fees** gebruik de `high-win-rate` preset:
-
-| Parameter | Default | High win rate |
-|-----------|---------|---------------|
-| Take profit | 4% | **1%** |
-| Stop loss | 2.5% | **5%** |
-| Drop drempel | 3% | 3% |
+### Aanbevolen: Pro Mean Reversion
 
 ```bash
-# Backtest met 75%-WR preset
-python3 backtest.py all --profile high-win-rate
-
-# Parameter search met min 75% WR filter
-python3 backtest.py optimize --min-win-rate 75
-
-# Screen aandelen (default: high-win-rate + 75% WR filter)
-python3 screen_stocks.py --extra
+python3 compare_strategies.py --count 100
+python3 backtest.py validate --profile pro
+python3 screen_stocks.py --profile pro
+python3 fetch_yahoo.py test --count 100 --profile pro
 ```
 
-**9/19 geteste aandelen** halen ≥75% WR met deze preset (min 5 trades): TXG, AAPL, PHIA.AS, BMW.DE, FLWS, TSLA, SAP.DE, ASML.AS, ALV.DE.
-
-Win rate = percentage trades met `net_pnl_eur > 0` (fees al verwerkt).
+Legacy `high-win-rate` preset (1% TP) bestaat nog maar is **niet aanbevolen** — hoge WR, lage expectancy.
 
 ## Anti-overfitting
 
@@ -207,40 +195,27 @@ Kleine samples (3–19 aandelen) overfitten snel. Daarom:
 | **Train/test split (70/30)** | Parameters scoren op **test** (laatste 30%), niet op train |
 | **`validate` commando** | Toont train vs test + overfit-waarschuwing |
 | **`optimize` op OOS** | Alleen combinaties met positieve test expectancy, geen train>>test gap |
-| **Vaste presets** | `high-win-rate` preset i.p.v. grid search op kleine sample |
-| **Screener OOS** | Win rate & PnL gemeten op holdout periode per aandeel |
+| **Vaste presets** | `pro` strategie i.p.v. grid search op kleine sample |
+| **Screener OOS** | PnL & expectancy gemeten op holdout periode |
 | **Kleinere parameter grid** | Minder combinaties = minder data mining |
 
 ```bash
-# Valideer huidige preset (train vs test)
-python3 backtest.py validate --profile high-win-rate
-
-# Backtest alleen out-of-sample
-python3 backtest.py all --profile high-win-rate --oos-only
-
-# Backtest + train/test rapport
-python3 backtest.py all --profile high-win-rate --validate
-
-# Optimize (score = OOS test, reject overfit)
-python3 backtest.py optimize --min-win-rate 75
+python3 backtest.py validate --profile pro
+python3 backtest.py all --profile pro --oos-only
+python3 backtest.py optimize   # score = OOS expectancy + net PnL
 ```
 
-**Regel:** optimaliseer nooit op dezelfde data waarmee je evalueert. Bij <10 aandelen: gebruik vaste presets, geen grid search.
+**Regel:** optimaliseer op winstgevendheid (expectancy, net PnL), niet win rate.
 
 ## Test op 100 random aandelen (zonder Bux token)
 
 ```bash
 python3 fetch_yahoo.py random --count 100
-python3 fetch_yahoo.py test --count 100 --profile high-win-rate
+python3 fetch_yahoo.py test --count 100 --profile pro
+python3 compare_strategies.py --count 100
 ```
 
-Resultaat op sample (seed=42, high-win-rate preset):
-- **100/100** aandelen data OK via Yahoo Finance
-- Portfolio OOS: **72.9% win rate**, maar **negatieve expectancy** (€-2.42/trade)
-- **41/100** aandelen individueel winstgevend
-- **37/100** halen ≥75% win rate per aandeel
-
-Conclusie: hoge win rate ≠ winstgevend; kleine TP (1%) dekt fees niet altijd op alle aandelen.
+Focus: **consistent profitable** — Pro vs Dip op 100 aandelen (zie STRATEGY_PRO.md).
 
 ## Beperkingen
 

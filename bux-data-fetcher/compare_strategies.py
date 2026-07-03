@@ -53,7 +53,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Geen manifest. Run: python3 fetch_yahoo.py random --count {args.count}")
         return 1
 
-    dip_cfg = StrategyConfig.high_win_rate(position_eur=args.position)
+    dip_cfg = StrategyConfig(position_eur=args.position)
     pro_cfg = ProStrategyConfig(position_eur=args.position)
     dip_engine = BacktestEngine(dip_cfg)
     pro_engine = ProBacktestEngine(pro_cfg)

@@ -34,11 +34,12 @@ class StockRequirements:
     min_price_eur: float = 5.0
     max_price_eur: float = 500.0
 
-    # Backtest performance (indien beschikbaar) — win rate is netto na fees
-    min_dip_win_rate_pct: float = 75.0
-    min_dip_trades: int = 5            # Min. trades voor betrouwbare win rate
+    # Backtest performance (OOS) — focus: consistent winstgevend
+    min_dip_win_rate_pct: float = 0.0   # niet gebruiken als filter
+    min_dip_trades: int = 3
     min_dip_expectancy_eur: float = 0.0
-    min_dip_vs_buyhold_eur: float = 0.0    # Alpha vs passief
+    min_dip_pnl_eur: float = 0.0        # OOS netto PnL > 0
+    min_dip_vs_buyhold_eur: float = 0.0
 
 
 @dataclass
@@ -102,23 +103,21 @@ def score_profile(
         if dip_trades >= req.min_dip_trades:
             points += 10
         else:
-            failures.append(f"te weinig trades ({dip_trades} < {req.min_dip_trades})")
+            failures.append(f"te weinig OOS trades ({dip_trades} < {req.min_dip_trades})")
 
-    if dip_win_rate is not None:
-        max_points += 10
-        if dip_win_rate >= req.min_dip_win_rate_pct:
-            points += 10
+    if dip_pnl is not None:
+        max_points += 15
+        if dip_pnl >= req.min_dip_pnl_eur:
+            points += 15
         else:
-            failures.append(
-                f"win rate {dip_win_rate:.1f}% < {req.min_dip_win_rate_pct}% (netto na fees)"
-            )
+            failures.append(f"OOS PnL €{dip_pnl:.2f} < €{req.min_dip_pnl_eur}")
 
     if dip_expectancy is not None:
-        max_points += 10
+        max_points += 15
         if dip_expectancy >= req.min_dip_expectancy_eur:
-            points += 10
+            points += 15
         else:
-            failures.append(f"expectancy €{dip_expectancy:.2f} < €{req.min_dip_expectancy_eur}")
+            failures.append(f"OOS expectancy €{dip_expectancy:.2f} < €{req.min_dip_expectancy_eur}")
 
     if dip_vs_buyhold is not None:
         max_points += 10

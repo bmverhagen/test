@@ -313,7 +313,7 @@ def cmd_optimize(args: argparse.Namespace) -> int:
 
     print(
         f"Grid search op {len(instruments)} instrumenten — "
-        f"score op TEST (OOS, laatste {100 - int(train_ratio * 100)}%)\n"
+        f"score op OOS winstgevendheid (expectancy + net PnL)\n"
     )
 
     for drop in drop_pcts:
@@ -364,14 +364,14 @@ def cmd_optimize(args: argparse.Namespace) -> int:
     if not results:
         msg = (
             f"Geen robuuste parametercombinaties op OOS test "
-            f"(min {min_test_trades} test trades"
+            f"(min {min_test_trades} test trades, positieve test expectancy"
         )
         if min_win_rate > 0:
             msg += f", ≥{min_win_rate:.0f}% test win rate"
-        msg += ", positieve test expectancy, geen overfit)."
+        msg += ", geen overfit)."
         print(msg)
-        print("\nTip: gebruik vaste preset i.p.v. optimize op kleine sample:")
-        print("  python3 backtest.py validate --profile high-win-rate")
+        print("\nTip: gebruik Pro strategie voor winstgevendheid:")
+        print("  python3 backtest.py validate --profile pro")
         return 1
 
     results_df = pd.DataFrame(results).sort_values("score", ascending=False)
@@ -474,8 +474,8 @@ def main(argv: list[str] | None = None) -> int:
     p_opt.add_argument(
         "--min-win-rate",
         type=float,
-        default=75.0,
-        help="Min test win rate %% netto na fees (0 = uit)",
+        default=0.0,
+        help="Optioneel min test win rate %% (0 = uit; focus op winstgevendheid)",
     )
     p_opt.add_argument("--min-trades", type=int, default=5, help="Minimaal train trades per combinatie")
     p_opt.set_defaults(func=cmd_optimize)

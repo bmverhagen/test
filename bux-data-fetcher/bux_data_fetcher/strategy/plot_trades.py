@@ -138,7 +138,7 @@ def plot_trades_on_price(
 
 def run_and_plot_ticker(
     df: pd.DataFrame,
-    cfg: StrategyConfig,
+    cfg,
     *,
     ticker: str,
     isin: str | None = None,
@@ -146,10 +146,13 @@ def run_and_plot_ticker(
     max_trades: int | None = 40,
 ) -> tuple[BacktestResult, Path | None]:
     """Backtest één ticker en sla trade chart op."""
+    from .pro import ProBacktestEngine, ProStrategyConfig
+
     isin = isin or ticker.replace(".", "_")
-    result = BacktestEngine(cfg).run(
-        df, isin=isin, name=ticker, ticker=ticker,
-    )
+    if isinstance(cfg, ProStrategyConfig):
+        result = ProBacktestEngine(cfg).run(df, isin=isin, name=ticker, ticker=ticker)
+    else:
+        result = BacktestEngine(cfg).run(df, isin=isin, name=ticker, ticker=ticker)
     out = Path(output_dir) / f"{ticker.replace('/', '_')}_trades.png"
     path = plot_trades_on_price(
         df, result.trades,

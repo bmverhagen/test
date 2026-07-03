@@ -24,6 +24,7 @@ from .strategy.requirement_analysis import (
     format_requirements,
     format_screening_table,
 )
+from .strategy.pro import ProBacktestEngine, ProStrategyConfig
 from .strategy.stock_profile import compute_stock_profile
 from .strategy.stock_screener import StockRequirements, score_profile
 from .strategy.validation import split_temporal
@@ -94,7 +95,14 @@ def load_all_candles(data_dir: Path, extra_tickers: list[str], years: int) -> li
 
 
 def screen_all(args: argparse.Namespace) -> int:
-    if args.profile == "high-win-rate":
+    if args.profile == "pro":
+        from .strategy.pro import ProBacktestEngine, ProStrategyConfig
+        cfg = ProStrategyConfig(
+            buy_fee_eur=args.buy_fee,
+            sell_fee_eur=args.sell_fee,
+            position_eur=args.position,
+        )
+    elif args.profile == "high-win-rate":
         cfg = StrategyConfig.high_win_rate(
             buy_fee_eur=args.buy_fee,
             sell_fee_eur=args.sell_fee,
@@ -106,9 +114,9 @@ def screen_all(args: argparse.Namespace) -> int:
             sell_fee_eur=args.sell_fee,
             position_eur=args.position,
         )
-    req = StockRequirements(min_dip_win_rate_pct=args.min_win_rate)
+    req = StockRequirements()
     train_ratio = getattr(args, "train_ratio", 0.7)
-    min_test_trades = max(3, req.min_dip_trades // 2)
+    min_test_trades = max(2, req.min_dip_trades)
 
     extra = EXTRA_TICKERS if args.extra else []
     if args.limit:
@@ -140,8 +148,14 @@ def screen_all(args: argparse.Namespace) -> int:
         # Profiel + requirement-analyse alleen op train (geen lookahead)
         profile = compute_stock_profile(train_df, cfg, isin=isin, ticker=ticker, name=name)
 
-        dip_train = BacktestEngine(cfg).run(train_df, isin=isin, name=name, ticker=ticker)
-        dip_test = BacktestEngine(cfg).run(test_df, isin=isin, name=name, ticker=ticker)
+        if isinstance(cfg, ProStrategyConfig):
+            engine = ProBacktestEngine(cfg)
+            dip_train = engine.run(train_df, isin=isin, name=name, ticker=ticker)
+            dip_test = engine.run(test_df, isin=isin, name=name, ticker=ticker)
+        else:
+            engine = BacktestEngine(cfg)
+            dip_train = engine.run(train_df, isin=isin, name=name, ticker=ticker)
+            dip_test = engine.run(test_df, isin=isin, name=name, ticker=ticker)
         dip_summary = summarize(dip_test)
 
         bh_result = run_buy_and_hold(test_df, cfg, isin=isin, name=name, ticker=ticker)
@@ -233,15 +247,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output", default=None, help="CSV output pad")
     parser.add_argument(
         "--profile",
-        choices=("default", "high-win-rate"),
-        default="high-win-rate",
-        help="Strategie preset (default: high-win-rate voor ≥75%% WR na fees)",
-    )
-    parser.add_argument(
-        "--min-win-rate",
-        type=float,
-        default=75.0,
-        help="Minimale OOS dip win rate %% netto na fees (default: 75)",
+        choices=("default", "high-win-rate", "pro"),
+        default="pro",
+        help="Strategie preset (default: pro — focus winstgevendheid)",
     )
     parser.add_argument(
         "--train-ratio",

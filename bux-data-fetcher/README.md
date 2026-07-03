@@ -37,7 +37,7 @@ Geen Bux account nodig. Haal random US aandelen op via Yahoo Finance en test de 
 python3 fetch_yahoo.py random --count 100 --seed 42
 
 # Strategie testen op die 100 aandelen (OOS validatie)
-python3 fetch_yahoo.py test --count 100 --profile high-win-rate
+python3 fetch_yahoo.py test --count 100 --profile pro
 
 # Fetch + test in één keer
 python3 fetch_yahoo.py test --count 100 --fetch
