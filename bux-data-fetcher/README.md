@@ -128,6 +128,10 @@ python3 backtest.py compare
 
 # Screen aandelen op volatiliteit, liquiditeit & dip-geschiktheid
 python3 screen_stocks.py --extra
+
+# Plot trades (instap ▲ / verkoop ▼) op prijsgrafiek
+python3 plot_trades.py --from-results data/random_100_results.csv --top 3 --bottom 3
+python3 plot_trades.py --tickers BGMS,TOYO,AQB
 ```
 
 ### Nieuws data
