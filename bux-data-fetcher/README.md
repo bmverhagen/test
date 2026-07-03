@@ -86,3 +86,15 @@ Voor professionele tick-level 10m data over 2 jaar heb je een betaalde data prov
 ## Herstarten na onderbreking
 
 Het script slaat voortgang op in `progress.json` en slaat reeds gedownloade instrumenten over. Gebruik `--force` om alles opnieuw te downloaden.
+
+## Trading strategie & backtest
+
+Zie [STRATEGY.md](./STRATEGY.md) voor de **Sentiment Dip Recovery** strategie.
+
+```bash
+# Backtest op alle beschikbare candle data
+python3 backtest.py all
+
+# Parameter optimalisatie
+python3 backtest.py optimize
+```
