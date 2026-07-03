@@ -35,8 +35,26 @@ def load_candle(path: Path) -> pd.DataFrame:
     return df.sort_index()
 
 
-def build_config(args: argparse.Namespace) -> StrategyConfig:
+def run_backtest_engine(cfg, df, *, isin, name, ticker, news=None):
+    """Run dip of pro engine afhankelijk van config type."""
+    from .strategy.pro import ProBacktestEngine, ProStrategyConfig
+
+    if isinstance(cfg, ProStrategyConfig):
+        return ProBacktestEngine(cfg).run(df, isin=isin, name=name, ticker=ticker)
+    return BacktestEngine(cfg).run(
+        df, isin=isin, name=name, ticker=ticker, news_articles=news or None,
+    )
+
+
+def build_config(args: argparse.Namespace):
     profile = getattr(args, "profile", "default")
+    if profile == "pro":
+        from .strategy.pro import ProStrategyConfig
+        return ProStrategyConfig(
+            buy_fee_eur=args.buy_fee,
+            sell_fee_eur=args.sell_fee,
+            position_eur=args.position,
+        )
     if profile == "high-win-rate":
         return StrategyConfig.high_win_rate(
             buy_fee_eur=args.buy_fee,
@@ -75,9 +93,9 @@ def add_strategy_args(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--profile",
-        choices=("default", "high-win-rate"),
+        choices=("default", "high-win-rate", "pro"),
         default="default",
-        help="Strategie preset: high-win-rate = TP 1%%, SL 5%% voor ≥75%% WR na fees",
+        help="Strategie preset: pro = evidence-based mean reversion",
     )
 
 
@@ -129,12 +147,12 @@ def cmd_single(args: argparse.Namespace) -> int:
     cfg = build_config(args)
     news = load_news(load_config(output_dir=args.data_dir), isin=str(meta.get("isin", path.stem)))
 
-    result = BacktestEngine(cfg).run(
-        df,
+    result = run_backtest_engine(
+        cfg, df,
         isin=str(meta.get("isin", path.stem)),
         name=str(meta.get("name", "")),
         ticker=str(meta.get("ticker", "")),
-        news_articles=news or None,
+        news=news or None,
     )
 
     summary = summarize(result)
@@ -169,7 +187,6 @@ def cmd_all(args: argparse.Namespace) -> int:
 
     cfg = build_config(args)
     data_config = load_config(output_dir=args.data_dir)
-    engine = BacktestEngine(cfg)
     all_trades = []
     train_ratio = getattr(args, "train_ratio", 0.7)
     oos_only = getattr(args, "oos_only", False)
@@ -188,12 +205,12 @@ def cmd_all(args: argparse.Namespace) -> int:
             if len(df) < 30:
                 continue
         news = load_news(data_config, isin)
-        result = engine.run(
-            df,
+        result = run_backtest_engine(
+            cfg, df,
             isin=isin,
             name=str(meta.get("name", "")),
             ticker=str(meta.get("ticker", "")),
-            news_articles=news or None,
+            news=news or None,
         )
         all_trades.extend(result.trades)
         if result.trades:
