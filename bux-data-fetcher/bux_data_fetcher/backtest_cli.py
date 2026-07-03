@@ -7,6 +7,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from .config import load_config
+from .news.storage import load_news
 from .strategy.backtest import BacktestEngine, BacktestResult
 from .strategy.config import StrategyConfig
 from .strategy.metrics import format_summary, summarize
@@ -34,6 +36,7 @@ def build_config(args: argparse.Namespace) -> StrategyConfig:
         volume_spike_mult=args.volume_mult,
         reversal_bars=args.reversal_bars,
         max_hold_bars=args.max_hold,
+        require_news_sentiment=getattr(args, "require_news", False),
     )
 
 
@@ -47,6 +50,11 @@ def add_strategy_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--volume-mult", type=float, default=1.5, help="Volume spike vs gemiddelde")
     parser.add_argument("--reversal-bars", type=int, default=2, help="Consecutive bullish bars voor instap")
     parser.add_argument("--max-hold", type=int, default=78, help="Maximaal aantal bars in trade")
+    parser.add_argument(
+        "--require-news",
+        action="store_true",
+        help="Alleen instappen als negatief nieuws in 48u (vereist news data)",
+    )
 
 
 def cmd_single(args: argparse.Namespace) -> int:
@@ -54,12 +62,14 @@ def cmd_single(args: argparse.Namespace) -> int:
     df = load_candle(path)
     meta = df.iloc[0] if not df.empty else {}
     cfg = build_config(args)
+    news = load_news(load_config(output_dir=args.data_dir), isin=str(meta.get("isin", path.stem)))
 
     result = BacktestEngine(cfg).run(
         df,
         isin=str(meta.get("isin", path.stem)),
         name=str(meta.get("name", "")),
         ticker=str(meta.get("ticker", "")),
+        news_articles=news or None,
     )
 
     summary = summarize(result)
@@ -93,6 +103,7 @@ def cmd_all(args: argparse.Namespace) -> int:
         files = files[: args.limit]
 
     cfg = build_config(args)
+    data_config = load_config(output_dir=args.data_dir)
     engine = BacktestEngine(cfg)
     all_trades = []
 
@@ -100,11 +111,14 @@ def cmd_all(args: argparse.Namespace) -> int:
     for path in files:
         df = load_candle(path)
         meta = df.iloc[0] if not df.empty else {}
+        isin = str(meta.get("isin", path.stem))
+        news = load_news(data_config, isin)
         result = engine.run(
             df,
-            isin=str(meta.get("isin", path.stem)),
+            isin=isin,
             name=str(meta.get("name", "")),
             ticker=str(meta.get("ticker", "")),
+            news_articles=news or None,
         )
         all_trades.extend(result.trades)
         if result.trades:
@@ -223,6 +237,7 @@ def main(argv: list[str] | None = None) -> int:
     p_single = sub.add_parser("single", help="Backtest één instrument")
     add_strategy_args(p_single)
     p_single.add_argument("candles", help="Pad naar parquet candle file")
+    p_single.add_argument("--data-dir", default="./data")
     p_single.add_argument("--show-trades", action="store_true")
     p_single.add_argument("--output", default=None)
     p_single.set_defaults(func=cmd_single)

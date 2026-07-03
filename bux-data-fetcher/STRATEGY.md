@@ -74,12 +74,37 @@ Grid search resultaat op testdata: **49.8% win rate, €+6.16 expectancy/trade, 
 
 ## Live trading checklist
 
-1. Monitor nieuws via yfinance/Bux app voor negatieve headlines
+1. Monitor nieuws via `python3 fetch_news.py` of Bux app voor negatieve headlines
 2. Bevestig paniek-drop in chart (≥3% daling + volume)
 3. Wacht op reversal — geen knife catching
 4. Instappen met market order (€1)
 5. Zet mentale take-profit (+4%) en stop-loss (-2.5%)
 6. Verkopen bij doel of na max ~13 uur
+
+## Historisch nieuws scrapen
+
+```bash
+# Scrape 2 jaar nieuws voor alle instrumenten
+python3 fetch_news.py
+
+# Test met 5 instrumenten
+python3 fetch_news.py --limit 5
+
+# Meerdere talen (EU aandelen)
+python3 fetch_news.py --lang en-US,nl-NL,de-DE
+```
+
+**Bronnen:**
+- Google News RSS (`after:YYYY-MM-DD before:YYYY-MM-DD` per kwartaal)
+- Google News recency (`when:7d`, `when:30d`, `when:1y`)
+- Yahoo Finance recent nieuws (yfinance)
+
+Output: `data/news/{ISIN}.parquet` met kolommen `title`, `published_at`, `sentiment`, `source`, `url`.
+
+Backtest met nieuws-filter:
+```bash
+python3 backtest.py all --require-news
+```
 
 ## Beperkingen
 

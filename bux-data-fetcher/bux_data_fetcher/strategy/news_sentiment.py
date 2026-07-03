@@ -13,7 +13,9 @@ NEGATIVE_KEYWORDS = {
     "correction", "fears", "concern", "concerns", "risk", "risks", "threat",
     "daling", "crash", "verlies", "waarschuwing", "schandaal", "fraude",
     "faillissement", "ontslag", "boete", "zwak", "teleurstellend", "negatief",
-    "bear", "short", "underperform", "profit warning", "guidance cut",
+    "profit warning", "guidance cut", "earnings miss", "missed analyst", "misses estimates",
+    "disappointing", "disappoints", "disappoint", "lackluster", "issues allocating",
+    "slide", "slides", "sliding", "tumble", "tumbles", "underperform",
 }
 
 POSITIVE_KEYWORDS = {

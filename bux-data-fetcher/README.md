@@ -92,9 +92,19 @@ Het script slaat voortgang op in `progress.json` en slaat reeds gedownloade inst
 Zie [STRATEGY.md](./STRATEGY.md) voor de **Sentiment Dip Recovery** strategie.
 
 ```bash
+# Historisch nieuws scrapen (Google News RSS, 2 jaar)
+python3 fetch_news.py
+
 # Backtest op alle beschikbare candle data
 python3 backtest.py all
+
+# Backtest met verplicht negatief nieuws-sentiment
+python3 backtest.py all --require-news
 
 # Parameter optimalisatie
 python3 backtest.py optimize
 ```
+
+### Nieuws data
+
+Nieuws wordt gescraped via **Google News RSS** (met `after:/before:` datumbereiken) + **Yahoo Finance** recent nieuws. Opgeslagen in `data/news/{ISIN}.parquet` met sentiment score per headline.

@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pandas as pd
 
 from .config import StrategyConfig
+
+if TYPE_CHECKING:
+    from ..news.scraper import NewsArticle
 
 
 def compute_rsi(close: pd.Series, period: int = 14) -> pd.Series:
@@ -86,9 +91,16 @@ def mark_drop_events(df: pd.DataFrame, config: StrategyConfig) -> pd.DataFrame:
     return out
 
 
-def entry_signal(row: pd.Series, config: StrategyConfig) -> bool:
+def entry_signal(
+    row: pd.Series,
+    config: StrategyConfig,
+    *,
+    news_articles: list | None = None,
+    timestamp=None,
+) -> bool:
     """
     Instap na koersdip: reversal-bevestiging binnen venster na drop.
+    Optioneel: vereist negatief nieuws-sentiment in lookback venster.
     """
     if pd.isna(row.get("bars_since_drop")):
         return False
@@ -106,4 +118,18 @@ def entry_signal(row: pd.Series, config: StrategyConfig) -> bool:
         )
     )
 
-    return bool(reversal)
+    if not reversal:
+        return False
+
+    if config.require_news_sentiment and news_articles and timestamp is not None:
+        from ..news.scraper import negative_news_before
+
+        if not negative_news_before(
+            news_articles,
+            timestamp,
+            lookback_hours=48,
+            threshold=config.min_negative_sentiment,
+        ):
+            return False
+
+    return True

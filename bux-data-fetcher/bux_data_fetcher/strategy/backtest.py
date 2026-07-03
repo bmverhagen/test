@@ -41,6 +41,7 @@ class BacktestEngine:
         isin: str = "",
         name: str = "",
         ticker: str = "",
+        news_articles: list | None = None,
     ) -> BacktestResult:
         if df.empty or len(df) < 30:
             return BacktestResult(config=self.config)
@@ -104,7 +105,9 @@ class BacktestEngine:
                     open_trade = None
                     cooldown_until = i + cfg.cooldown_bars
 
-            elif i >= cooldown_until and entry_signal(row, cfg):
+            elif i >= cooldown_until and entry_signal(
+                row, cfg, news_articles=news_articles, timestamp=ts
+            ):
                 shares = calc_shares(cfg.position_eur, price, cfg.buy_fee_eur)
                 if shares <= 0:
                     continue
