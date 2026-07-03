@@ -106,6 +106,20 @@ Backtest met nieuws-filter:
 python3 backtest.py all --require-news
 ```
 
+## Strategie vergelijking
+
+```bash
+python3 backtest.py compare
+```
+
+Vergelijkt drie strategieën op dezelfde data:
+
+| Strategie | Beschrijving |
+|-----------|--------------|
+| **Dip** | Instap na paniek-daling + reversal |
+| **Buy & Hold** | 1× kopen aan start, houden tot einde |
+| **Random** | Zelfde # trades als dip, random instap **buiten correcties**, zelfde TP/SL/fees |
+
 ## Beperkingen
 
 - Historische **nieuws-sentiment data** is niet gratis beschikbaar → backtest gebruikt prijsactie als proxy
