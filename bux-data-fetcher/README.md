@@ -101,8 +101,8 @@ python3 backtest.py all
 # Backtest met verplicht negatief nieuws-sentiment
 python3 backtest.py all --require-news
 
-# Parameter optimalisatie
-python3 backtest.py optimize
+# Vergelijk met buy & hold en random baseline
+python3 backtest.py compare
 ```
 
 ### Nieuws data

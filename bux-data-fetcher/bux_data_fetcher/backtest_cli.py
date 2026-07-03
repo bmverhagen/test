@@ -10,6 +10,8 @@ import pandas as pd
 from .config import load_config
 from .news.storage import load_news
 from .strategy.backtest import BacktestEngine, BacktestResult
+from .strategy.benchmarks import compare_instrument
+from .strategy.comparison import PortfolioComparison, comparison_to_dataframe, format_comparison
 from .strategy.config import StrategyConfig
 from .strategy.metrics import format_summary, summarize
 
@@ -132,12 +134,65 @@ def cmd_all(args: argparse.Namespace) -> int:
     combined = BacktestResult(trades=all_trades, config=cfg)
     print("\n" + format_summary(summarize(combined), cfg))
 
+    if getattr(args, "compare", False):
+        _run_comparison(files, cfg, data_config, args)
+
     if args.output:
         out = Path(args.output)
         out.parent.mkdir(parents=True, exist_ok=True)
         combined.trades_df.to_csv(out, index=False)
         print(f"\nTrades opgeslagen: {out}")
 
+    return 0
+
+
+def _run_comparison(
+    files: list[Path],
+    cfg: StrategyConfig,
+    data_config,
+    args: argparse.Namespace,
+) -> None:
+    comparisons = []
+    for path in files:
+        df = load_candle(path)
+        meta = df.iloc[0] if not df.empty else {}
+        isin = str(meta.get("isin", path.stem))
+        news = load_news(data_config, isin)
+        comp = compare_instrument(
+            df,
+            cfg,
+            isin=isin,
+            name=str(meta.get("name", "")),
+            ticker=str(meta.get("ticker", "")),
+            news_articles=news or None,
+            random_seed=getattr(args, "random_seed", 42),
+            random_runs=getattr(args, "random_runs", 50),
+        )
+        comparisons.append(comp)
+
+    portfolio = PortfolioComparison(instruments=comparisons, position_eur=cfg.position_eur)
+    print(format_comparison(portfolio))
+
+    if getattr(args, "comparison_output", None):
+        out = Path(args.comparison_output)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        comparison_to_dataframe(portfolio).to_csv(out, index=False)
+        print(f"\nVergelijking opgeslagen: {out}")
+
+
+def cmd_compare(args: argparse.Namespace) -> int:
+    candles_dir = Path(args.data_dir) / "candles_10m"
+    if not candles_dir.exists():
+        print(f"Geen candle data in {candles_dir}")
+        return 1
+
+    files = sorted(candles_dir.glob("*.parquet"))
+    if args.limit:
+        files = files[: args.limit]
+
+    cfg = build_config(args)
+    data_config = load_config(output_dir=args.data_dir)
+    _run_comparison(files, cfg, data_config, args)
     return 0
 
 
@@ -247,7 +302,20 @@ def main(argv: list[str] | None = None) -> int:
     p_all.add_argument("--data-dir", default="./data")
     p_all.add_argument("--limit", type=int, default=None)
     p_all.add_argument("--output", default=None)
+    p_all.add_argument("--compare", action="store_true", help="Toon vergelijking met B&H en random baseline")
+    p_all.add_argument("--random-seed", type=int, default=42)
+    p_all.add_argument("--random-runs", type=int, default=50, help="Monte Carlo runs voor random baseline")
+    p_all.add_argument("--comparison-output", default=None, help="CSV met strategie vergelijking")
     p_all.set_defaults(func=cmd_all)
+
+    p_cmp = sub.add_parser("compare", help="Vergelijk dip vs buy&hold vs random baseline")
+    add_strategy_args(p_cmp)
+    p_cmp.add_argument("--data-dir", default="./data")
+    p_cmp.add_argument("--limit", type=int, default=None)
+    p_cmp.add_argument("--random-seed", type=int, default=42)
+    p_cmp.add_argument("--random-runs", type=int, default=50)
+    p_cmp.add_argument("--comparison-output", default=None)
+    p_cmp.set_defaults(func=cmd_compare)
 
     p_opt = sub.add_parser("optimize", help="Grid search voor beste parameters")
     add_strategy_args(p_opt)
