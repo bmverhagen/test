@@ -103,6 +103,9 @@ python3 backtest.py all --require-news
 
 # Vergelijk met buy & hold en random baseline
 python3 backtest.py compare
+
+# Screen aandelen op volatiliteit, liquiditeit & dip-geschiktheid
+python3 screen_stocks.py --extra
 ```
 
 ### Nieuws data

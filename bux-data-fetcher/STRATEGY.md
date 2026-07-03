@@ -120,6 +120,48 @@ Vergelijkt drie strategieën op dezelfde data:
 | **Buy & Hold** | 1× kopen aan start, houden tot einde |
 | **Random** | Zelfde # trades als dip, random instap **buiten correcties**, zelfde TP/SL/fees |
 
+## Stock screening — welke aandelen passen?
+
+Niet elk aandeel leent zich voor dip-trading. Gebruik de screener om volatiliteit, liquiditeit en mean-reversion te meten:
+
+```bash
+python3 screen_stocks.py              # lokale Bux candle data
+python3 screen_stocks.py --extra        # + 17 grote EU/US tickers via yfinance
+python3 screen_stocks.py --strict       # strengere filters
+```
+
+### Aanbevolen requirements (19 aandelen, data-gedreven)
+
+| Filter | Aanbevolen range | Waarom |
+|--------|------------------|--------|
+| **Dagvolatiliteit** | 1,8% – 4,1% | Genoeg beweging voor 4% TP, niet extreem chaotisch |
+| **Geannualiseerde vol** | 28% – 66% | Past bij swing/recovery trades |
+| **ATR (dag %)** | 2,3% – 5,4% | Realistische intraday swings |
+| **Gem. volume** | ≥ 42.000 | Voldoende liquiditeit |
+| **Dollar volume** | ≥ €3M/dag | Lage slippage, betrouwbare fills |
+| **Volume CV** | ≤ 1,3 | Geen extreem spiky/onbetrouwbaar volume |
+| **Paniek-events/jaar** | ≥ 16 | Genoeg dip-kansen (≥3% drop + volume spike) |
+| **Bounce na drop** | ≥ -0,3% | Lichte mean-reversion (positief = beter) |
+| **Prijs** | €20 – €996 | Vermijd illiquide penny stocks |
+
+**Sterkste correlaties met dip PnL:** `bounce_after_drop_pct` (+0,38), daarna buy-and-hold return (+0,26). Winners hadden gemiddeld **29 paniek-events/jaar** vs 33 bij verliezers — kwaliteit van bounce telt meer dan pure volatiliteit.
+
+### Welk type aandeel?
+
+| Type | Geschikt? | Voorbeeld |
+|------|-----------|-----------|
+| **Mid-cap met nieuwsgevoeligheid** | ✓ Best | PHIA.AS (Philips) — enige die alle filters passeerde |
+| **Hoge vol growth/biotech** | △ Alleen met strikte SL | TXG — hoge bounce (+1,55%) maar ATR te hoog |
+| **Mega-cap (AAPL, MSFT)** | ✗ Te weinig alpha | Lage vol, dip-strategie ≈ buy-and-hold |
+| **Hyper-vol (TSLA, AMD, NVDA)** | ✗ Underperformt B&H | Veel dips maar geen consistente edge vs passief |
+| **Defensive low-vol (ALV, HEIA)** | ✗ Te weinig kansen | Weinig paniek-events, lage bounce |
+
+### Backtest-filters (indien data beschikbaar)
+
+- Win rate dip-trades ≥ 45%
+- Expectancy ≥ €0 per trade
+- Alpha vs buy-and-hold ≥ €0
+
 ## Beperkingen
 
 - Historische **nieuws-sentiment data** is niet gratis beschikbaar → backtest gebruikt prijsactie als proxy
