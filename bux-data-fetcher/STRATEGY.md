@@ -158,9 +158,35 @@ python3 screen_stocks.py --strict       # strengere filters
 
 ### Backtest-filters (indien data beschikbaar)
 
-- Win rate dip-trades ≥ 45%
+- **Win rate dip-trades ≥ 75%** (netto na €1 buy + €1 sell fees)
+- Minimaal 5 trades voor betrouwbare statistiek
 - Expectancy ≥ €0 per trade
 - Alpha vs buy-and-hold ≥ €0
+
+### 75% win rate preset
+
+De standaard 4% take-profit levert ~41–59% win rate. Voor **≥75% win rate na fees** gebruik de `high-win-rate` preset:
+
+| Parameter | Default | High win rate |
+|-----------|---------|---------------|
+| Take profit | 4% | **1%** |
+| Stop loss | 2.5% | **5%** |
+| Drop drempel | 3% | 3% |
+
+```bash
+# Backtest met 75%-WR preset
+python3 backtest.py all --profile high-win-rate
+
+# Parameter search met min 75% WR filter
+python3 backtest.py optimize --min-win-rate 75
+
+# Screen aandelen (default: high-win-rate + 75% WR filter)
+python3 screen_stocks.py --extra
+```
+
+**9/19 geteste aandelen** halen ≥75% WR met deze preset (min 5 trades): TXG, AAPL, PHIA.AS, BMW.DE, FLWS, TSLA, SAP.DE, ASML.AS, ALV.DE.
+
+Win rate = percentage trades met `net_pnl_eur > 0` (fees al verwerkt).
 
 ## Beperkingen
 

@@ -34,8 +34,9 @@ class StockRequirements:
     min_price_eur: float = 5.0
     max_price_eur: float = 500.0
 
-    # Backtest performance (indien beschikbaar)
-    min_dip_win_rate_pct: float = 45.0
+    # Backtest performance (indien beschikbaar) — win rate is netto na fees
+    min_dip_win_rate_pct: float = 75.0
+    min_dip_trades: int = 5            # Min. trades voor betrouwbare win rate
     min_dip_expectancy_eur: float = 0.0
     min_dip_vs_buyhold_eur: float = 0.0    # Alpha vs passief
 
@@ -58,6 +59,7 @@ def score_profile(
     *,
     dip_pnl: float | None = None,
     dip_win_rate: float | None = None,
+    dip_trades: int | None = None,
     dip_expectancy: float | None = None,
     dip_vs_buyhold: float | None = None,
 ) -> ScreeningResult:
@@ -95,12 +97,21 @@ def score_profile(
         else:
             failures.append(msg)
 
+    if dip_trades is not None:
+        max_points += 10
+        if dip_trades >= req.min_dip_trades:
+            points += 10
+        else:
+            failures.append(f"te weinig trades ({dip_trades} < {req.min_dip_trades})")
+
     if dip_win_rate is not None:
         max_points += 10
         if dip_win_rate >= req.min_dip_win_rate_pct:
             points += 10
         else:
-            failures.append(f"win rate {dip_win_rate:.1f}% < {req.min_dip_win_rate_pct}%")
+            failures.append(
+                f"win rate {dip_win_rate:.1f}% < {req.min_dip_win_rate_pct}% (netto na fees)"
+            )
 
     if dip_expectancy is not None:
         max_points += 10

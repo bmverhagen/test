@@ -127,7 +127,7 @@ def format_summary(summary: PerformanceSummary, cfg: StrategyConfig) -> str:
         "BACKTEST RESULTATEN — Sentiment Dip Recovery",
         "=" * 60,
         f"  Trades totaal:        {summary.total_trades}",
-        f"  Win rate:             {summary.win_rate_pct:.1f}% ({summary.winning_trades}W / {summary.losing_trades}L)",
+        f"  Win rate:             {summary.win_rate_pct:.1f}% ({summary.winning_trades}W / {summary.losing_trades}L) — netto na fees",
         f"  Netto P&L:            €{summary.total_net_pnl_eur:+.2f}",
         f"  Gem. per trade:       €{summary.avg_net_pnl_eur:+.2f}",
         f"  Gem. winst:           €{summary.avg_win_eur:+.2f}",

@@ -44,6 +44,27 @@ class StrategyConfig:
     max_open_trades: int = 1           # Per instrument
     cooldown_bars: int = 18            # Pauze na exit (~3 uur) tegen overtrading
 
+    # Doelstelling (screening / optimize)
+    min_win_rate_pct: float = 75.0     # Minimaal % winnende trades na fees
+
+    @classmethod
+    def high_win_rate(cls, **overrides) -> StrategyConfig:
+        """
+        Preset voor ≥75% win rate (netto na €1 buy + €1 sell fees).
+
+        Lagere take-profit (1%) + ruimere stop-loss (5%) → vaker kleine winst,
+        minder vaak uitgestopt. Backtest op 19 aandelen: gem. ~75% WR.
+        """
+        defaults = dict(
+            take_profit_pct=1.0,
+            stop_loss_pct=5.0,
+            min_drop_pct=3.0,
+            position_eur=1000.0,
+            min_win_rate_pct=75.0,
+        )
+        defaults.update(overrides)
+        return cls(**defaults)
+
     @property
     def round_trip_fee_eur(self) -> float:
         return self.buy_fee_eur + self.sell_fee_eur

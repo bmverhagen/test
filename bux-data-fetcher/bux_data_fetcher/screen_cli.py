@@ -93,12 +93,19 @@ def load_all_candles(data_dir: Path, extra_tickers: list[str], years: int) -> li
 
 
 def screen_all(args: argparse.Namespace) -> int:
-    cfg = StrategyConfig(
-        buy_fee_eur=args.buy_fee,
-        sell_fee_eur=args.sell_fee,
-        position_eur=args.position,
-    )
-    req = StockRequirements()
+    if args.profile == "high-win-rate":
+        cfg = StrategyConfig.high_win_rate(
+            buy_fee_eur=args.buy_fee,
+            sell_fee_eur=args.sell_fee,
+            position_eur=args.position,
+        )
+    else:
+        cfg = StrategyConfig(
+            buy_fee_eur=args.buy_fee,
+            sell_fee_eur=args.sell_fee,
+            position_eur=args.position,
+        )
+    req = StockRequirements(min_dip_win_rate_pct=args.min_win_rate)
 
     extra = EXTRA_TICKERS if args.extra else []
     if args.limit:
@@ -142,6 +149,7 @@ def screen_all(args: argparse.Namespace) -> int:
             profile, req,
             dip_pnl=dip_pnl,
             dip_win_rate=dip_summary.win_rate_pct,
+            dip_trades=dip_summary.total_trades,
             dip_expectancy=dip_summary.expectancy_eur,
             dip_vs_buyhold=vs_bh,
         )
@@ -197,6 +205,18 @@ def main(argv: list[str] | None = None) -> int:
                         help="Voeg 17 extra grote aandelen toe via yfinance")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--output", default=None, help="CSV output pad")
+    parser.add_argument(
+        "--profile",
+        choices=("default", "high-win-rate"),
+        default="high-win-rate",
+        help="Strategie preset (default: high-win-rate voor ≥75%% WR na fees)",
+    )
+    parser.add_argument(
+        "--min-win-rate",
+        type=float,
+        default=75.0,
+        help="Minimale dip win rate %% netto na fees (default: 75)",
+    )
     args = parser.parse_args(argv)
     return screen_all(args)
 

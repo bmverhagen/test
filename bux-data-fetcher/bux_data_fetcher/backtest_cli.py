@@ -28,6 +28,14 @@ def load_candle(path: Path) -> pd.DataFrame:
 
 
 def build_config(args: argparse.Namespace) -> StrategyConfig:
+    profile = getattr(args, "profile", "default")
+    if profile == "high-win-rate":
+        return StrategyConfig.high_win_rate(
+            buy_fee_eur=args.buy_fee,
+            sell_fee_eur=args.sell_fee,
+            position_eur=args.position,
+            require_news_sentiment=getattr(args, "require_news", False),
+        )
     return StrategyConfig(
         buy_fee_eur=args.buy_fee,
         sell_fee_eur=args.sell_fee,
@@ -56,6 +64,12 @@ def add_strategy_args(parser: argparse.ArgumentParser) -> None:
         "--require-news",
         action="store_true",
         help="Alleen instappen als negatief nieuws in 48u (vereist news data)",
+    )
+    parser.add_argument(
+        "--profile",
+        choices=("default", "high-win-rate"),
+        default="default",
+        help="Strategie preset: high-win-rate = TP 1%%, SL 5%% voor ≥75%% WR na fees",
     )
 
 
@@ -206,9 +220,12 @@ def cmd_optimize(args: argparse.Namespace) -> int:
         return 1
 
     drop_pcts = [2.5, 3.0, 4.0, 5.0]
-    take_profits = [2.0, 2.5, 3.0, 4.0]
-    stop_losses = [1.5, 2.0, 2.5]
-    positions = [300.0, 500.0, 1000.0]
+    take_profits = [1.0, 1.5, 2.0, 2.5, 3.0, 4.0]
+    stop_losses = [1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0]
+    positions = [300.0, 500.0, 1000.0, 2000.0]
+
+    min_win_rate = getattr(args, "min_win_rate", 0.0)
+    min_trades = getattr(args, "min_trades", 5)
 
     best = None
     results = []
@@ -239,7 +256,9 @@ def cmd_optimize(args: argparse.Namespace) -> int:
                         trades.extend(r.trades)
 
                     s = summarize(BacktestResult(trades=trades, config=cfg))
-                    if s.total_trades < 3:
+                    if s.total_trades < min_trades:
+                        continue
+                    if min_win_rate > 0 and s.win_rate_pct < min_win_rate:
                         continue
 
                     score = s.win_rate_pct * 0.4 + min(s.profit_factor, 5) * 20 + s.expectancy_eur * 5
@@ -263,7 +282,11 @@ def cmd_optimize(args: argparse.Namespace) -> int:
                         best = row
 
     if not results:
-        print("Geen geldige parametercombinaties (te weinig trades).")
+        msg = "Geen geldige parametercombinaties"
+        if min_win_rate > 0:
+            msg += f" met ≥{min_win_rate:.0f}% win rate (netto na fees)"
+        msg += f" en min {min_trades} trades."
+        print(msg)
         return 1
 
     results_df = pd.DataFrame(results).sort_values("score", ascending=False)
@@ -321,6 +344,13 @@ def main(argv: list[str] | None = None) -> int:
     add_strategy_args(p_opt)
     p_opt.add_argument("--data-dir", default="./data")
     p_opt.add_argument("--limit", type=int, default=None)
+    p_opt.add_argument(
+        "--min-win-rate",
+        type=float,
+        default=75.0,
+        help="Alleen combinaties met minimaal deze win rate %% netto na fees (0 = uit)",
+    )
+    p_opt.add_argument("--min-trades", type=int, default=5, help="Minimaal aantal trades per combinatie")
     p_opt.set_defaults(func=cmd_optimize)
 
     args = parser.parse_args(argv)
