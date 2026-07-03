@@ -116,7 +116,7 @@ def format_screening_table(results: list[ScreeningResult]) -> str:
         "STOCK SCREENING — Geschiktheid voor Dip Strategie",
         "=" * 100,
         f"{'Ticker':<10} {'Score':>6} {'OK':>4} {'Vol%':>6} {'ATR%':>6} {'Pan/jr':>7} "
-        f"{'Bounce%':>8} {'DipPnL':>10} {'Win%':>6} {'vs B&H':>10}",
+        f"{'Bounce%':>8} {'DipPnL':>10} {'OOS Win%':>9} {'vs B&H':>10}",
         "-" * 100,
     ]
 
@@ -141,7 +141,8 @@ def format_screening_table(results: list[ScreeningResult]) -> str:
 def format_requirements(req: StockRequirements, analysis: RequirementAnalysis) -> str:
     lines = [
         "",
-        "AANBEVOLEN STOCK REQUIREMENTS (data-gedreven)",
+        "AANBEVOLEN STOCK REQUIREMENTS (train-set, niet voor filtering)",
+        "  ⚠ Drempels zijn indicatief — pas/fail gebruikt OOS test metrics",
         "-" * 50,
         f"  Daily volatility:     {req.min_daily_volatility_pct:.1f}% – {req.max_daily_volatility_pct:.1f}%",
         f"  Annualized vol:       {req.min_annualized_volatility_pct:.0f}% – {req.max_annualized_volatility_pct:.0f}%",

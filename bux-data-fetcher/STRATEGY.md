@@ -188,6 +188,35 @@ python3 screen_stocks.py --extra
 
 Win rate = percentage trades met `net_pnl_eur > 0` (fees al verwerkt).
 
+## Anti-overfitting
+
+Kleine samples (3–19 aandelen) overfitten snel. Daarom:
+
+| Maatregel | Wat het doet |
+|-----------|--------------|
+| **Train/test split (70/30)** | Parameters scoren op **test** (laatste 30%), niet op train |
+| **`validate` commando** | Toont train vs test + overfit-waarschuwing |
+| **`optimize` op OOS** | Alleen combinaties met positieve test expectancy, geen train>>test gap |
+| **Vaste presets** | `high-win-rate` preset i.p.v. grid search op kleine sample |
+| **Screener OOS** | Win rate & PnL gemeten op holdout periode per aandeel |
+| **Kleinere parameter grid** | Minder combinaties = minder data mining |
+
+```bash
+# Valideer huidige preset (train vs test)
+python3 backtest.py validate --profile high-win-rate
+
+# Backtest alleen out-of-sample
+python3 backtest.py all --profile high-win-rate --oos-only
+
+# Backtest + train/test rapport
+python3 backtest.py all --profile high-win-rate --validate
+
+# Optimize (score = OOS test, reject overfit)
+python3 backtest.py optimize --min-win-rate 75
+```
+
+**Regel:** optimaliseer nooit op dezelfde data waarmee je evalueert. Bij <10 aandelen: gebruik vaste presets, geen grid search.
+
 ## Beperkingen
 
 - Historische **nieuws-sentiment data** is niet gratis beschikbaar → backtest gebruikt prijsactie als proxy

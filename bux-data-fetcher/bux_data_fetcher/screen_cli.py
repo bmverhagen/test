@@ -26,6 +26,7 @@ from .strategy.requirement_analysis import (
 )
 from .strategy.stock_profile import compute_stock_profile
 from .strategy.stock_screener import StockRequirements, score_profile
+from .strategy.validation import split_temporal
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
@@ -106,6 +107,8 @@ def screen_all(args: argparse.Namespace) -> int:
             position_eur=args.position,
         )
     req = StockRequirements(min_dip_win_rate_pct=args.min_win_rate)
+    train_ratio = getattr(args, "train_ratio", 0.7)
+    min_test_trades = max(3, req.min_dip_trades // 2)
 
     extra = EXTRA_TICKERS if args.extra else []
     if args.limit:
@@ -119,7 +122,10 @@ def screen_all(args: argparse.Namespace) -> int:
     results = []
     performances = []
 
-    print(f"\nScreening {len(datasets)} aandelen...\n")
+    print(
+        f"\nScreening {len(datasets)} aandelen "
+        f"(OOS: laatste {100 - int(train_ratio * 100)}% per aandeel)...\n"
+    )
 
     for path, df in tqdm(datasets, desc="Analyseren"):
         meta = df.iloc[0]
@@ -127,12 +133,18 @@ def screen_all(args: argparse.Namespace) -> int:
         ticker = str(meta.get("ticker", isin))
         name = str(meta.get("name", ticker))
 
-        profile = compute_stock_profile(df, cfg, isin=isin, ticker=ticker, name=name)
+        train_df, test_df = split_temporal(df, train_ratio)
+        if len(test_df) < 30:
+            test_df = df  # fallback bij korte series
 
-        dip_result = BacktestEngine(cfg).run(df, isin=isin, name=name, ticker=ticker)
-        bh_result = run_buy_and_hold(df, cfg, isin=isin, name=name, ticker=ticker)
-        dip_summary = summarize(dip_result)
+        # Profiel + requirement-analyse alleen op train (geen lookahead)
+        profile = compute_stock_profile(train_df, cfg, isin=isin, ticker=ticker, name=name)
 
+        dip_train = BacktestEngine(cfg).run(train_df, isin=isin, name=name, ticker=ticker)
+        dip_test = BacktestEngine(cfg).run(test_df, isin=isin, name=name, ticker=ticker)
+        dip_summary = summarize(dip_test)
+
+        bh_result = run_buy_and_hold(test_df, cfg, isin=isin, name=name, ticker=ticker)
         dip_pnl = dip_summary.total_net_pnl_eur
         bh_pnl = sum(t.net_pnl_eur for t in bh_result.trades)
         vs_bh = dip_pnl - bh_pnl
@@ -143,16 +155,30 @@ def screen_all(args: argparse.Namespace) -> int:
             "dip_win_rate": dip_summary.win_rate_pct,
             "dip_expectancy": dip_summary.expectancy_eur,
             "dip_vs_buyhold": vs_bh,
+            "dip_trades": dip_summary.total_trades,
+            "train_win_rate": summarize(dip_train).win_rate_pct,
         })
 
-        result = score_profile(
-            profile, req,
-            dip_pnl=dip_pnl,
-            dip_win_rate=dip_summary.win_rate_pct,
-            dip_trades=dip_summary.total_trades,
-            dip_expectancy=dip_summary.expectancy_eur,
-            dip_vs_buyhold=vs_bh,
-        )
+        if dip_summary.total_trades < min_test_trades:
+            result = score_profile(
+                profile, req,
+                dip_pnl=dip_pnl,
+                dip_win_rate=dip_summary.win_rate_pct,
+                dip_trades=dip_summary.total_trades,
+                dip_expectancy=dip_summary.expectancy_eur,
+                dip_vs_buyhold=vs_bh,
+            )
+            result.failures.insert(0, f"OOS te weinig trades ({dip_summary.total_trades} < {min_test_trades})")
+            result.passed = False
+        else:
+            result = score_profile(
+                profile, req,
+                dip_pnl=dip_pnl,
+                dip_win_rate=dip_summary.win_rate_pct,
+                dip_trades=dip_summary.total_trades,
+                dip_expectancy=dip_summary.expectancy_eur,
+                dip_vs_buyhold=vs_bh,
+            )
         results.append(result)
 
     profiles = [r.profile for r in results]
@@ -215,7 +241,13 @@ def main(argv: list[str] | None = None) -> int:
         "--min-win-rate",
         type=float,
         default=75.0,
-        help="Minimale dip win rate %% netto na fees (default: 75)",
+        help="Minimale OOS dip win rate %% netto na fees (default: 75)",
+    )
+    parser.add_argument(
+        "--train-ratio",
+        type=float,
+        default=0.7,
+        help="Train/test split; performance gemeten op test (default: 0.7)",
     )
     args = parser.parse_args(argv)
     return screen_all(args)

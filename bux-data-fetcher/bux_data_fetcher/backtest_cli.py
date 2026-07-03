@@ -14,6 +14,14 @@ from .strategy.benchmarks import compare_instrument
 from .strategy.comparison import PortfolioComparison, comparison_to_dataframe, format_comparison
 from .strategy.config import StrategyConfig
 from .strategy.metrics import format_summary, summarize
+from .strategy.validation import (
+    InstrumentData,
+    evaluate_train_test,
+    format_loo_report,
+    format_train_test_report,
+    leave_one_out,
+    split_temporal,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +81,47 @@ def add_strategy_args(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def load_instruments(
+    data_dir: str | Path,
+    *,
+    limit: int | None = None,
+) -> list[InstrumentData]:
+    candles_dir = Path(data_dir) / "candles_10m"
+    files = sorted(candles_dir.glob("*.parquet"))
+    if limit:
+        files = files[:limit]
+
+    instruments: list[InstrumentData] = []
+    for path in files:
+        df = load_candle(path)
+        if df.empty or len(df) < 30:
+            continue
+        meta = df.iloc[0]
+        instruments.append(
+            InstrumentData(
+                df=df,
+                isin=str(meta.get("isin", path.stem)),
+                name=str(meta.get("name", "")),
+                ticker=str(meta.get("ticker", path.stem)),
+            )
+        )
+    return instruments
+
+
+def add_validation_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--train-ratio",
+        type=float,
+        default=0.7,
+        help="Fractie data voor training; rest is out-of-sample test (default: 0.7)",
+    )
+    parser.add_argument(
+        "--oos-only",
+        action="store_true",
+        help="Evalueer/score alleen op test (holdout) periode",
+    )
+
+
 def cmd_single(args: argparse.Namespace) -> int:
     path = Path(args.candles)
     df = load_candle(path)
@@ -122,12 +171,22 @@ def cmd_all(args: argparse.Namespace) -> int:
     data_config = load_config(output_dir=args.data_dir)
     engine = BacktestEngine(cfg)
     all_trades = []
+    train_ratio = getattr(args, "train_ratio", 0.7)
+    oos_only = getattr(args, "oos_only", False)
 
-    print(f"Backtest over {len(files)} instrumenten\n")
+    label = f"Backtest over {len(files)} instrumenten"
+    if oos_only:
+        label += f" (OOS test, laatste {100 - int(train_ratio * 100)}%)"
+    print(f"{label}\n")
+
     for path in files:
         df = load_candle(path)
         meta = df.iloc[0] if not df.empty else {}
         isin = str(meta.get("isin", path.stem))
+        if oos_only:
+            _, df = split_temporal(df, train_ratio)
+            if len(df) < 30:
+                continue
         news = load_news(data_config, isin)
         result = engine.run(
             df,
@@ -147,6 +206,11 @@ def cmd_all(args: argparse.Namespace) -> int:
 
     combined = BacktestResult(trades=all_trades, config=cfg)
     print("\n" + format_summary(summarize(combined), cfg))
+
+    if not oos_only and getattr(args, "validate", False):
+        instruments = load_instruments(args.data_dir, limit=args.limit)
+        report = evaluate_train_test(instruments, cfg, train_ratio=train_ratio)
+        print(format_train_test_report(report, cfg))
 
     if getattr(args, "compare", False):
         _run_comparison(files, cfg, data_config, args)
@@ -211,24 +275,29 @@ def cmd_compare(args: argparse.Namespace) -> int:
 
 
 def cmd_optimize(args: argparse.Namespace) -> int:
-    candles_dir = Path(args.data_dir) / "candles_10m"
-    files = sorted(candles_dir.glob("*.parquet"))
-    if args.limit:
-        files = files[: args.limit]
-    if not files:
+    instruments = load_instruments(args.data_dir, limit=args.limit)
+    if not instruments:
         print("Geen data.")
         return 1
 
-    drop_pcts = [2.5, 3.0, 4.0, 5.0]
-    take_profits = [1.0, 1.5, 2.0, 2.5, 3.0, 4.0]
-    stop_losses = [1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0]
-    positions = [300.0, 500.0, 1000.0, 2000.0]
+    train_ratio = getattr(args, "train_ratio", 0.7)
+    # Smaller grid — brede search op kleine sample = overfit
+    drop_pcts = [3.0, 4.0, 5.0]
+    take_profits = [1.0, 1.5, 2.0, 2.5]
+    stop_losses = [3.0, 4.0, 5.0, 6.0]
+    positions = [500.0, 1000.0, 2000.0]
 
     min_win_rate = getattr(args, "min_win_rate", 0.0)
-    min_trades = getattr(args, "min_trades", 5)
+    min_train_trades = getattr(args, "min_trades", 5)
+    min_test_trades = max(3, min_train_trades // 2)
 
     best = None
     results = []
+
+    print(
+        f"Grid search op {len(instruments)} instrumenten — "
+        f"score op TEST (OOS, laatste {100 - int(train_ratio * 100)}%)\n"
+    )
 
     for drop in drop_pcts:
         for tp in take_profits:
@@ -242,39 +311,33 @@ def cmd_optimize(args: argparse.Namespace) -> int:
                         buy_fee_eur=args.buy_fee,
                         sell_fee_eur=args.sell_fee,
                     )
-                    engine = BacktestEngine(cfg)
-                    trades = []
-                    for path in files:
-                        df = load_candle(path)
-                        meta = df.iloc[0] if not df.empty else {}
-                        r = engine.run(
-                            df,
-                            isin=str(meta.get("isin", path.stem)),
-                            name=str(meta.get("name", "")),
-                            ticker=str(meta.get("ticker", "")),
-                        )
-                        trades.extend(r.trades)
+                    report = evaluate_train_test(instruments, cfg, train_ratio=train_ratio)
 
-                    s = summarize(BacktestResult(trades=trades, config=cfg))
-                    if s.total_trades < min_trades:
+                    if report.train.total_trades < min_train_trades:
                         continue
-                    if min_win_rate > 0 and s.win_rate_pct < min_win_rate:
+                    if report.test.total_trades < min_test_trades:
+                        continue
+                    if min_win_rate > 0 and report.test.win_rate_pct < min_win_rate:
+                        continue
+                    if report.test.expectancy_eur <= 0:
+                        continue
+                    if report.overfit_warning:
                         continue
 
-                    score = s.win_rate_pct * 0.4 + min(s.profit_factor, 5) * 20 + s.expectancy_eur * 5
-                    if s.expectancy_eur <= 0:
-                        score *= 0.5
+                    score = report.test_score
 
                     row = {
                         "drop_pct": drop,
                         "take_profit": tp,
                         "stop_loss": sl,
                         "position_eur": pos,
-                        "trades": s.total_trades,
-                        "win_rate": s.win_rate_pct,
-                        "net_pnl": s.total_net_pnl_eur,
-                        "expectancy": s.expectancy_eur,
-                        "profit_factor": s.profit_factor,
+                        "train_trades": report.train.total_trades,
+                        "test_trades": report.test.total_trades,
+                        "train_win_rate": report.train.win_rate_pct,
+                        "test_win_rate": report.test.win_rate_pct,
+                        "train_net": report.train.total_net_pnl_eur,
+                        "test_net": report.test.total_net_pnl_eur,
+                        "test_expectancy": report.test.expectancy_eur,
                         "score": score,
                     }
                     results.append(row)
@@ -282,27 +345,67 @@ def cmd_optimize(args: argparse.Namespace) -> int:
                         best = row
 
     if not results:
-        msg = "Geen geldige parametercombinaties"
+        msg = (
+            f"Geen robuuste parametercombinaties op OOS test "
+            f"(min {min_test_trades} test trades"
+        )
         if min_win_rate > 0:
-            msg += f" met ≥{min_win_rate:.0f}% win rate (netto na fees)"
-        msg += f" en min {min_trades} trades."
+            msg += f", ≥{min_win_rate:.0f}% test win rate"
+        msg += ", positieve test expectancy, geen overfit)."
         print(msg)
+        print("\nTip: gebruik vaste preset i.p.v. optimize op kleine sample:")
+        print("  python3 backtest.py validate --profile high-win-rate")
         return 1
 
     results_df = pd.DataFrame(results).sort_values("score", ascending=False)
-    print("Top 10 parameter sets:\n")
+    print("Top 10 (gesorteerd op OOS test score):\n")
     print(results_df.head(10).to_string(index=False, float_format=lambda x: f"{x:.2f}"))
 
     if best:
         print(
-            f"\nBeste: drop={best['drop_pct']}%, TP={best['take_profit']}%, "
+            f"\nBeste (OOS): drop={best['drop_pct']}%, TP={best['take_profit']}%, "
             f"SL={best['stop_loss']}%, positie=€{best['position_eur']:.0f}"
         )
         print(
-            f"  Win rate={best['win_rate']:.1f}%, expectancy=€{best['expectancy']:+.2f}, "
-            f"net=€{best['net_pnl']:+.2f}"
+            f"  Test:  win rate={best['test_win_rate']:.1f}%, "
+            f"expectancy=€{best['test_expectancy']:+.2f}, net=€{best['test_net']:+.2f} "
+            f"({best['test_trades']} trades)"
+        )
+        print(
+            f"  Train: win rate={best['train_win_rate']:.1f}%, "
+            f"net=€{best['train_net']:+.2f} ({best['train_trades']} trades)"
         )
 
+    return 0
+
+
+def cmd_validate(args: argparse.Namespace) -> int:
+    instruments = load_instruments(args.data_dir, limit=args.limit)
+    if not instruments:
+        print("Geen data.")
+        return 1
+
+    cfg = build_config(args)
+    train_ratio = getattr(args, "train_ratio", 0.7)
+
+    print(f"Validatie over {len(instruments)} instrumenten")
+    report = evaluate_train_test(instruments, cfg, train_ratio=train_ratio)
+    print(format_train_test_report(report, cfg))
+
+    if len(instruments) >= 2:
+        folds = leave_one_out(instruments, cfg)
+        print(format_loo_report(folds))
+
+    if report.test.total_trades == 0:
+        print("\nTe weinig test trades — vergroot dataset of verlaag --train-ratio.")
+        return 1
+
+    if report.overfit_warning:
+        print("\nConclusie: parameters presteren veel beter in-sample dan out-of-sample.")
+        print("Gebruik vaste presets; optimaliseer niet verder op deze sample.")
+        return 1
+
+    print("\nConclusie: geen sterke overfit-signalen — test prestaties zijn acceptabel.")
     return 0
 
 
@@ -329,6 +432,12 @@ def main(argv: list[str] | None = None) -> int:
     p_all.add_argument("--random-seed", type=int, default=42)
     p_all.add_argument("--random-runs", type=int, default=50, help="Monte Carlo runs voor random baseline")
     p_all.add_argument("--comparison-output", default=None, help="CSV met strategie vergelijking")
+    add_validation_args(p_all)
+    p_all.add_argument(
+        "--validate",
+        action="store_true",
+        help="Toon train/test split na backtest (anti-overfit check)",
+    )
     p_all.set_defaults(func=cmd_all)
 
     p_cmp = sub.add_parser("compare", help="Vergelijk dip vs buy&hold vs random baseline")
@@ -340,18 +449,26 @@ def main(argv: list[str] | None = None) -> int:
     p_cmp.add_argument("--comparison-output", default=None)
     p_cmp.set_defaults(func=cmd_compare)
 
-    p_opt = sub.add_parser("optimize", help="Grid search voor beste parameters")
+    p_opt = sub.add_parser("optimize", help="Grid search — score op OOS test (anti-overfit)")
     add_strategy_args(p_opt)
+    add_validation_args(p_opt)
     p_opt.add_argument("--data-dir", default="./data")
     p_opt.add_argument("--limit", type=int, default=None)
     p_opt.add_argument(
         "--min-win-rate",
         type=float,
         default=75.0,
-        help="Alleen combinaties met minimaal deze win rate %% netto na fees (0 = uit)",
+        help="Min test win rate %% netto na fees (0 = uit)",
     )
-    p_opt.add_argument("--min-trades", type=int, default=5, help="Minimaal aantal trades per combinatie")
+    p_opt.add_argument("--min-trades", type=int, default=5, help="Minimaal train trades per combinatie")
     p_opt.set_defaults(func=cmd_optimize)
+
+    p_val = sub.add_parser("validate", help="Train/test + leave-one-out validatie")
+    add_strategy_args(p_val)
+    add_validation_args(p_val)
+    p_val.add_argument("--data-dir", default="./data")
+    p_val.add_argument("--limit", type=int, default=None)
+    p_val.set_defaults(func=cmd_validate)
 
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(message)s")
