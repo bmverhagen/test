@@ -28,6 +28,28 @@ Plak het token in `.env`:
 BUX_TOKEN=jouw_token_hier
 ```
 
+## Gebruik zonder Bux token (Yahoo Finance)
+
+Geen Bux account nodig. Haal random US aandelen op via Yahoo Finance en test de strategie:
+
+```bash
+# 100 random aandelen downloaden (NASDAQ/NYSE universe, ~5 min)
+python3 fetch_yahoo.py random --count 100 --seed 42
+
+# Strategie testen op die 100 aandelen (OOS validatie)
+python3 fetch_yahoo.py test --count 100 --profile high-win-rate
+
+# Fetch + test in één keer
+python3 fetch_yahoo.py test --count 100 --fetch
+```
+
+Ticker universe komt van [NASDAQ symbol directory](https://nasdaqtrader.com/) (~5000+ US equities), geen Wikipedia of Bux token vereist.
+
+Output:
+- `data/yahoo_random_100.txt` — lijst tickers
+- `data/candles_10m/{TICKER}.parquet` — 10m OHLCV
+- `data/random_100_results.csv` — per-aandeel resultaten
+
 ## Gebruik
 
 ```bash

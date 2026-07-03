@@ -217,6 +217,21 @@ python3 backtest.py optimize --min-win-rate 75
 
 **Regel:** optimaliseer nooit op dezelfde data waarmee je evalueert. Bij <10 aandelen: gebruik vaste presets, geen grid search.
 
+## Test op 100 random aandelen (zonder Bux token)
+
+```bash
+python3 fetch_yahoo.py random --count 100
+python3 fetch_yahoo.py test --count 100 --profile high-win-rate
+```
+
+Resultaat op sample (seed=42, high-win-rate preset):
+- **100/100** aandelen data OK via Yahoo Finance
+- Portfolio OOS: **72.9% win rate**, maar **negatieve expectancy** (€-2.42/trade)
+- **41/100** aandelen individueel winstgevend
+- **37/100** halen ≥75% win rate per aandeel
+
+Conclusie: hoge win rate ≠ winstgevend; kleine TP (1%) dekt fees niet altijd op alle aandelen.
+
 ## Beperkingen
 
 - Historische **nieuws-sentiment data** is niet gratis beschikbaar → backtest gebruikt prijsactie als proxy
