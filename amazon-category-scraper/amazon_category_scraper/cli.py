@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .fetcher import DEFAULT_MAX_RETRIES, DEFAULT_TIMEOUT, Fetcher
 from .models import PageResult
-from .parser import parse_category_page
+from .parser import parse_category_page, resolve_product_brands
 from .scraper import DEFAULT_DELAY, CategoryBrandScraper, merge_pages
 from .storage import FORMATS, write_report
 from .urls import NotACategoryPageError
@@ -34,6 +34,7 @@ def build_parser() -> argparse.ArgumentParser:
             "Examples:\n"
             "  amazon-category-scraper 'https://www.amazon.com/s?rh=n%%3A172282'\n"
             "  amazon-category-scraper 'https://www.amazon.com/b?node=172282' --pages 3 -o brands.csv\n"
+            "  amazon-category-scraper 'https://www.amazon.com/zgbs/kitchen/289745/' --top 10\n"
             "  amazon-category-scraper --from-file saved_category_page.html --format json\n"
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -57,6 +58,16 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=1,
         help="Max listing pages to follow per category URL (default: 1)",
+    )
+    parser.add_argument(
+        "--top",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Per-product view: output the first N products by rank with the brand "
+            "of each product (0 = all) instead of the aggregated brand list"
+        ),
     )
     parser.add_argument(
         "--delay",
@@ -113,6 +124,10 @@ def _parse_local_files(paths: list[Path]) -> list[PageResult]:
     for html_path in paths:
         html = html_path.read_text(encoding="utf-8", errors="replace")
         result = parse_category_page(html, url=str(html_path))
+        if result.is_best_seller_list and result.cards_with_brand < result.total_cards:
+            # Offline there is no sibling listing to learn brands from, but
+            # house brands and conservative title guesses still apply.
+            resolve_product_brands(result, [])
         logger.info(
             "Parsed %s: %d product cards, %d with a brand, %d sidebar brands",
             html_path,
@@ -160,7 +175,7 @@ def main(argv: list[str] | None = None) -> int:
         errors.extend(fetch_errors)
 
     report = merge_pages(pages, args.urls + [str(p) for p in args.from_file], errors)
-    write_report(report, args.output, _resolve_format(args))
+    write_report(report, args.output, _resolve_format(args), top=args.top)
 
     destination = str(args.output) if args.output else "stdout"
     logger.info(

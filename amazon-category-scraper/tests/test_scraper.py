@@ -9,6 +9,17 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 PAGE_1_URL = "https://www.amazon.com/s?k=televisions"
 PAGE_2_URL = "https://www.amazon.com/s?k=televisions&page=2&qid=1721400000&ref=sr_pg_2"
+BSR_URL = "https://www.amazon.com/Best-Sellers-Coffee-Machines/zgbs/kitchen/289745/"
+BSR_SIBLING_URL = "https://www.amazon.com/s?rh=n%3A289745&fs=true"
+
+# Minimal search listing for node 289745 whose sidebar names one brand.
+BSR_SIBLING_HTML = """
+<div id="brandsRefinements">
+  <ul aria-labelledby="p_123-title">
+    <li id="p_123/1"><span class="a-label a-checkbox-label">Keurig</span></li>
+  </ul>
+</div>
+"""
 
 
 def load(name: str) -> str:
@@ -76,6 +87,8 @@ class ScraperTests(unittest.TestCase):
         names = {record.name.casefold() for record in report.brands}
         self.assertIn("lg", names)  # legacy byline on page 2
         self.assertIn("bose", names)  # h5 layout on page 2
+        # Listing positions continue across pages: 6 cards, then 3 more.
+        self.assertEqual([p.rank for p in report.products], list(range(1, 10)))
 
     def test_max_pages_limits_fetches(self):
         scraper, fetcher = self._scraper(
@@ -110,6 +123,36 @@ class ScraperTests(unittest.TestCase):
             self.assertNotIn("/dp/", url)
         self.assertEqual(report.pages_scraped, 1)
         self.assertEqual(report.brands[0].name, "Acme")
+
+
+class BestSellerScrapeTests(unittest.TestCase):
+    def test_bsr_scrape_learns_brands_from_sibling_listing(self):
+        fetcher = FakeFetcher(
+            {
+                BSR_URL: load("bestsellers_page.html"),
+                BSR_SIBLING_URL: BSR_SIBLING_HTML,
+            }
+        )
+        scraper = CategoryBrandScraper(fetcher=fetcher, delay=0)
+        report = scraper.scrape([BSR_URL])
+
+        # The sibling search listing (a category page) was fetched once.
+        self.assertIn(BSR_SIBLING_URL, fetcher.requested)
+        # Still no product pages, ever.
+        for url in fetcher.requested:
+            self.assertNotIn("/dp/", url)
+
+        by_rank = {p.rank: p for p in report.products}
+        self.assertEqual(by_rank[1].brand, "Keurig")  # from sibling sidebar
+        self.assertEqual(by_rank[2].brand, "Amazon Basics")  # house brand
+        self.assertEqual(by_rank[3].brand, "ZULAY")  # labeled guess
+        self.assertEqual(by_rank[3].brand_source, "title_guess")
+        self.assertIsNone(by_rank[4].brand)
+
+        # Aggregated view counts the resolved best-seller products.
+        mentions = {r.name: r.product_mentions for r in report.brands}
+        self.assertEqual(mentions["Keurig"], 1)
+        self.assertEqual(mentions["Amazon Basics"], 1)
 
 
 class MergePagesTests(unittest.TestCase):

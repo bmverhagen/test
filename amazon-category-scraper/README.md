@@ -27,10 +27,36 @@ never invents brand names.
 Results are deduplicated case-insensitively and sorted by how many product
 cards mention each brand.
 
-Note: best-seller pages (`/gp/bestsellers/...`, `.../zgbs/...`) are accepted
-but expose no brand data in their HTML — the scraper warns and suggests using
-the category's search listing (`/s?rh=n%3A<node-id>`) instead, which carries
-the full brand sidebar.
+### Best-seller pages and the per-product view
+
+Best-seller pages (`/gp/bestsellers/...`, `.../zgbs/<group>/<node>`) show
+rank-ordered products but no explicit brand fields. For these, the scraper
+learns a brand vocabulary from the same node's regular search listing
+(`/s?rh=n%3A<node>&fs=true` — also a category page, fetched automatically),
+plus Amazon's house brands ("Amazon Basics" etc.), and matches best-seller
+titles against it. Titles that still don't match get a conservative
+first-word guess, clearly labeled `title_guess`; titles starting with
+numbers or noise get no brand rather than a wrong one.
+
+With `--top N` the output switches from the aggregated brand list to a
+per-product view: rank, brand, title, ASIN, and how the brand was determined
+(`brand_row`, `known_brand`, or `title_guess`).
+
+```bash
+# Top 10 best-selling coffee machines with the brand of each product
+python scrape_brands.py 'https://www.amazon.com/Best-Sellers-Coffee-Machines/zgbs/kitchen/289745/' --top 10
+```
+
+```csv
+rank,brand,title,asin,brand_source
+1,BLACK+DECKER,"BLACK+DECKER 12-Cup Digital Coffee Maker, Programmable, ...",B01GJOMWVA,known_brand
+2,Cuisinart,"Cuisinart 14-Cup Coffee Maker, Programmable PerfecTemp ...",B00MVWGQX0,known_brand
+3,BLACK+DECKER,"BLACK+DECKER 12-Cup Coffee Maker with Easy On/Off Switch, ...",B0C8B9V7HR,known_brand
+4,Amazon Basics,"Amazon Basics 5 Cup Drip Coffee Maker with Glass Coffee Pot ...",B0D9QFRJMX,known_brand
+```
+
+`--top` also works on regular search listings (rank is then the display
+position across the pages fetched).
 
 ## Install
 
@@ -73,6 +99,7 @@ Refusing to scrape a product page: ... This tool only scrapes category pages ...
 | Flag | Default | Meaning |
 | --- | --- | --- |
 | `--pages N` | 1 | Max listing pages to follow per category URL |
+| `--top N` | off | Per-product view: first N products by rank with each product's brand (0 = all) |
 | `--delay S` | 2.5 | Base delay between requests (jitter is added) |
 | `--timeout S` | 20 | HTTP timeout |
 | `--retries N` | 3 | Retries per page (429/5xx/robot check/network errors, exponential backoff) |

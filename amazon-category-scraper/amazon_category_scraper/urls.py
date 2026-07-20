@@ -15,6 +15,7 @@ __all__ = [
     "ensure_category_url",
     "is_category_url",
     "is_product_url",
+    "sibling_search_listing",
     "with_full_store",
     "with_page",
 ]
@@ -137,6 +138,28 @@ def with_page(url: str, page: int) -> str:
     if page > 1:
         query.append(("page", str(page)))
     return urlunparse(parsed._replace(query=urlencode(query)))
+
+
+def sibling_search_listing(url: str) -> str | None:
+    """Return the search listing URL for the node of a best-seller page.
+
+    Best-seller pages (``.../zgbs/<group>/<node>``, ``/gp/bestsellers/...``)
+    carry no brand data, but the same browse node has a regular search
+    listing (``/s?rh=n%3A<node>&fs=true``) — also a category page — whose
+    sidebar and product cards do list brands. Returns None when the URL
+    contains no numeric node id.
+    """
+    parsed = urlparse(url)
+    lowered = _normalized_path(parsed.path).lower()
+    if not any(marker in lowered for marker in _CATEGORY_PATH_MARKERS + ("/bestsellers",)):
+        return None
+    node = None
+    for segment in _normalized_path(parsed.path).split("/"):
+        if segment.isdigit():
+            node = segment
+    if node is None:
+        return None
+    return urlunparse(parsed._replace(path="/s", query=f"rh=n%3A{node}&fs=true", fragment=""))
 
 
 def with_full_store(url: str) -> str:

@@ -14,6 +14,23 @@ class BrandRecord:
     sources: tuple[str, ...]
 
 
+@dataclass(frozen=True)
+class ProductEntry:
+    """A single product as shown on a category page (never fetched itself).
+
+    ``brand_source`` records how the brand was determined:
+    - ``brand_row``: an explicit brand element on the product card
+    - ``known_brand``: title matched a brand listed on a category page
+    - ``title_guess``: heuristic guess from the leading word of the title
+    """
+
+    rank: int | None
+    title: str
+    brand: str | None
+    brand_source: str | None
+    asin: str | None = None
+
+
 @dataclass
 class PageResult:
     """Everything extracted from a single category page."""
@@ -23,6 +40,8 @@ class PageResult:
     refinement_brands: list[str] = field(default_factory=list)
     product_brands: list[str] = field(default_factory=list)
     structured_data_brands: list[str] = field(default_factory=list)
+    products: list[ProductEntry] = field(default_factory=list)
+    is_best_seller_list: bool = False
     total_cards: int = 0
     cards_with_brand: int = 0
     next_page_url: str | None = None
@@ -37,6 +56,7 @@ class ScrapeReport:
     product_cards_seen: int
     brands: list[BrandRecord]
     scraped_at: str
+    products: list[ProductEntry] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -54,5 +74,15 @@ class ScrapeReport:
                     "sources": list(record.sources),
                 }
                 for record in self.brands
+            ],
+            "products": [
+                {
+                    "rank": product.rank,
+                    "brand": product.brand,
+                    "brand_source": product.brand_source,
+                    "title": product.title,
+                    "asin": product.asin,
+                }
+                for product in self.products
             ],
         }

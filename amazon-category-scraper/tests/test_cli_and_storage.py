@@ -81,6 +81,19 @@ class CliTests(unittest.TestCase):
     def test_product_url_exits_with_error(self):
         self.assertEqual(main(["https://www.amazon.com/dp/B0CV9WPMWQ"]), 2)
 
+    def test_top_products_view_from_bestsellers_file(self):
+        fixture = str(FIXTURES / "bestsellers_page.html")
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "top.csv"
+            self.assertEqual(main(["--from-file", fixture, "--top", "2", "-o", str(out)]), 0)
+            rows = list(csv.reader(io.StringIO(out.read_text(encoding="utf-8"))))
+
+        self.assertEqual(rows[0], ["rank", "brand", "title", "asin", "brand_source"])
+        self.assertEqual(len(rows), 3)  # header + top 2
+        self.assertEqual(rows[1][0], "1")
+        self.assertEqual(rows[2][:2], ["2", "Amazon Basics"])
+        self.assertEqual(rows[2][4], "known_brand")
+
 
 if __name__ == "__main__":
     unittest.main()

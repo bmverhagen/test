@@ -11,18 +11,35 @@ import logging
 import random
 import time
 from collections import Counter
+from dataclasses import replace
 from datetime import datetime, timezone
 
 from .fetcher import Fetcher, FetchError
-from .models import BrandRecord, PageResult, ScrapeReport
-from .parser import parse_category_page
-from .urls import ensure_category_url, is_category_url, with_full_store
+from .models import BrandRecord, PageResult, ProductEntry, ScrapeReport
+from .parser import parse_category_page, resolve_product_brands
+from .urls import ensure_category_url, is_category_url, sibling_search_listing, with_full_store
 
 __all__ = ["CategoryBrandScraper", "merge_pages"]
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_DELAY = 2.5
+
+
+def _renumber_listing_ranks(results: list[PageResult]) -> None:
+    """Make listing positions continue across pages of one category chain.
+
+    Search listings restart the position count on every page; best-seller
+    pages already carry global ranks (#31 on page 2) and are left untouched.
+    """
+    offset = 0
+    for result in results:
+        if not result.is_best_seller_list:
+            result.products = [
+                replace(product, rank=offset + position)
+                for position, product in enumerate(result.products, start=1)
+            ]
+        offset += result.total_cards
 
 
 def merge_pages(
@@ -59,12 +76,17 @@ def merge_pages(
     ]
     brands.sort(key=lambda record: (-record.product_mentions, record.name.casefold()))
 
+    products: list[ProductEntry] = []
+    for page_result in pages:
+        products.extend(page_result.products)
+
     return ScrapeReport(
         category_urls=category_urls,
         pages_scraped=len(pages),
         product_cards_seen=sum(page_result.total_cards for page_result in pages),
         brands=brands,
         scraped_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        products=products,
         errors=list(errors or []),
     )
 
@@ -88,9 +110,52 @@ class CategoryBrandScraper:
         if self.delay > 0:
             time.sleep(self.delay + random.uniform(0, self.delay / 2))
 
+    # Listing pages fetched to build the brand vocabulary for one BSR chain.
+    VOCABULARY_PAGES = 2
+
+    def _known_brands_for_node(self, category_url: str, errors: list[str]) -> list[str]:
+        """Harvest brand names from the search listing of the same node.
+
+        Best-seller pages carry no brand data, so brands are collected from
+        the sibling ``/s?rh=n%3A<node>`` listing — itself a category page —
+        and later matched against best-seller product titles. A couple of
+        listing pages are read because the brand sidebar varies per request.
+        """
+        url = sibling_search_listing(category_url)
+        if url is None:
+            return []
+
+        brands: list[str] = []
+        seen: set[str] = set()
+        for _ in range(self.VOCABULARY_PAGES):
+            self._sleep()
+            logger.info("Fetching brand vocabulary from the node's search listing: %s", url)
+            try:
+                html = self.fetcher.fetch(url)
+            except FetchError as exc:
+                logger.warning("Could not fetch %s (%s); best-seller brands may be missing", url, exc)
+                errors.append(str(exc))
+                break
+            listing = parse_category_page(html, url=url)
+            for name in (
+                listing.refinement_brands + listing.product_brands + listing.structured_data_brands
+            ):
+                key = name.casefold()
+                if key not in seen:
+                    seen.add(key)
+                    brands.append(name)
+            next_url = listing.next_page_url
+            if next_url is None or not is_category_url(next_url):
+                break
+            url = next_url
+
+        logger.info("Learned %d brand names from the node's search listing", len(brands))
+        return brands
+
     def _iter_category_pages(self, category_url: str, errors: list[str]) -> list[PageResult]:
         """Fetch up to ``max_pages`` listing pages for one category URL."""
         results: list[PageResult] = []
+        known_brands: list[str] | None = None
         # Node-only searches (/s?rh=n%3A...) without fs=true come back as an
         # empty shell that renders client-side; fs=true ("full store", what
         # Amazon's own "See all results" links use) returns full markup.
@@ -117,16 +182,21 @@ class CategoryBrandScraper:
                 result.cards_with_brand,
                 len(result.refinement_brands),
             )
-            if (
-                result.total_cards
-                and not result.cards_with_brand
-                and not result.refinement_brands
-                and not result.structured_data_brands
-            ):
+
+            if result.is_best_seller_list and result.cards_with_brand < result.total_cards:
+                if known_brands is None:
+                    known_brands = self._known_brands_for_node(category_url, errors)
+                resolved = resolve_product_brands(result, known_brands)
+                logger.info(
+                    "Resolved %d/%d best-seller brands (vocabulary of %d + guesses)",
+                    resolved,
+                    result.total_cards,
+                    len(known_brands),
+                )
+            if result.total_cards and not result.cards_with_brand and not result.refinement_brands:
                 logger.warning(
-                    "%s exposes no brand information (best-seller style pages "
-                    "don't include brand names). Try the category's search "
-                    "listing instead, e.g. https://www.amazon.com/s?rh=n%%3A<node-id>",
+                    "%s exposes no brand information and no brands could be "
+                    "matched from the node's search listing.",
                     url,
                 )
             results.append(result)
@@ -145,6 +215,7 @@ class CategoryBrandScraper:
                 break
             url = next_url
 
+        _renumber_listing_ranks(results)
         return results
 
     def collect_pages(self, category_urls: list[str]) -> tuple[list[PageResult], list[str]]:

@@ -23,9 +23,30 @@ from urllib.parse import parse_qsl, urljoin, urlparse
 
 from bs4 import BeautifulSoup, FeatureNotFound, Tag
 
-from .models import PageResult
+from .models import PageResult, ProductEntry
 
-__all__ = ["clean_brand_name", "parse_category_page"]
+__all__ = [
+    "AMAZON_HOUSE_BRANDS",
+    "clean_brand_name",
+    "guess_brand_from_title",
+    "match_known_brand",
+    "parse_category_page",
+    "resolve_product_brands",
+]
+
+# Amazon's own well-known house/private-label brands. These frequently top
+# best-seller lists but rarely appear in the brand filter sidebar.
+AMAZON_HOUSE_BRANDS = (
+    "Amazon Basics",
+    "Amazon Essentials",
+    "Amazon Fire",
+    "AmazonCommercial",
+    "Whole Foods Market",
+    "Happy Belly",
+    "Solimo",
+    "Pinzon",
+    "Goodthreads",
+)
 
 # Sidebar/expander strings that are not brand names.
 _NOISE = frozenset(
@@ -51,6 +72,8 @@ _NOISE = frozenset(
 _MAX_BRAND_LENGTH = 60
 _COUNT_SUFFIX_RE = re.compile(r"\s*\(\d[\d.,\s]*\)\s*$")
 _WHITESPACE_RE = re.compile(r"\s+")
+# Expander labels that get concatenated onto the last sidebar entry.
+_TRAILING_NOISE_RE = re.compile(r"\s+(?:see|show)\s+(?:more|less|all)$", re.IGNORECASE)
 
 # li elements belonging to the brand refinement filter, across layouts.
 _REFINEMENT_LI_SELECTORS = (
@@ -99,6 +122,7 @@ def clean_brand_name(raw: str) -> str:
     """Normalize raw extracted text into a brand name."""
     text = _WHITESPACE_RE.sub(" ", raw).strip()
     text = _COUNT_SUFFIX_RE.sub("", text)
+    text = _TRAILING_NOISE_RE.sub("", text)
     if text.casefold().startswith("by "):
         text = text[3:].strip()
     return text
@@ -212,11 +236,11 @@ def _brand_from_card(card: Tag) -> str | None:
     return None
 
 
-def _brand_from_title(title: str, known_brands: list[str]) -> str | None:
-    """Match *title* against brands the page itself advertises.
+def match_known_brand(title: str, known_brands: list[str]) -> str | None:
+    """Match *title* against a list of brands Amazon itself advertises.
 
     Only exact, word-bounded prefix matches count, so this cannot invent
-    brands that Amazon did not list on the category page. The longest match
+    brands that Amazon did not list on a category page. The longest match
     wins (e.g. "Sony Electronics" beats "Sony").
     """
     folded = title.casefold()
@@ -232,6 +256,32 @@ def _brand_from_title(title: str, known_brands: list[str]) -> str | None:
         if best is None or len(brand) > len(best):
             best = brand
     return best
+
+
+_GUESS_STRIP_CHARS = "\u00ae\u2122\u00a9:;,.-\u2013\u2014"
+_GUESS_MIN_LENGTH = 3
+
+
+def guess_brand_from_title(title: str) -> str | None:
+    """Conservatively guess a brand from the first word of a product title.
+
+    Amazon product titles virtually always start with the brand. Only the
+    single leading token is used, and anything with digits, too short, or
+    noise-like is rejected — so "BELLA 12 Cup Programmable..." yields "BELLA"
+    while "12-Cup Coffee Maker" yields nothing. Results should be labeled as
+    guesses (``title_guess``); they are never mixed into exact matches.
+    """
+    parts = title.split(maxsplit=1)
+    if not parts:
+        return None
+    token = parts[0].strip(_GUESS_STRIP_CHARS)
+    if len(token) < _GUESS_MIN_LENGTH:
+        return None
+    if any(char.isdigit() for char in token) or not any(char.isalpha() for char in token):
+        return None
+    if token.casefold() in _NOISE:
+        return None
+    return token
 
 
 def _collect_structured_brands(node: object, out: list[str]) -> None:
@@ -262,6 +312,92 @@ def _brands_from_structured_data(soup: BeautifulSoup) -> list[str]:
     return _dedupe(brands)
 
 
+_RANK_BADGE_RE = re.compile(r"#\s*(\d+)")
+
+
+def _bsr_ranks_by_asin(soup: BeautifulSoup) -> dict[str, int]:
+    """Read ASIN -> sales rank from the best-seller page's embedded JSON."""
+    ranks: dict[str, int] = {}
+    for container in soup.select("div[data-client-recs-list]"):
+        try:
+            data = json.loads(container["data-client-recs-list"])
+        except (json.JSONDecodeError, KeyError, TypeError):
+            continue
+        for item in data:
+            if not isinstance(item, dict):
+                continue
+            asin = item.get("id")
+            rank = (item.get("metadataMap") or {}).get("render.zg.rank", "")
+            if isinstance(asin, str) and isinstance(rank, str) and rank.isdigit():
+                ranks[asin] = int(rank)
+    return ranks
+
+
+def _card_rank(card: Tag, ranks_by_asin: dict[str, int], asin: str | None) -> int | None:
+    if asin and asin in ranks_by_asin:
+        return ranks_by_asin[asin]
+    root = card.find_parent(id="gridItemRoot") or card
+    badge = root.select_one(".zg-bdg-text")
+    if badge is not None:
+        match = _RANK_BADGE_RE.search(badge.get_text(strip=True))
+        if match:
+            return int(match.group(1))
+    return None
+
+
+def _card_asin(card: Tag) -> str | None:
+    asin = card.get("data-asin") or card.get("id")
+    if asin and len(asin) == 10 and asin.isalnum():
+        return asin
+    inner = card.select_one("div.p13n-sc-uncoverable-faceout[id]")
+    if inner is not None:
+        candidate = inner.get("id", "")
+        if len(candidate) == 10 and candidate.isalnum():
+            return candidate
+    return None
+
+
+def resolve_product_brands(
+    page: "PageResult", known_brands: list[str], guess_missing: bool = True
+) -> int:
+    """Fill in missing product brands by title-matching against *known_brands*.
+
+    Used for best-seller pages, whose cards carry no brand row: the caller
+    supplies brands harvested from the same node's search listing; Amazon's
+    house brands (e.g. "Amazon Basics") are always part of the vocabulary.
+    Titles that still don't match get a conservative first-word guess, marked
+    ``title_guess``, unless *guess_missing* is False. Returns the number of
+    products resolved and keeps ``product_brands``/counters in sync.
+    """
+    seen = {name.casefold() for name in known_brands}
+    vocabulary = known_brands + [
+        name for name in AMAZON_HOUSE_BRANDS if name.casefold() not in seen
+    ]
+
+    resolved = 0
+    for index, product in enumerate(page.products):
+        if product.brand is not None:
+            continue
+        brand = match_known_brand(product.title, vocabulary)
+        source = "known_brand"
+        if brand is None and guess_missing:
+            brand = guess_brand_from_title(product.title)
+            source = "title_guess"
+        if brand is None:
+            continue
+        page.products[index] = ProductEntry(
+            rank=product.rank,
+            title=product.title,
+            brand=brand,
+            brand_source=source,
+            asin=product.asin,
+        )
+        resolved += 1
+    page.product_brands = [p.brand for p in page.products if p.brand is not None]
+    page.cards_with_brand = len(page.product_brands)
+    return resolved
+
+
 def _next_page_url(soup: BeautifulSoup, base_url: str) -> str | None:
     anchor = soup.select_one("a.s-pagination-next:not(.s-pagination-disabled)")
     if anchor is None:
@@ -276,7 +412,7 @@ def _next_page_url(soup: BeautifulSoup, base_url: str) -> str | None:
 
 
 def parse_category_page(html: str, url: str = "", page: int = 1) -> PageResult:
-    """Parse one category page and return the brands found on it."""
+    """Parse one category page and return the brands and products found on it."""
     soup = _make_soup(html)
 
     refinement_brands = _brands_from_refinements(soup)
@@ -284,22 +420,34 @@ def parse_category_page(html: str, url: str = "", page: int = 1) -> PageResult:
     known_brands = _dedupe(refinement_brands + structured_data_brands)
 
     cards = soup.select(_CARD_SELECTOR)
+    is_best_seller_list = False
     if not cards:
         # Best-seller style list. The two faceout classes nest, so take
         # whichever matches first to avoid counting cards twice.
         cards = soup.select("div.p13n-sc-uncoverable-faceout") or soup.select(
             "div.zg-grid-general-faceout"
         )
+        is_best_seller_list = bool(cards)
 
-    product_brands: list[str] = []
-    for card in cards:
+    ranks_by_asin = _bsr_ranks_by_asin(soup) if is_best_seller_list else {}
+
+    products: list[ProductEntry] = []
+    for position, card in enumerate(cards, start=1):
+        title = _card_title_text(card)
         brand = _brand_from_card(card)
+        brand_source = "brand_row" if brand is not None else None
         if brand is None:
             # Newest layout: no brand row on the card, so fall back to
             # matching the title against brands listed on this very page.
-            brand = _brand_from_title(_card_title_text(card), known_brands)
-        if brand is not None:
-            product_brands.append(brand)
+            brand = match_known_brand(title, known_brands)
+            brand_source = "known_brand" if brand is not None else None
+        asin = _card_asin(card)
+        rank = _card_rank(card, ranks_by_asin, asin) if is_best_seller_list else position
+        products.append(
+            ProductEntry(rank=rank, title=title, brand=brand, brand_source=brand_source, asin=asin)
+        )
+
+    product_brands = [product.brand for product in products if product.brand is not None]
 
     return PageResult(
         url=url,
@@ -307,6 +455,8 @@ def parse_category_page(html: str, url: str = "", page: int = 1) -> PageResult:
         refinement_brands=refinement_brands,
         product_brands=product_brands,
         structured_data_brands=structured_data_brands,
+        products=products,
+        is_best_seller_list=is_best_seller_list,
         total_cards=len(cards),
         cards_with_brand=len(product_brands),
         next_page_url=_next_page_url(soup, url),
