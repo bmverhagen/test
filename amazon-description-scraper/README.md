@@ -81,7 +81,7 @@ python scrape_descriptions.py scrape B0B4WQXL21 -p rainforest
 ## Bulk pipeline (100–1000+)
 
 Stable long-run mode with **adaptive delay**, **checkpoint/resume**, and live
-progress on stderr. Validated: 100/100 in ~161s, then scaled to 1000.
+progress on stderr. Validated live: **100/100 in ~161s** and **1000/1000 in ~29min** (0 captcha, 0 retries, no cache).
 
 ```bash
 # Staged stress test
