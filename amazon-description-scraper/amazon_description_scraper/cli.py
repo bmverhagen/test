@@ -208,6 +208,20 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     bulk.add_argument(
+        "--stream-retries",
+        action="store_true",
+        help=(
+            "Continuous retry queue: requeue misses immediately instead of "
+            "waiting for a full pass to finish (overlaps retries with first-pass)"
+        ),
+    )
+    bulk.add_argument(
+        "--max-retries",
+        type=int,
+        default=5,
+        help="Max requeues per ASIN in --stream-retries mode (default 5 → 6 tries)",
+    )
+    bulk.add_argument(
         "--allow-duplicates",
         action="store_true",
         help=(
@@ -303,6 +317,8 @@ def _cmd_bulk(args: argparse.Namespace) -> int:
         else:
             spacing = 0.12
         max_passes = 1 if args.fast else max(1, args.max_passes)
+    stream_retries = bool(getattr(args, "stream_retries", False)) and not args.fast
+    max_retries = max(0, int(getattr(args, "max_retries", 5)))
     pipeline = BulkPipeline(
         marketplace=args.marketplace,
         spacing=spacing,
@@ -310,6 +326,8 @@ def _cmd_bulk(args: argparse.Namespace) -> int:
         checkpoint_every=args.checkpoint_every,
         engine=engine,
         max_passes=max_passes,
+        max_retries=max_retries,
+        stream_retries=stream_retries,
         stable=stable and engine == "turbo",
     )
     stats = pipeline.run(
@@ -320,11 +338,19 @@ def _cmd_bulk(args: argparse.Namespace) -> int:
         allow_duplicates=bool(args.allow_duplicates),
     )
     rate = (stats.ok / stats.total) if stats.total else 0
-    print(
-        f"iterations_needed={stats.passes} ok={stats.ok}/{stats.total} "
-        f"fail={stats.failed} success_rate={rate:.1%}",
-        file=sys.stderr,
-    )
+    if stream_retries:
+        print(
+            f"stream_retries max_retries={max_retries} ok={stats.ok}/{stats.total} "
+            f"fail={stats.failed} success_rate={rate:.1%} "
+            f"requeues={stats.retries} elapsed={stats.elapsed:.1f}s",
+            file=sys.stderr,
+        )
+    else:
+        print(
+            f"iterations_needed={stats.passes} ok={stats.ok}/{stats.total} "
+            f"fail={stats.failed} success_rate={rate:.1%}",
+            file=sys.stderr,
+        )
     # Stable mode requires 100%; fast mode tolerates >=95%.
     threshold = 1.0 if (stable and engine == "turbo") else 0.95
     return 0 if rate + 1e-12 >= threshold else 1

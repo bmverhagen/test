@@ -1,9 +1,8 @@
 """Bulk download pipeline — iterative pass-1 turbo by default.
 
 Priority: **100% success**, then speed.
-- Every iteration uses the same pass-1 settings: parallel turbo
-  (ajaxv2 → dimension → aw → dp), full workers, soft-fail spacing growth
-- Failures are retried with another pass-1 round until done (or max_passes)
+- Batched mode: pass-1 rounds over remaining failures (max_passes)
+- Stream mode: continuous queue — misses requeue immediately (max_retries)
 - Soft-fail and captcha both widen spacing; successes decay it
 """
 
@@ -18,6 +17,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
+from queue import Queue
 from typing import Callable, TextIO
 
 from .models import Marketplace, ProductDescription, resolve_marketplace
@@ -252,6 +252,8 @@ class BulkPipeline:
         checkpoint_every: int = 50,
         engine: str = "turbo",
         max_passes: int = 15,
+        max_retries: int = 5,
+        stream_retries: bool = False,
         stable: bool = True,
         log: Callable[[str], None] | None = None,
         stream: TextIO | None = None,
@@ -264,6 +266,8 @@ class BulkPipeline:
         self.engine = engine
         self.stable = stable
         self.max_passes = max(1, max_passes)
+        self.max_retries = max(0, max_retries)
+        self.stream_retries = bool(stream_retries)
         if engine == "turbo":
             default_spacing = 0.05 if stable else 0.02
             default_workers = 12 if stable else 24
@@ -426,11 +430,18 @@ class BulkPipeline:
             stats.by_provider[prov] = stats.by_provider.get(prov, 0) + 1
             stats.bytes_total += int(item.get("source_bytes") or 0)
 
-        mode = "iterative-pass1" if self.stable else "fast-single"
+        if self.stream_retries and self.stable:
+            mode = "stream-retries"
+        elif self.stable:
+            mode = "iterative-pass1"
+        else:
+            mode = "fast-single"
+        max_tries = 1 + self.max_retries if self.stream_retries else self.max_passes
         self.log(
             f"START engine={self.engine} mode={mode} marketplace={self.marketplace.domain} "
             f"total={stats.total} pending={len(pending)} workers={self.workers} "
-            f"spacing={self.gate.spacing:.3f}s max_iterations={self.max_passes} "
+            f"spacing={self.gate.spacing:.3f}s "
+            f"{'max_retries=' + str(self.max_retries) + ' max_tries=' + str(max_tries) if self.stream_retries else 'max_iterations=' + str(self.max_passes)} "
             f"checkpoint_every={self.checkpoint_every} no_cache=1"
         )
 
@@ -489,6 +500,161 @@ class BulkPipeline:
             )
             if should_checkpoint:
                 write_checkpoint()
+
+        # --- Streaming retries: miss → requeue immediately (overlaps with first-pass) ---
+        if self.stream_retries and self.engine == "turbo":
+            max_tries = 1 + self.max_retries
+            pass1_spacing = max(
+                self.gate.min_spacing, 0.05 if self.stable else self.gate.spacing
+            )
+            self.gate.spacing = pass1_spacing
+            work: Queue[tuple[str | None, int]] = Queue()
+            for asin in remaining:
+                work.put((asin, 1))
+
+            ok_by_try: dict[int, int] = {}
+            fail_by_try: dict[int, int] = {}
+            max_try_seen = 1
+            progress_every = max(25, min(100, stats.total // 20 or 25))
+
+            self.log(
+                f"STREAM start: pending={len(remaining)} workers={self.workers} "
+                f"max_retries={self.max_retries} max_tries={max_tries} "
+                f"spacing={self.gate.spacing:.3f}s"
+            )
+
+            def stream_worker() -> None:
+                nonlocal max_try_seen
+                while True:
+                    asin, attempt = work.get()
+                    try:
+                        if asin is None:
+                            return
+                        with self._stats_lock:
+                            max_try_seen = max(max_try_seen, attempt)
+                            stats.passes = max_try_seen
+                        skip_dp = attempt == 1
+                        # Later tries: one in-fetch retry helps soft 5xx without batching.
+                        in_fetch_attempts = 1 if attempt == 1 else 2
+                        try:
+                            product = self._fetch_asin(
+                                asin,
+                                prefer_html=False,
+                                attempts=in_fetch_attempts,
+                                grow_on_soft_fail=True,
+                                confirm_unavailable=False,
+                                skip_dp=skip_dp,
+                            )
+                        except Exception as exc:  # noqa: BLE001
+                            product = ProductDescription(
+                                asin=asin,
+                                marketplace=self.marketplace.domain,
+                                url=self.marketplace.product_url(asin),
+                                provider=self.engine,
+                                error=str(exc),
+                            )
+
+                        if _is_good(product):
+                            last_miss.pop(asin, None)
+                            with self._stats_lock:
+                                ok_by_try[attempt] = ok_by_try.get(attempt, 0) + 1
+                            handle_success(asin, product)
+                        elif attempt < max_tries:
+                            last_miss[asin] = product
+                            with self._stats_lock:
+                                stats.retries += 1
+                                fail_by_try[attempt] = fail_by_try.get(attempt, 0) + 1
+                            # Requeue at back → overlaps once first-pass queue shrinks.
+                            work.put((asin, attempt + 1))
+                            if stats.retries % progress_every == 0:
+                                self.log(
+                                    f"STREAM requeue asin={asin} try={attempt}->{attempt + 1} "
+                                    f"ok={stats.ok}/{stats.total} "
+                                    f"requeues={stats.retries} q≈{work.qsize()} "
+                                    f"spacing={self.gate.spacing:.3f}s"
+                                )
+                        else:
+                            last_miss[asin] = product
+                            with self._stats_lock:
+                                fail_by_try[attempt] = fail_by_try.get(attempt, 0) + 1
+                                stats.note_failure(
+                                    product, captcha=_is_captcha_error(product)
+                                )
+                                failures.append(product.to_dict())
+                            self.log(
+                                f"FAIL [{stats.ok + stats.failed}/{stats.total}] "
+                                f"asin={asin} exhausted stream retries "
+                                f"(tries={attempt}/{max_tries})"
+                            )
+                    finally:
+                        work.task_done()
+
+            workers_n = self.workers if remaining else 0
+            threads = [
+                threading.Thread(target=stream_worker, name=f"stream-{i}", daemon=True)
+                for i in range(workers_n)
+            ]
+            for t in threads:
+                t.start()
+            work.join()
+            for _ in threads:
+                work.put((None, 0))
+            for t in threads:
+                t.join(timeout=30)
+
+            remaining = []
+            write_checkpoint()
+            self.log(
+                f"STREAM done: ok_by_try={dict(sorted(ok_by_try.items()))} "
+                f"miss_by_try={dict(sorted(fail_by_try.items()))} "
+                f"requeues={stats.retries} max_try_seen={max_try_seen}"
+            )
+
+            products = [
+                _product_from_dict(item, self.marketplace) for item in done.values()
+            ]
+            if not allow_duplicates:
+                order = {a: i for i, a in enumerate(dict.fromkeys(normalized))}
+                products.sort(key=lambda p: order.get(p.asin, 10**9))
+
+            if output_path.suffix.lower() == ".csv":
+                write_csv(output_path, products)
+            else:
+                write_json(
+                    output_path,
+                    products,
+                    marketplace=self.marketplace.domain,
+                    provider=self.engine,
+                )
+                final = json.loads(output_path.read_text(encoding="utf-8"))
+                final["stats"] = stats.to_dict()
+                final["failures_count"] = stats.failed
+                final["pending_final"] = remaining
+                final["ok_by_try"] = ok_by_try
+                final["miss_by_try"] = fail_by_try
+                _atomic_write_json(output_path, final)
+
+            success_rate = (stats.ok / stats.total) if stats.total else 0
+            self.log(
+                f"DONE engine={self.engine} mode={mode} ok={stats.ok}/{stats.total} "
+                f"fail={stats.failed} captcha_hits={stats.captcha_hits} "
+                f"success_rate={success_rate:.1%} max_try={stats.passes} "
+                f"requeues={stats.retries} elapsed={stats.elapsed:.1f}s "
+                f"avg_rate={stats.rate:.2f}/s workers={self.workers} "
+                f"spacing={self.gate.spacing:.3f}s providers={stats.by_provider} "
+                f"output={output_path}"
+            )
+            if stats.failed == 0 and stats.total > 0:
+                self.log(
+                    f"STREAM_RETRIES_NEEDED={max(ok_by_try) if ok_by_try else 1} "
+                    f"(tries until 100% match: {stats.ok}/{stats.total})"
+                )
+            else:
+                self.log(
+                    f"STREAM_RETRIES_USED={self.max_retries} "
+                    f"(incomplete: {stats.ok}/{stats.total}, fail={stats.failed})"
+                )
+            return stats
 
         # Always pass-1 settings: ajax-first chain, full workers, soft-fail growth.
         # Turbo remembers structural no-twister ASINs → aw-first on later attempts.
