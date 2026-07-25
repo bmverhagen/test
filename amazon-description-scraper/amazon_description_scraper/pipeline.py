@@ -193,6 +193,10 @@ def _is_captcha_error(product: ProductDescription) -> bool:
 
 
 def _is_good(product: ProductDescription) -> bool:
+    # Confirmed delisted/unavailable pages count as successful terminal outcomes
+    # (no description exists to scrape).
+    if product.unavailable and not product.error:
+        return True
     return not product.error and bool(
         product.title or product.feature_bullets or product.best_description
     )
@@ -232,6 +236,7 @@ def _product_from_dict(item: dict, marketplace: Marketplace) -> ProductDescripti
         provider=item.get("provider") or "turbo",
         source_bytes=item.get("source_bytes"),
         error=item.get("error"),
+        unavailable=bool(item.get("unavailable")),
     )
 
 
@@ -292,10 +297,21 @@ class BulkPipeline:
         ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
         self._log(f"[{ts}] {msg}")
 
-    def _client_fetch(self, asin: str, *, prefer_html: bool = False) -> ProductDescription:
+    def _client_fetch(
+        self,
+        asin: str,
+        *,
+        prefer_html: bool = False,
+        confirm_unavailable: bool = False,
+    ) -> ProductDescription:
         if self.engine == "turbo":
             assert self._turbo is not None
-            return self._turbo.fetch(asin, self.marketplace, prefer_html=prefer_html)
+            return self._turbo.fetch(
+                asin,
+                self.marketplace,
+                prefer_html=prefer_html,
+                confirm_unavailable=confirm_unavailable,
+            )
         provider = getattr(self._soft_local, "provider", None)
         if provider is None:
             fetcher = Fetcher(
@@ -314,12 +330,17 @@ class BulkPipeline:
         prefer_html: bool = False,
         attempts: int = 2,
         grow_on_soft_fail: bool = True,
+        confirm_unavailable: bool = False,
     ) -> ProductDescription:
         """Fetch with in-pass attempts; optional soft-fail growth."""
         last = None
         for _attempt in range(max(1, attempts)):
             self.gate.wait_turn()
-            product = self._client_fetch(asin, prefer_html=prefer_html)
+            product = self._client_fetch(
+                asin,
+                prefer_html=prefer_html,
+                confirm_unavailable=confirm_unavailable,
+            )
             last = product
             if _is_good(product):
                 return product
@@ -469,6 +490,11 @@ class BulkPipeline:
             resume_tail = bool(done) and pass_num == 1 and len(remaining) < stats.total
             prefer_html = self.stable and (pass_num >= 2 or resume_tail)
             grow_on_soft_fail = not prefer_html
+            # Enable delist confirmation on late passes, or immediately when
+            # resuming a tiny hard-fail tail (already retried many times).
+            confirm_unavailable = self.stable and (
+                pass_num >= 6 or (resume_tail and len(remaining) <= 25)
+            )
             attempts = 2 if (pass_num == 1 and not prefer_html) else (3 if pass_num < 5 else 4)
             if prefer_html:
                 pass_workers = max(2, min(6, self.workers - 2 * max(0, pass_num - 1)))
@@ -510,6 +536,7 @@ class BulkPipeline:
                         prefer_html=prefer_html,
                         attempts=attempts,
                         grow_on_soft_fail=grow_on_soft_fail,
+                        confirm_unavailable=confirm_unavailable,
                     )
                 except Exception as exc:  # noqa: BLE001
                     return asin, ProductDescription(

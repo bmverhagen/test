@@ -105,6 +105,7 @@ class TurboClient:
         marketplace: Marketplace,
         *,
         prefer_html: bool = False,
+        confirm_unavailable: bool = False,
     ) -> ProductDescription:
         # Endpoint hunt (2026-07): no free light JSON without captcha/tokens.
         # Fast path: ajaxv2 → dimension → aw → dp
@@ -124,16 +125,45 @@ class TurboClient:
                 captcha_hit = product
 
         # Last resort for hard NL throttles: sibling EU storefronts (aw HTML).
+        dead_votes = 0
+        probed = 0
         if prefer_html:
-            for host in ("www.amazon.de", "www.amazon.fr", "www.amazon.es", "www.amazon.it"):
-                if host == marketplace.host:
-                    continue
+            for host in (
+                marketplace.host,
+                "www.amazon.de",
+                "www.amazon.fr",
+                "www.amazon.es",
+                "www.amazon.it",
+                "www.amazon.co.uk",
+            ):
+                probed += 1
                 product = self._aw_host(asin, host, marketplace)
                 if product and (product.title or product.feature_bullets):
                     return product
+                # Tiny non-product responses (404/gone/soft-block shells).
+                if product is None:
+                    dead_votes += 1
 
         if captcha_hit is not None:
             return captcha_hit
+
+        # Only after many multipass attempts: if every HTML probe is a tiny
+        # non-product page, treat as confirmed delisted (not a soft throttle).
+        if (
+            confirm_unavailable
+            and prefer_html
+            and probed >= 4
+            and dead_votes >= probed - 1
+        ):
+            return ProductDescription(
+                asin=asin,
+                marketplace=marketplace.domain,
+                url=marketplace.product_url(asin),
+                provider="turbo/unavailable",
+                unavailable=True,
+                description="Product page unavailable / delisted on Amazon",
+            )
+
         return ProductDescription(
             asin=asin,
             marketplace=marketplace.domain,

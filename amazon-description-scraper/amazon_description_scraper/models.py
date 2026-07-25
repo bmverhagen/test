@@ -125,10 +125,13 @@ class ProductDescription:
     provider: str = ProviderName.HTML.value
     source_bytes: int | None = None
     error: str | None = None
+    unavailable: bool = False
 
     @property
     def best_description(self) -> str | None:
         """Longest useful plain-text description available."""
+        if self.unavailable:
+            return None
         candidates = [
             self.description,
             self.aplus_text,
