@@ -279,7 +279,10 @@ class BulkPipeline:
         product = self._client_fetch(asin)
         if _is_good(product):
             return product
-        self.gate.on_block()
+        # Only back off on captcha/blocks — soft misses (e.g. empty parse) get one
+        # retry without blowing adaptive spacing (critical for 1k–10k runs).
+        if _is_captcha_error(product):
+            self.gate.on_block()
         self.gate.wait_turn()
         return self._client_fetch(asin)
 
@@ -290,24 +293,34 @@ class BulkPipeline:
         output: Path | str,
         resume: bool = True,
         max_items: int | None = None,
+        allow_duplicates: bool = False,
     ) -> PipelineStats:
         output_path = Path(output)
         checkpoint_path = output_path.with_suffix(output_path.suffix + ".checkpoint.json")
 
-        seen: set[str] = set()
         normalized: list[str] = []
+        seen: set[str] = set()
         for value in asins:
             asin = extract_asin(value)
-            if asin and asin not in seen:
+            if not asin:
+                continue
+            if allow_duplicates:
+                normalized.append(asin)
+            elif asin not in seen:
                 seen.add(asin)
                 normalized.append(asin)
         if max_items is not None:
             normalized = normalized[:max_items]
 
-        done = _load_checkpoint(checkpoint_path) if resume else {}
+        done = _load_checkpoint(checkpoint_path) if resume and not allow_duplicates else {}
         if done:
             self.log(f"RESUME: loaded {len(done)} OK products from {checkpoint_path}")
-        pending = [a for a in normalized if a not in done]
+        # With allow_duplicates each line is a fresh no-cache fetch (speed tests).
+        pending = (
+            list(normalized)
+            if allow_duplicates
+            else [a for a in normalized if a not in done]
+        )
 
         stats = PipelineStats(
             total=len(normalized),
@@ -353,7 +366,8 @@ class BulkPipeline:
                 else:
                     stats.note_failure(product, captcha=captcha)
                     failures.append(product.to_dict())
-                    self.gate.on_block()
+                    if captcha:
+                        self.gate.on_block()
                     status = "FAIL"
                 stats.delay = self.gate.spacing
                 attempted = stats.attempted

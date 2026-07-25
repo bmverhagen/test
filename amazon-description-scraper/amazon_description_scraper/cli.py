@@ -192,6 +192,14 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Sequential soft mode (workers=1, spacing=0.55) — slowest, max stability",
     )
+    bulk.add_argument(
+        "--allow-duplicates",
+        action="store_true",
+        help=(
+            "Fetch every input line even if ASIN repeats (no-cache each time). "
+            "Useful for 10k speed tests with a smaller unique seed list."
+        ),
+    )
 
     return parser
 
@@ -284,6 +292,7 @@ def _cmd_bulk(args: argparse.Namespace) -> int:
         output=args.output,
         resume=not args.no_resume,
         max_items=args.max_items,
+        allow_duplicates=bool(args.allow_duplicates),
     )
     rate = (stats.ok / stats.total) if stats.total else 0
     return 0 if rate >= 0.95 else 1
