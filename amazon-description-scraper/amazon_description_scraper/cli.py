@@ -126,8 +126,9 @@ def build_parser() -> argparse.ArgumentParser:
     bulk = sub.add_parser(
         "bulk",
         help=(
-            "Stable multipass turbo pipeline (default): target 100% success via "
-            "ajaxv2→dimension→aw→dp with retries; use --fast for aggressive single-pass"
+            "Iterative pass-1 turbo pipeline (default): ajaxv2→dimension→aw→dp, "
+            "retry failures with the same pass-1 settings until 100%; "
+            "use --fast for aggressive single pass"
         ),
     )
     bulk.add_argument("asins", nargs="*", help="ASINs or /dp/ URLs")
@@ -201,7 +202,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--max-passes",
         type=int,
         default=20,
-        help="Multipass retries for failures (default 20; --fast forces 1)",
+        help=(
+            "Max pass-1 iterations over remaining failures "
+            "(default 20; --fast forces 1). Output reports iterations needed."
+        ),
     )
     bulk.add_argument(
         "--allow-duplicates",
@@ -316,6 +320,11 @@ def _cmd_bulk(args: argparse.Namespace) -> int:
         allow_duplicates=bool(args.allow_duplicates),
     )
     rate = (stats.ok / stats.total) if stats.total else 0
+    print(
+        f"iterations_needed={stats.passes} ok={stats.ok}/{stats.total} "
+        f"fail={stats.failed} success_rate={rate:.1%}",
+        file=sys.stderr,
+    )
     # Stable mode requires 100%; fast mode tolerates >=95%.
     threshold = 1.0 if (stable and engine == "turbo") else 0.95
     return 0 if rate + 1e-12 >= threshold else 1

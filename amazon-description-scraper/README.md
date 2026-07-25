@@ -82,22 +82,22 @@ python scrape_descriptions.py scrape B0B4WQXL21 -p rainforest
 `source_bytes`, `error`.
 
 
-## Bulk pipeline (100–1000+) — stable multipass default
+## Bulk pipeline (100–1000+) — iterative pass-1 default
 
 Default `bulk` prioritizes **100% success**, then speed:
 
 | Mode | Config | Goal |
 | --- | --- | --- |
-| **default stable** | w12 / s0.05, multipass ≤15 | **100% success**, no-cache |
+| **default** | w12 / s0.05, iterative pass-1 ≤20 | **100% success**, no-cache |
 | `--fast` | w24 / s0.02, single pass | max speed (may drop OK%) |
 | `--safe` | soft sequential | slowest, max politeness |
 
 Chain per ASIN: **ajaxv2 → dimension → `/gp/aw/d` → `/dp`** (no-cache nonce).
-Failures are retried in later passes with cooldown + higher spacing (prior 10k
-soft-fails recovered 20/20 on retry).
+Every iteration uses the same pass-1 settings; only failures are retried.
+Final log includes `ITERATIONS_NEEDED=N` when coverage reaches 100%.
 
 ```bash
-# Stable default — target 100% success
+# Default — iterative pass-1 until 100%
 python scrape_descriptions.py bulk -f asins.txt --max 10000 -o out.json
 
 # Aggressive single-pass
@@ -108,8 +108,11 @@ python scrape_descriptions.py bulk -f asins.txt -o out.json --safe
 ```
 
 ```text
-[09:40:01] OK [200/200] provider=turbo/ajaxv2 bullets=5
-           ok=200 fail=0 captcha=0 rate=20.7/s spacing=0.015s workers=24
+[09:40:01] ITER 1/20: pending=1000 workers=12 ...
+[09:41:20] ITER 1 done: recovered=885 ok=885/1000 remaining=115
+...
+[09:42:05] ITERATIONS_NEEDED=4 (pass-1 rounds until 100% match: 1000/1000)
+iterations_needed=4 ok=1000/1000 fail=0 success_rate=100.0%
 ```
 
 ## Tests

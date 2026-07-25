@@ -1,8 +1,9 @@
-"""Bulk download pipeline — stable multipass turbo by default.
+"""Bulk download pipeline — iterative pass-1 turbo by default.
 
 Priority: **100% success**, then speed.
-- Pass 1: parallel turbo (ajaxv2 → dimension → aw → dp), no-cache
-- Later passes: retry only failures with higher spacing / fewer workers
+- Every iteration uses the same pass-1 settings: parallel turbo
+  (ajaxv2 → dimension → aw → dp), full workers, soft-fail spacing growth
+- Failures are retried with another pass-1 round until done (or max_passes)
 - Soft-fail and captcha both widen spacing; successes decay it
 """
 
@@ -79,6 +80,7 @@ class PipelineStats:
     def to_dict(self) -> dict:
         return {
             **asdict(self),
+            "iterations": self.passes,
             "elapsed": round(self.elapsed, 2),
             "rate_per_sec": round(self.rate, 3),
             "eta_seconds": None if self.eta_seconds is None else round(self.eta_seconds, 1),
@@ -417,11 +419,11 @@ class BulkPipeline:
             stats.by_provider[prov] = stats.by_provider.get(prov, 0) + 1
             stats.bytes_total += int(item.get("source_bytes") or 0)
 
-        mode = "stable-multipass" if self.stable else "fast-single"
+        mode = "iterative-pass1" if self.stable else "fast-single"
         self.log(
             f"START engine={self.engine} mode={mode} marketplace={self.marketplace.domain} "
             f"total={stats.total} pending={len(pending)} workers={self.workers} "
-            f"spacing={self.gate.spacing:.3f}s max_passes={self.max_passes} "
+            f"spacing={self.gate.spacing:.3f}s max_iterations={self.max_passes} "
             f"checkpoint_every={self.checkpoint_every} no_cache=1"
         )
 
@@ -481,49 +483,35 @@ class BulkPipeline:
             if should_checkpoint:
                 write_checkpoint()
 
-        for pass_num in range(1, self.max_passes + 1):
+        # Always pass-1 settings: ajax-first chain, full workers, soft-fail growth.
+        prefer_html = False
+        grow_on_soft_fail = True
+        confirm_unavailable = False
+        attempts = 2
+        pass_workers = self.workers
+        pass1_spacing = max(self.gate.min_spacing, 0.05 if self.stable else self.gate.spacing)
+
+        for iter_num in range(1, self.max_passes + 1):
             if not remaining:
                 break
-            stats.passes = pass_num
-            # Retry / resume-tail: HTML-first, fixed spacing (no soft-fail storms).
-            # If we already have successes (checkpoint resume), treat pass 1 as retry.
-            resume_tail = bool(done) and pass_num == 1 and len(remaining) < stats.total
-            prefer_html = self.stable and (pass_num >= 2 or resume_tail)
-            grow_on_soft_fail = not prefer_html
-            # Enable delist confirmation on late passes, or immediately when
-            # resuming a tiny hard-fail tail (already retried many times).
-            confirm_unavailable = self.stable and (
-                pass_num >= 6 or (resume_tail and len(remaining) <= 25)
-            )
-            attempts = 2 if (pass_num == 1 and not prefer_html) else (3 if pass_num < 5 else 4)
-            if prefer_html:
-                pass_workers = max(2, min(6, self.workers - 2 * max(0, pass_num - 1)))
-            else:
-                pass_workers = self.workers
-            if self.stable:
-                if not prefer_html:
-                    self.gate.spacing = max(self.gate.min_spacing, 0.05)
-                elif pass_num < 5:
-                    self.gate.spacing = 0.12
-                else:
-                    self.gate.spacing = 0.25
+            stats.passes = iter_num
+            # Reset to pass-1 baseline each iteration (adaptive growth still applies in-iter).
+            self.gate.spacing = pass1_spacing
 
+            before_ok = stats.ok
+            before_pending = len(remaining)
             self.log(
-                f"PASS {pass_num}/{self.max_passes}: pending={len(remaining)} "
+                f"ITER {iter_num}/{self.max_passes}: pending={before_pending} "
                 f"workers={pass_workers} spacing={self.gate.spacing:.3f}s "
                 f"prefer_html={prefer_html} attempts={attempts} "
                 f"ok_so_far={stats.ok}/{stats.total}"
             )
 
-            if pass_num > 1:
-                # Fresh session helps after throttle windows
+            if iter_num > 1:
+                # Fresh session between pass-1 rounds; short fixed pause only.
                 self._warm()
-                # Late passes often hit Amazon 500 storms — wait longer.
-                if pass_num >= 8:
-                    pause = min(90.0, 20.0 + 8.0 * (pass_num - 8))
-                else:
-                    pause = min(15.0, 1.4 ** (pass_num - 1))
-                self.log(f"PASS cooldown {pause:.1f}s before retrying failures")
+                pause = 1.5
+                self.log(f"ITER cooldown {pause:.1f}s before retrying failures (pass-1 again)")
                 time.sleep(pause)
 
             pass_failures: list[tuple[str, ProductDescription]] = []
@@ -575,37 +563,42 @@ class BulkPipeline:
                         elif grow_on_soft_fail:
                             self.gate.on_soft_fail()
                         self.log(
-                            f"MISS [pass={pass_num}] asin={asin} "
+                            f"MISS [iter={iter_num}] asin={asin} "
                             f"provider={product.provider} err={(product.error or 'empty')[:60]} "
                             f"spacing={self.gate.spacing:.3f}s still_bad={len(pass_failures)}"
                         )
 
             remaining = [a for a, _ in pass_failures]
+            recovered = stats.ok - before_ok
             write_checkpoint()
+            self.log(
+                f"ITER {iter_num} done: recovered={recovered} "
+                f"ok={stats.ok}/{stats.total} remaining={len(remaining)}"
+            )
 
-            if remaining and pass_num < self.max_passes:
+            if remaining and iter_num < self.max_passes:
                 self.log(
-                    f"PASS {pass_num} done: recovered batch; "
-                    f"{len(remaining)} still pending → next pass"
+                    f"ITER {iter_num} incomplete → next pass-1 round "
+                    f"({len(remaining)} pending)"
                 )
 
-        # Final failures after all passes
+        # Final failures after all iterations
         for asin in remaining:
             product = last_miss.get(asin) or ProductDescription(
                 asin=asin,
                 marketplace=self.marketplace.domain,
                 url=self.marketplace.product_url(asin),
                 provider=self.engine,
-                error="exhausted multipass retries",
+                error="exhausted iterative pass-1 retries",
             )
             if not product.error:
-                product.error = "exhausted multipass retries"
+                product.error = "exhausted iterative pass-1 retries"
             captcha = _is_captcha_error(product)
             with self._stats_lock:
                 stats.note_failure(product, captcha=captcha)
                 failures.append(product.to_dict())
             self.log(
-                f"FAIL [{stats.ok + stats.failed}/{stats.total}] asin={asin} exhausted passes"
+                f"FAIL [{stats.ok + stats.failed}/{stats.total}] asin={asin} exhausted iterations"
             )
 
         write_checkpoint()
@@ -635,9 +628,19 @@ class BulkPipeline:
         self.log(
             f"DONE engine={self.engine} mode={mode} ok={stats.ok}/{stats.total} "
             f"fail={stats.failed} captcha_hits={stats.captcha_hits} "
-            f"success_rate={success_rate:.1%} passes={stats.passes} "
+            f"success_rate={success_rate:.1%} iterations={stats.passes} "
             f"elapsed={stats.elapsed:.1f}s avg_rate={stats.rate:.2f}/s "
             f"workers={self.workers} spacing={self.gate.spacing:.3f}s "
             f"providers={stats.by_provider} output={output_path}"
         )
+        if stats.failed == 0 and stats.total > 0:
+            self.log(
+                f"ITERATIONS_NEEDED={stats.passes} "
+                f"(pass-1 rounds until 100% match: {stats.ok}/{stats.total})"
+            )
+        else:
+            self.log(
+                f"ITERATIONS_USED={stats.passes} "
+                f"(incomplete: {stats.ok}/{stats.total}, fail={stats.failed})"
+            )
         return stats
