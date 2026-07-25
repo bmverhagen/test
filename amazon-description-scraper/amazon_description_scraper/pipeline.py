@@ -91,11 +91,12 @@ class SpacingGate:
         self,
         spacing: float = 0.05,
         min_spacing: float = 0.03,
-        max_spacing: float = 4.0,
+        max_spacing: float = 1.5,
         growth: float = 1.35,
-        soft_growth: float = 1.12,
-        decay_every: int = 25,
-        decay_factor: float = 0.94,
+        soft_growth: float = 1.08,
+        decay_every: int = 20,
+        decay_factor: float = 0.92,
+        grow_cooldown: float = 2.0,
     ) -> None:
         self.spacing = spacing
         self.min_spacing = min_spacing
@@ -104,9 +105,11 @@ class SpacingGate:
         self.soft_growth = soft_growth
         self.decay_every = decay_every
         self.decay_factor = decay_factor
+        self.grow_cooldown = grow_cooldown
         self._lock = threading.Lock()
         self._next_start = 0.0
         self._success_streak = 0
+        self._last_grow_at = 0.0
 
     def wait_turn(self) -> None:
         if self.spacing <= 0:
@@ -128,22 +131,26 @@ class SpacingGate:
                 self.spacing = max(self.min_spacing, self.spacing * self.decay_factor)
                 self._success_streak = 0
 
+    def _grow(self, factor: float) -> None:
+        """Grow spacing at most once per grow_cooldown (avoids parallel miss storms)."""
+        now = time.time()
+        if now - self._last_grow_at < self.grow_cooldown:
+            return
+        self._last_grow_at = now
+        self._success_streak = 0
+        self.spacing = min(
+            self.max_spacing,
+            max(self.min_spacing, self.spacing) * factor,
+        )
+
     def on_soft_fail(self) -> None:
         """Mild backoff for empty/404 responses under load."""
         with self._lock:
-            self._success_streak = 0
-            self.spacing = min(
-                self.max_spacing,
-                max(self.min_spacing, self.spacing) * self.soft_growth,
-            )
+            self._grow(self.soft_growth)
 
     def on_block(self) -> None:
         with self._lock:
-            self._success_streak = 0
-            self.spacing = min(
-                self.max_spacing,
-                max(self.min_spacing, self.spacing) * self.growth,
-            )
+            self._grow(self.growth)
 
 
 class AdaptivePacer:
@@ -269,11 +276,12 @@ class BulkPipeline:
         self.gate = SpacingGate(
             spacing=initial,
             min_spacing=0.03 if (engine == "turbo" and stable) else (0.015 if engine == "turbo" else 0.08),
-            max_spacing=4.0 if engine == "turbo" else 8.0,
-            growth=1.5,
-            soft_growth=1.12,
-            decay_every=25 if stable else 40,
-            decay_factor=0.94,
+            max_spacing=1.25 if (engine == "turbo" and stable) else (2.0 if engine == "turbo" else 8.0),
+            growth=1.4,
+            soft_growth=1.06,
+            decay_every=15 if stable else 40,
+            decay_factor=0.90,
+            grow_cooldown=3.0 if stable else 1.0,
         )
         self._stats_lock = threading.Lock()
         self._io_lock = threading.Lock()
