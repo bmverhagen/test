@@ -490,8 +490,6 @@ class BulkPipeline:
         # Turbo remembers structural no-twister ASINs → aw-first on later attempts.
         grow_on_soft_fail = True
         confirm_unavailable = False
-        # One attempt per iteration — retries happen as whole pass-1 rounds (faster).
-        attempts = 1
         pass_workers = self.workers
         pass1_spacing = max(self.gate.min_spacing, 0.05 if self.stable else self.gate.spacing)
 
@@ -501,6 +499,8 @@ class BulkPipeline:
             stats.passes = iter_num
             # Reset to pass-1 baseline each iteration (adaptive growth still applies in-iter).
             self.gate.spacing = pass1_spacing
+            # Iter 1: single attempt (throughput). Later: 2 attempts for soft-5xx recovery.
+            attempts = 1 if iter_num == 1 else 2
 
             before_ok = stats.ok
             before_pending = len(remaining)
@@ -515,7 +515,7 @@ class BulkPipeline:
             if iter_num > 1:
                 # Re-warm cookies only; keep pooled client + no-twister memory.
                 self._warm()
-                pause = 0.3
+                pause = 0.5
                 self.log(f"ITER cooldown {pause:.1f}s before retrying failures (pass-1 again)")
                 time.sleep(pause)
 
