@@ -122,6 +122,16 @@ class TurboClient:
                 return product
             if product and product.error and "captcha" in product.error:
                 captcha_hit = product
+
+        # Last resort for hard NL throttles: sibling EU storefronts (aw HTML).
+        if prefer_html:
+            for host in ("www.amazon.de", "www.amazon.fr", "www.amazon.es", "www.amazon.it"):
+                if host == marketplace.host:
+                    continue
+                product = self._aw_host(asin, host, marketplace)
+                if product and (product.title or product.feature_bullets):
+                    return product
+
         if captcha_hit is not None:
             return captcha_hit
         return ProductDescription(
@@ -129,7 +139,7 @@ class TurboClient:
             marketplace=marketplace.domain,
             url=marketplace.product_url(asin),
             provider="turbo",
-            error="turbo fetch failed (ajaxv2+dimension+aw+dp)",
+            error="turbo fetch failed (ajaxv2+dimension+aw+dp+eu)",
         )
 
     def _twister_like(
@@ -195,20 +205,30 @@ class TurboClient:
 
     def _aw(self, asin: str, marketplace: Marketplace) -> ProductDescription | None:
         """Mobile product page — often lighter than /dp and higher hit-rate than twister."""
+        return self._aw_host(asin, marketplace.host, marketplace, provider="turbo/aw")
+
+    def _aw_host(
+        self,
+        asin: str,
+        host: str,
+        marketplace: Marketplace,
+        *,
+        provider: str | None = None,
+    ) -> ProductDescription | None:
         bust = f"&_={_bust()}" if self.no_cache else ""
-        url = f"{marketplace.base_url}/gp/aw/d/{asin}?psc=1&th=1{bust}"
+        url = f"https://{host}/gp/aw/d/{asin}?psc=1&th=1{bust}"
         try:
             response = self.session.get(url, timeout=self.timeout)
         except requests.RequestException:
             return None
         raw = response.text or ""
-        if response.status_code != 200 or _captcha(raw):
+        if response.status_code != 200 or _captcha(raw) or len(raw) < 5000:
             if _captcha(raw):
                 return ProductDescription(
                     asin=asin,
                     marketplace=marketplace.domain,
                     url=marketplace.product_url(asin),
-                    provider="turbo/aw",
+                    provider=provider or f"turbo/aw/{host}",
                     error="robot/captcha page",
                 )
             return None
@@ -217,9 +237,11 @@ class TurboClient:
             asin=asin,
             marketplace=marketplace.domain,
             url=marketplace.product_url(asin),
-            provider="turbo/aw",
+            provider=provider or f"turbo/aw/{host.split('.')[-1]}",
         )
         product.source_bytes = len(response.content or b"")
+        if not (product.title or product.feature_bullets):
+            return None
         return product
 
     def _dp(self, asin: str, marketplace: Marketplace) -> ProductDescription | None:

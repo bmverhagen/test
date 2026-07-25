@@ -16,6 +16,11 @@ _TITLE_RE = re.compile(
     r'id="productTitle"[^>]*>\s*([^<]+)',
     re.I,
 )
+_TITLE_TAG_RE = re.compile(r"<title>([^<]+)</title>", re.I)
+_OG_TITLE_RE = re.compile(
+    r'property="og:title"\s+content="([^"]+)"',
+    re.I,
+)
 _BULLET_RE = re.compile(
     r'class="a-list-item">\s*([^<]{8,})',
     re.I,
@@ -32,6 +37,12 @@ _NOISE = re.compile(
     r"(make sure this fits|zie dat dit past|javascript|click here|klik hier)",
     re.I,
 )
+_BAD_TITLE = re.compile(
+    r"(503\b|500\b|service niet beschikbaar|something went wrong|"
+    r"er is iets misgegaan|page not found|robot check|validatecaptcha|"
+    r"fout:|error\b)",
+    re.I,
+)
 
 
 def _clean(text: str | None) -> str | None:
@@ -40,6 +51,15 @@ def _clean(text: str | None) -> str | None:
     text = unescape(text)
     text = re.sub(r"\s+", " ", text).strip()
     return text or None
+
+
+def _usable_title(text: str | None) -> str | None:
+    title = _clean(text)
+    if not title or _BAD_TITLE.search(title):
+        return None
+    # Strip trailing Amazon marketplace suffix from <title> tags.
+    title = re.sub(r"\s*:?\s*Amazon\.[^:]*:.*$", "", title, flags=re.I).strip(" :-")
+    return title or None
 
 
 def fast_parse_html(
@@ -51,7 +71,14 @@ def fast_parse_html(
     provider: str,
 ) -> ProductDescription:
     """Parse title/bullets/brand with regex; BS4 fallback if incomplete."""
-    title = _clean(_TITLE_RE.search(html).group(1) if _TITLE_RE.search(html) else None)
+    title = _usable_title(_TITLE_RE.search(html).group(1) if _TITLE_RE.search(html) else None)
+    if not title:
+        og = _OG_TITLE_RE.search(html)
+        title = _usable_title(og.group(1) if og else None)
+    if not title:
+        tag = _TITLE_TAG_RE.search(html)
+        title = _usable_title(tag.group(1) if tag else None)
+
     brand_raw = _clean(_BRAND_RE.search(html).group(1) if _BRAND_RE.search(html) else None)
     brand = None
     if brand_raw:
@@ -76,8 +103,11 @@ def fast_parse_html(
             bullets.append(text)
 
     meta = _clean(_META_RE.search(html).group(1) if _META_RE.search(html) else None)
+    if meta and _BAD_TITLE.search(meta):
+        meta = None
 
-    if title and bullets:
+    # Title alone is enough for success (Prime Video / sparse mobile pages).
+    if title:
         return ProductDescription(
             asin=asin,
             marketplace=marketplace,
@@ -85,7 +115,7 @@ def fast_parse_html(
             title=title,
             brand=brand,
             feature_bullets=bullets,
-            description=None,
+            description=meta if not bullets else None,
             aplus_text=None,
             meta_description=meta,
             provider=provider,
@@ -100,4 +130,7 @@ def fast_parse_html(
         url=url,
         provider=provider,
     )
+    if product.title and _BAD_TITLE.search(product.title):
+        product.title = None
+        product.error = product.error or "error page title rejected"
     return product

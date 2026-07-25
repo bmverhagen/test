@@ -492,7 +492,11 @@ class BulkPipeline:
             if pass_num > 1:
                 # Fresh session helps after throttle windows
                 self._warm()
-                pause = min(15.0, 1.4 ** (pass_num - 1))
+                # Late passes often hit Amazon 500 storms — wait longer.
+                if pass_num >= 8:
+                    pause = min(90.0, 20.0 + 8.0 * (pass_num - 8))
+                else:
+                    pause = min(15.0, 1.4 ** (pass_num - 1))
                 self.log(f"PASS cooldown {pause:.1f}s before retrying failures")
                 time.sleep(pause)
 
