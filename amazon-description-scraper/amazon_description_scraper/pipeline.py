@@ -292,10 +292,10 @@ class BulkPipeline:
         ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
         self._log(f"[{ts}] {msg}")
 
-    def _client_fetch(self, asin: str) -> ProductDescription:
+    def _client_fetch(self, asin: str, *, prefer_html: bool = False) -> ProductDescription:
         if self.engine == "turbo":
             assert self._turbo is not None
-            return self._turbo.fetch(asin, self.marketplace)
+            return self._turbo.fetch(asin, self.marketplace, prefer_html=prefer_html)
         provider = getattr(self._soft_local, "provider", None)
         if provider is None:
             fetcher = Fetcher(
@@ -307,20 +307,29 @@ class BulkPipeline:
             self._soft_local.provider = provider
         return provider.fetch(asin, self.marketplace)
 
-    def _fetch_asin(self, asin: str) -> ProductDescription:
-        """Fetch with up to 2 in-pass attempts; backoff only on captcha/soft-fail."""
+    def _fetch_asin(
+        self,
+        asin: str,
+        *,
+        prefer_html: bool = False,
+        attempts: int = 2,
+        grow_on_soft_fail: bool = True,
+    ) -> ProductDescription:
+        """Fetch with in-pass attempts; optional soft-fail growth."""
         last = None
-        for attempt in range(2):
+        for _attempt in range(max(1, attempts)):
             self.gate.wait_turn()
-            product = self._client_fetch(asin)
+            product = self._client_fetch(asin, prefer_html=prefer_html)
             last = product
             if _is_good(product):
                 return product
             if _is_captcha_error(product):
                 self.gate.on_block()
-                time.sleep(min(8.0, self.gate.spacing * 2))
-            else:
+                time.sleep(min(8.0, max(1.0, self.gate.spacing * 2)))
+            elif grow_on_soft_fail:
                 self.gate.on_soft_fail()
+            else:
+                time.sleep(min(1.5, self.gate.spacing))
         assert last is not None
         return last
 
@@ -455,36 +464,47 @@ class BulkPipeline:
             if not remaining:
                 break
             stats.passes = pass_num
-            # Narrow concurrency on later passes for stability
-            pass_workers = self.workers
+            # Retry passes: fewer workers, HTML-first, fixed spacing (no soft-fail storms).
+            prefer_html = self.stable and pass_num >= 2
+            grow_on_soft_fail = not prefer_html
+            attempts = 2 if pass_num == 1 else (3 if pass_num < 5 else 4)
             if self.stable and pass_num >= 2:
-                pass_workers = max(3, self.workers - 2 * (pass_num - 1))
-            # Reset spacing each pass — do not inherit a blown-up value from
-            # the previous miss storm (critical for finishing 10k retries).
+                pass_workers = max(2, min(6, self.workers - 2 * (pass_num - 1)))
+            else:
+                pass_workers = self.workers
             if self.stable:
-                target = 0.05 if pass_num == 1 else min(0.35, 0.08 * pass_num)
-                self.gate.spacing = max(self.gate.min_spacing, target)
+                if pass_num == 1:
+                    self.gate.spacing = max(self.gate.min_spacing, 0.05)
+                elif pass_num < 5:
+                    self.gate.spacing = 0.12
+                else:
+                    self.gate.spacing = 0.25
 
             self.log(
                 f"PASS {pass_num}/{self.max_passes}: pending={len(remaining)} "
                 f"workers={pass_workers} spacing={self.gate.spacing:.3f}s "
+                f"prefer_html={prefer_html} attempts={attempts} "
                 f"ok_so_far={stats.ok}/{stats.total}"
             )
 
             if pass_num > 1:
                 # Fresh session helps after throttle windows
                 self._warm()
-                pause = min(20.0, 1.5 ** (pass_num - 1))
+                pause = min(15.0, 1.4 ** (pass_num - 1))
                 self.log(f"PASS cooldown {pause:.1f}s before retrying failures")
                 time.sleep(pause)
 
             pass_failures: list[tuple[str, ProductDescription]] = []
             batch = list(remaining)
-            unresolved_in_pass = len(batch)
 
             def run_one(asin: str) -> tuple[str, ProductDescription]:
                 try:
-                    return asin, self._fetch_asin(asin)
+                    return asin, self._fetch_asin(
+                        asin,
+                        prefer_html=prefer_html,
+                        attempts=attempts,
+                        grow_on_soft_fail=grow_on_soft_fail,
+                    )
                 except Exception as exc:  # noqa: BLE001
                     return asin, ProductDescription(
                         asin=asin,
@@ -519,7 +539,7 @@ class BulkPipeline:
                         pass_failures.append((asin, product))
                         if _is_captcha_error(product):
                             self.gate.on_block()
-                        else:
+                        elif grow_on_soft_fail:
                             self.gate.on_soft_fail()
                         self.log(
                             f"MISS [pass={pass_num}] asin={asin} "

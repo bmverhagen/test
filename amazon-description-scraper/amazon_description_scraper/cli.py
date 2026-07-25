@@ -200,8 +200,8 @@ def build_parser() -> argparse.ArgumentParser:
     bulk.add_argument(
         "--max-passes",
         type=int,
-        default=15,
-        help="Multipass retries for failures (default 15; --fast forces 1)",
+        default=20,
+        help="Multipass retries for failures (default 20; --fast forces 1)",
     )
     bulk.add_argument(
         "--allow-duplicates",

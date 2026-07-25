@@ -99,11 +99,24 @@ class TurboClient:
         except requests.RequestException:
             pass
 
-    def fetch(self, asin: str, marketplace: Marketplace) -> ProductDescription:
+    def fetch(
+        self,
+        asin: str,
+        marketplace: Marketplace,
+        *,
+        prefer_html: bool = False,
+    ) -> ProductDescription:
         # Endpoint hunt (2026-07): no free light JSON without captcha/tokens.
-        # Stable chain: ajaxv2 → dimension → mobile aw/d → desktop /dp.
+        # Fast path: ajaxv2 → dimension → aw → dp
+        # Retry path (prefer_html): aw → dp → ajaxv2 → dimension — recovers
+        # soft-throttled ASINs that fail the ajax-first chain under load.
         captcha_hit: ProductDescription | None = None
-        for getter in (self._ajaxv2, self._twister, self._aw, self._dp):
+        getters = (
+            (self._aw, self._dp, self._ajaxv2, self._twister)
+            if prefer_html
+            else (self._ajaxv2, self._twister, self._aw, self._dp)
+        )
+        for getter in getters:
             product = getter(asin, marketplace)
             if product and (product.title or product.feature_bullets):
                 return product
