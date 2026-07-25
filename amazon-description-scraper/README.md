@@ -80,32 +80,36 @@ python scrape_descriptions.py scrape B0B4WQXL21 -p rainforest
 
 ## Bulk pipeline (100–1000+)
 
-Stable long-run mode with **adaptive delay**, **checkpoint/resume**, and live
-progress on stderr. Validated live: **100/100 in ~161s** and **1000/1000 in ~29min** (0 captcha, 0 retries, no cache).
+Parallel long-run mode with **global spacing**, **adaptive backoff**,
+**checkpoint/resume**, and live progress on stderr.
+
+Validated live (no HTTP cache):
+
+| Mode | Config | Result |
+| --- | --- | --- |
+| safe sequential | `--safe` | **1000/1000** in ~29min (~0.57/s) |
+| fast parallel (default) | workers=5, spacing=0.12 | **200/200 in 52s (~3.86/s)**, 0 captcha → ~4–5min/1000 |
 
 ```bash
-# Staged stress test
-python scrape_descriptions.py bulk -f asins.txt --max 100 -o out100.json
+# Fast default (~4–6× sneller dan sequential)
+python scrape_descriptions.py bulk -f asins.txt --max 1000 -o out.json
 
-# Full 1000 (resumable)
-python scrape_descriptions.py bulk -f asins.txt --max 1000 -o out1000.json \
-  --delay 0.5 --checkpoint-every 25
+# Tune
+python scrape_descriptions.py bulk -f asins.txt -o out.json --workers 5 --spacing 0.12
 
-# Resume after interrupt (default)
-python scrape_descriptions.py bulk -f asins.txt --max 1000 -o out1000.json
+# Safest (sequential)
+python scrape_descriptions.py bulk -f asins.txt -o out.json --safe
 ```
 
 Progress lines look like:
 
 ```text
-[08:35:33] OK [80/1000] asin=B0... provider=soft/twister bullets=5 bytes=928694
-           ok=80 fail=0 captcha=0 rate=0.63/s eta=24.5m delay=0.35s
-[08:35:33] CHECKPOINT wrote 80 products → out1000.json.checkpoint.json
+[09:20:01] OK [80/1000] asin=B0... provider=soft/twister bullets=5
+           ok=80 fail=0 captcha=0 rate=3.28/s eta=4.7m spacing=0.15s workers=4
 ```
 
-On captcha/block the delay grows (`×1.7`, cap 8s); after success streaks it
-eases back toward `min_delay` (0.35s). Checkpoint files let you Ctrl+C and
-continue later without re-downloading OK items.
+On captcha/block spacing grows; after success streaks it eases down.
+Checkpoint files let you Ctrl+C and resume without re-downloading OK items.
 
 ## Tests
 

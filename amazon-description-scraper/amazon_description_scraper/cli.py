@@ -126,8 +126,8 @@ def build_parser() -> argparse.ArgumentParser:
     bulk = sub.add_parser(
         "bulk",
         help=(
-            "Stable long-run pipeline for 100–1000+ ASINs: soft provider, "
-            "adaptive delay, checkpoint/resume, live progress on stderr"
+            "Fast long-run pipeline for 100–1000+ ASINs: parallel soft provider, "
+            "adaptive spacing, checkpoint/resume, live progress on stderr"
         ),
     )
     bulk.add_argument("asins", nargs="*", help="ASINs or /dp/ URLs")
@@ -146,10 +146,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output JSON/CSV path (checkpoint written alongside)",
     )
     bulk.add_argument(
+        "--workers",
+        type=int,
+        default=4,
+        help="Parallel workers (default 4; use 1 for safest sequential mode)",
+    )
+    bulk.add_argument(
+        "--spacing",
+        type=float,
+        default=0.15,
+        help="Min seconds between request starts globally (default 0.15; adaptive)",
+    )
+    bulk.add_argument(
         "--delay",
         type=float,
-        default=0.55,
-        help="Initial per-request delay (adaptive; default 0.55)",
+        default=None,
+        help="Alias for --spacing (legacy)",
     )
     bulk.add_argument(
         "--checkpoint-every",
@@ -168,6 +180,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-resume",
         action="store_true",
         help="Ignore existing checkpoint and start clean",
+    )
+    bulk.add_argument(
+        "--safe",
+        action="store_true",
+        help="Sequential safe mode (workers=1, spacing=0.55) — slower, max stability",
     )
 
     return parser
@@ -233,9 +250,12 @@ def _cmd_bulk(args: argparse.Namespace) -> int:
     if not asins:
         print("No ASINs provided. Pass ASINs, --file, or --stdin.", file=sys.stderr)
         return 2
+    workers = 1 if args.safe else args.workers
+    spacing = 0.55 if args.safe else (args.delay if args.delay is not None else args.spacing)
     pipeline = BulkPipeline(
         marketplace=args.marketplace,
-        delay=args.delay,
+        spacing=spacing,
+        workers=workers,
         checkpoint_every=args.checkpoint_every,
     )
     stats = pipeline.run(
