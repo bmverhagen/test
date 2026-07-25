@@ -1,27 +1,36 @@
 """Known Amazon / third-party endpoints for product data.
 
-Amazon does **not** expose a public, unauthenticated JSON endpoint that returns
-full product descriptions. Probe results (amazon.nl, 2026):
+## Live findings (amazon.nl, 2026-07)
 
-| Endpoint | Size | Has description? |
-|---|---|---|
-| `/dp/{ASIN}` | ~1.2 MB HTML | Yes (feature bullets, A+, optional #productDescription) |
-| `/gp/product/{ASIN}` | ~1.2 MB HTML | Same as `/dp` |
-| `/gp/aw/d/{ASIN}` | ~1.2 MB HTML | Same (no longer a light mobile page) |
-| `/gp/product/ajax/aodAjaxMain/?asin=` | ~35 KB HTML | No — seller offers only |
-| `/gp/product/ajax/twisterDimensionSlotsDefault` | empty / variants | No |
-| `completion.amazon.*/api/2017/suggestions` | tiny JSON | No — autocomplete only |
-| `/gp/product/ajax?experienceId=productDescriptionSection` | 404 | Gone |
-| Marketplace REST `/api/marketplaces/.../products/{ASIN}` | 403/404 | Auth required |
+Amazon has **no free unauthenticated batch JSON API** that returns descriptions
+for 100 ASINs in one call. What works:
 
-Plug-in JSON APIs that *do* return descriptions without you parsing HTML:
+| Endpoint | Size | Description? | Bulk? | Notes |
+|---|---|---|---|---|
+| `/gp/twister/dimension?isDimensionSlotsAjax=1&asinList={ASIN}&vs=1` | ~0.7–0.9 MB streaming JSON | **Yes** (feature div HTML) | 1 ASIN only | Best free path. Multi-ASIN `asinList` → 404 |
+| `/dp/{ASIN}` | ~0.7–1.4 MB HTML | **Yes** | 1 ASIN | Fallback when twister 404s |
+| `/gp/product/ajax/aodAjaxMain/?asin=` | ~35 KB | No (offers) | 1 ASIN | |
+| Twister multi-ASIN / POST batch | 404 | No | — | Does not work on NL |
+| `completion.amazon.*/suggestions` | tiny JSON | No | — | Autocomplete only |
+| Legacy `experienceId=productDescriptionSection` | 404 | No | — | Gone |
 
-1. **Amazon Product Advertising API 5.0** (`paapi5`) — official; needs Associate
-   credentials. ItemInfo.Features ≈ bullet points.
-2. **Rainforest API** — `GET https://api.rainforestapi.com/request?type=product`
-3. **Keepa API** — product object includes description / features when available
-4. Generic scrape-API product endpoints (ScraperAPI, etc.) — same idea: ASIN in,
-   JSON out.
+### Soft bulk strategy (validated)
+
+100 ASINs, **no captcha**, **no HTTP cache** (`Cache-Control` + `_=<nonce>`):
+
+1. Warm session on `https://www.amazon.nl/`
+2. Per ASIN: try **twister** first, fall back to **`/dp`**
+3. `workers=1`, delay ≈ 0.55s, retry on captcha
+4. Result: **100/100 OK in ~196s** (74 twister / 26 dp)
+
+`workers>=3` from a datacenter IP quickly triggers captchas/404s.
+
+### Plug-in JSON APIs (true no-block at scale)
+
+1. **PA-API 5.0** — official; max 10 ASINs / GetItems; features only
+2. **Rainforest** — `type=product` (set cache bypass in their dashboard/API if needed)
+3. **Keepa** — product object; tokens per request
+4. **generic_json** — any GET URL with `{asin}` placeholders
 """
 
 from __future__ import annotations
@@ -46,6 +55,7 @@ class EndpointProbe:
 
 _DESC_MARKERS = (
     "feature-bullets",
+    "featurebullets_feature_div",
     "productDescription",
     "featurebullets",
     '"description"',
@@ -55,6 +65,13 @@ _DESC_MARKERS = (
 
 def product_html_url(marketplace: Marketplace, asin: str) -> str:
     return marketplace.product_url(asin)
+
+
+def twister_dimension_url(marketplace: Marketplace, asin: str) -> str:
+    return (
+        f"{marketplace.base_url}/gp/twister/dimension"
+        f"?isDimensionSlotsAjax=1&asinList={asin}&vs=1"
+    )
 
 
 def aod_ajax_url(marketplace: Marketplace, asin: str) -> str:
@@ -69,7 +86,6 @@ def twister_ajax_url(marketplace: Marketplace, asin: str) -> str:
 
 
 def completion_url(marketplace: Marketplace, asin: str) -> str:
-    # completion host mirrors the storefront TLD.
     host = marketplace.host.replace("www.", "completion.")
     return f"https://{host}/api/2017/suggestions?limit=1&prefix={asin}&alias=aps"
 
@@ -82,14 +98,12 @@ def rainforest_url(asin: str, amazon_domain: str, api_key: str) -> str:
 
 
 def keepa_url(asin: str, domain_code: int, api_key: str) -> str:
-    # Keepa domain codes: 1=com, 2=co.uk, 3=de, 4=fr, 5=jp, 6=ca, 8=it, 9=es, 13=nl, ...
     return (
         f"https://api.keepa.com/product?key={api_key}&domain={domain_code}"
         f"&asin={asin}&stats=0"
     )
 
 
-# Keepa domain id for marketplaces we care about.
 KEEPA_DOMAIN_CODES: dict[str, int] = {
     "com": 1,
     "co.uk": 2,
@@ -102,7 +116,6 @@ KEEPA_DOMAIN_CODES: dict[str, int] = {
 
 
 def paapi_host(marketplace: Marketplace) -> str:
-    """PA-API 5 host for a marketplace (EU host covers NL/DE/FR/...)."""
     if marketplace.domain in {"com", "ca", "com.mx", "com.br"}:
         return "webservices.amazon.com"
     if marketplace.domain in {"co.jp", "com.au"}:
@@ -122,21 +135,25 @@ def probe_endpoints(
         backoff=0.8,
     )
     candidates: list[tuple[str, str, str]] = [
-        ("dp_html", product_html_url(marketplace, asin), "Full DP HTML — only reliable free source"),
+        (
+            "twister_dimension",
+            twister_dimension_url(marketplace, asin),
+            "Streaming JSON feature divs — best free description path (1 ASIN)",
+        ),
+        ("dp_html", product_html_url(marketplace, asin), "Full DP HTML fallback"),
         ("aod_ajax", aod_ajax_url(marketplace, asin), "Offers only; not product description"),
-        ("twister_ajax", twister_ajax_url(marketplace, asin), "Variant map; not description"),
+        ("twister_slots", twister_ajax_url(marketplace, asin), "Variant slots; not description"),
         ("completion", completion_url(marketplace, asin), "Autocomplete JSON; not description"),
         (
-            "desc_ajax_legacy",
-            f"{marketplace.base_url}/gp/product/ajax?asin={asin}&experienceId=productDescriptionSection",
-            "Legacy description ajax — expected 404",
+            "twister_multi_asin",
+            twister_dimension_url(marketplace, f"{asin},B000000000"),
+            "Multi-ASIN batch — expected 404 on amazon.nl",
         ),
     ]
 
     results: list[EndpointProbe] = []
     for name, url, notes in candidates:
         try:
-            # Soft probe: do not raise on non-200; we only care about shape/size.
             response = client._session.get(
                 url,
                 headers=client._headers(),

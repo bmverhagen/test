@@ -59,9 +59,12 @@ def build_parser() -> argparse.ArgumentParser:
     scrape.add_argument(
         "-p",
         "--provider",
-        default=ProviderName.HTML.value,
+        default=ProviderName.SOFT.value,
         choices=[p.value for p in ProviderName],
-        help="Data source (default: html)",
+        help=(
+            "Data source (default: soft = twister-first + DP fallback, "
+            "sequential-safe for ~100 products without captcha)"
+        ),
     )
     scrape.add_argument("-o", "--output", help="Output file (.json or .csv)")
     scrape.add_argument(
@@ -73,14 +76,24 @@ def build_parser() -> argparse.ArgumentParser:
     scrape.add_argument(
         "--workers",
         type=int,
-        default=8,
-        help="Concurrent workers for HTML/JSON fetches (default: 8)",
+        default=None,
+        help="Concurrent workers (default: 1 for soft, 8 for others)",
     )
     scrape.add_argument(
         "--delay",
         type=float,
-        default=0.0,
-        help="Optional per-request delay in seconds (per worker)",
+        default=None,
+        help="Per-request delay in seconds (default: 0.55 for soft, 0 for others)",
+    )
+    scrape.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Bypass caches with Cache-Control + unique query param (soft always on)",
+    )
+    scrape.add_argument(
+        "--no-warm",
+        action="store_true",
+        help="Skip storefront session warm-up",
     )
     scrape.add_argument("--api-key", help="API key for rainforest/keepa/generic_json")
     scrape.add_argument(
@@ -129,6 +142,8 @@ def _cmd_scrape(args: argparse.Namespace) -> int:
         paapi_access_key=args.paapi_access_key,
         paapi_secret_key=args.paapi_secret_key,
         paapi_partner_tag=args.paapi_partner_tag,
+        no_cache=args.no_cache,
+        warm_session=not args.no_warm,
     )
     products = scraper.fetch_many(asins)
 
@@ -183,8 +198,9 @@ def _cmd_probe(args: argparse.Namespace) -> int:
                 p.name for p in probes if p.has_description_markers
             ],
             "recommendation": (
-                "Use /dp/{ASIN} HTML, or plug into paapi/rainforest/keepa/generic_json. "
-                "No free Amazon JSON description endpoint found."
+                "Use provider=soft (twister-first + /dp fallback, sequential, no-cache) "
+                "for ~100 ASINs without captcha. No free multi-ASIN Amazon JSON API; "
+                "for scale use paapi/rainforest/keepa/generic_json."
             ),
         },
     }

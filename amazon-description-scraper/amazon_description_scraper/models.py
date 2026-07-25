@@ -11,6 +11,8 @@ class ProviderName(str, Enum):
     """How product data is retrieved."""
 
     HTML = "html"
+    TWISTER = "twister"
+    SOFT = "soft"  # twister-first, DP fallback, sequential-safe bulk
     PAAPI = "paapi"
     RAINFOREST = "rainforest"
     KEEPA = "keepa"

@@ -6,6 +6,7 @@ from .html import HtmlProvider
 from .keepa import KeepaProvider
 from .paapi import PaapiProvider
 from .rainforest import RainforestProvider
+from .twister import TwisterProvider
 
 __all__ = [
     "GenericJsonProvider",
@@ -14,4 +15,5 @@ __all__ = [
     "PaapiProvider",
     "Provider",
     "RainforestProvider",
+    "TwisterProvider",
 ]
