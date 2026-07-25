@@ -545,8 +545,10 @@ class BulkPipeline:
                 # Mild global growth only in bulk; tail relies on per-ASIN backoff + cap.
                 grow = attempt == 1
                 no_tw = bool(self._turbo and self._turbo.knows_no_twister(asin))
-                # Known no-twister: early HTML/EU + delist confirm. Others: later.
-                prefer_html = (no_tw and attempt >= 4) or attempt >= 12
+                # EU-wave earlier: NL-only retries after try ~5 have ~10% hit-rate,
+                # while HTML/EU recovers the sticky tail in one wave.
+                # no-twister: try 4+; everyone else: try 6+ (was 12).
+                prefer_html = (no_tw and attempt >= 4) or attempt >= 6
                 confirm_unavailable = prefer_html
                 try:
                     product = self._fetch_asin(
