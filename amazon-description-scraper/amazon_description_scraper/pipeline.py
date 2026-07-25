@@ -358,12 +358,15 @@ class BulkPipeline:
 
     def _warm(self) -> None:
         if self.engine == "turbo":
-            self._turbo = TurboClient(
-                pool_size=max(80, self.workers * 6),
-                retries=2,
-                timeout=12.0 if self.stable else 8.0,
-                no_cache=True,
-            )
+            # Reuse client across iterations: keeps connection pool + no-twister memory.
+            if self._turbo is None:
+                self._turbo = TurboClient(
+                    pool_size=max(80, self.workers * 6),
+                    retries=0,  # Amazon soft 5xx retries only add latency
+                    timeout=8.0 if self.stable else 6.0,
+                    twister_timeout=4.0,
+                    no_cache=True,
+                )
             self._turbo.warm(self.marketplace)
         else:
             Fetcher(language=f"{self.marketplace.language},en;q=0.8").get(
@@ -484,10 +487,11 @@ class BulkPipeline:
                 write_checkpoint()
 
         # Always pass-1 settings: ajax-first chain, full workers, soft-fail growth.
-        prefer_html = False
+        # Turbo remembers structural no-twister ASINs → aw-first on later attempts.
         grow_on_soft_fail = True
         confirm_unavailable = False
-        attempts = 2
+        # One attempt per iteration — retries happen as whole pass-1 rounds (faster).
+        attempts = 1
         pass_workers = self.workers
         pass1_spacing = max(self.gate.min_spacing, 0.05 if self.stable else self.gate.spacing)
 
@@ -500,17 +504,18 @@ class BulkPipeline:
 
             before_ok = stats.ok
             before_pending = len(remaining)
+            no_twister_n = len(self._turbo._no_twister) if self._turbo else 0
             self.log(
                 f"ITER {iter_num}/{self.max_passes}: pending={before_pending} "
                 f"workers={pass_workers} spacing={self.gate.spacing:.3f}s "
-                f"prefer_html={prefer_html} attempts={attempts} "
+                f"attempts={attempts} no_twister_known={no_twister_n} "
                 f"ok_so_far={stats.ok}/{stats.total}"
             )
 
             if iter_num > 1:
-                # Fresh session between pass-1 rounds; short fixed pause only.
+                # Re-warm cookies only; keep pooled client + no-twister memory.
                 self._warm()
-                pause = 1.5
+                pause = 0.3
                 self.log(f"ITER cooldown {pause:.1f}s before retrying failures (pass-1 again)")
                 time.sleep(pause)
 
@@ -519,9 +524,10 @@ class BulkPipeline:
 
             def run_one(asin: str) -> tuple[str, ProductDescription]:
                 try:
+                    # no-twister ASINs are aw-first inside TurboClient (no EU fan-out).
                     return asin, self._fetch_asin(
                         asin,
-                        prefer_html=prefer_html,
+                        prefer_html=False,
                         attempts=attempts,
                         grow_on_soft_fail=grow_on_soft_fail,
                         confirm_unavailable=confirm_unavailable,
@@ -558,10 +564,7 @@ class BulkPipeline:
                             stats.retries += 1
                         last_miss[asin] = product
                         pass_failures.append((asin, product))
-                        if _is_captcha_error(product):
-                            self.gate.on_block()
-                        elif grow_on_soft_fail:
-                            self.gate.on_soft_fail()
+                        # Spacing growth already applied inside _fetch_asin.
                         self.log(
                             f"MISS [iter={iter_num}] asin={asin} "
                             f"provider={product.provider} err={(product.error or 'empty')[:60]} "

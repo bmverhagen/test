@@ -92,8 +92,9 @@ Default `bulk` prioritizes **100% success**, then speed:
 | `--fast` | w24 / s0.02, single pass | max speed (may drop OK%) |
 | `--safe` | soft sequential | slowest, max politeness |
 
-Chain per ASIN: **ajaxv2 → dimension → `/gp/aw/d` → `/dp`** (no-cache nonce).
-Every iteration uses the same pass-1 settings; only failures are retried.
+Chain per ASIN: **ajaxv2 → (skip dimension on structural 404) → `/gp/aw/d` → `/dp`**.
+ASINs without twister payload are remembered and retried **aw-first**.
+Every iteration uses the same pass-1 workers/spacing; only failures are retried.
 Final log includes `ITERATIONS_NEEDED=N` when coverage reaches 100%.
 
 ```bash
