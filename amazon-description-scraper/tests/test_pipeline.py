@@ -26,4 +26,7 @@ def test_pipeline_stats_rates():
     assert stats.ok == 1
     assert stats.rate > 0
     d = stats.to_dict()
-    assert d["success_rate"] == 1.0
+    # success_rate is final coverage: ok / total (not ok / attempted)
+    assert d["success_rate"] == 0.1
+    stats.ok = 10
+    assert stats.to_dict()["success_rate"] == 1.0

@@ -82,32 +82,28 @@ python scrape_descriptions.py scrape B0B4WQXL21 -p rainforest
 `source_bytes`, `error`.
 
 
-## Bulk pipeline (100–1000+) — turbo default
+## Bulk pipeline (100–1000+) — stable multipass default
 
-After **55+ micro-benchmarks** and multi-hundred validations, default `bulk`
-uses the **turbo** engine:
+Default `bulk` prioritizes **100% success**, then speed:
 
-| Mode | Config | Result |
+| Mode | Config | Goal |
 | --- | --- | --- |
-| `--safe` | soft sequential | 1000/1000 ~29min (~0.57/s) |
-| soft parallel | w5 / s0.12 | 200/200 ~52s (~3.9/s) |
-| **turbo default** | w24 / s0.02 + fast_parse | **1000/1000 in 54.6s (~18.3/s)**, 0 captcha |
+| **default stable** | w12 / s0.05, multipass ≤15 | **100% success**, no-cache |
+| `--fast` | w24 / s0.02, single pass | max speed (may drop OK%) |
+| `--safe` | soft sequential | slowest, max politeness |
 
-Validated 1000 ASINs with turbo: **54.6s (~18.3/s), 0 captcha**.
-
-What turbo stacks (from the experiment winners + endpoint hunt):
-shared pooled Session, gzip/br, **ajaxv2→aw→dp**, skip retry on twister 404,
-regex-first parse, 24 workers, 0.02s spacing gate, adaptive backoff.
+Chain per ASIN: **ajaxv2 → dimension → `/gp/aw/d` → `/dp`** (no-cache nonce).
+Failures are retried in later passes with cooldown + higher spacing (prior 10k
+soft-fails recovered 20/20 on retry).
 
 ```bash
-# Ultra-fast default
-python scrape_descriptions.py bulk -f asins.txt --max 1000 -o out.json
+# Stable default — target 100% success
+python scrape_descriptions.py bulk -f asins.txt --max 10000 -o out.json
 
-# Tune even more aggressively
-python scrape_descriptions.py bulk -f asins.txt -o out.json --workers 24 --spacing 0.02
+# Aggressive single-pass
+python scrape_descriptions.py bulk -f asins.txt -o out.json --fast
 
-# Classic soft parallel / safest sequential
-python scrape_descriptions.py bulk -f asins.txt -o out.json --engine soft --workers 5 --spacing 0.12
+# Classic soft sequential
 python scrape_descriptions.py bulk -f asins.txt -o out.json --safe
 ```
 

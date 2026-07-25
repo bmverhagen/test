@@ -126,8 +126,8 @@ def build_parser() -> argparse.ArgumentParser:
     bulk = sub.add_parser(
         "bulk",
         help=(
-            "Ultra-fast long-run pipeline for 100–1000+ ASINs (turbo engine default): "
-            "pooled connections, 24 workers, fast parse, checkpoint/resume"
+            "Stable multipass turbo pipeline (default): target 100% success via "
+            "ajaxv2→dimension→aw→dp with retries; use --fast for aggressive single-pass"
         ),
     )
     bulk.add_argument("asins", nargs="*", help="ASINs or /dp/ URLs")
@@ -155,13 +155,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--workers",
         type=int,
         default=None,
-        help="Parallel workers (default 24 turbo / 5 soft)",
+        help="Parallel workers (default 12 stable turbo / 24 --fast / 5 soft)",
     )
     bulk.add_argument(
         "--spacing",
         type=float,
         default=None,
-        help="Min seconds between request starts (default 0.02 turbo / 0.12 soft)",
+        help="Min seconds between request starts (default 0.05 stable / 0.02 --fast)",
     )
     bulk.add_argument(
         "--delay",
@@ -191,6 +191,17 @@ def build_parser() -> argparse.ArgumentParser:
         "--safe",
         action="store_true",
         help="Sequential soft mode (workers=1, spacing=0.55) — slowest, max stability",
+    )
+    bulk.add_argument(
+        "--fast",
+        action="store_true",
+        help="Aggressive single-pass turbo (w24/s0.02) — faster, may drop below 100%",
+    )
+    bulk.add_argument(
+        "--max-passes",
+        type=int,
+        default=15,
+        help="Multipass retries for failures (default 15; --fast forces 1)",
     )
     bulk.add_argument(
         "--allow-duplicates",
@@ -264,28 +275,38 @@ def _cmd_bulk(args: argparse.Namespace) -> int:
     if not asins:
         print("No ASINs provided. Pass ASINs, --file, or --stdin.", file=sys.stderr)
         return 2
+    stable = not args.fast
     if args.safe:
         engine = "soft"
         workers = 1
         spacing = 0.55
+        max_passes = 1
+        stable = True
     else:
         engine = args.engine
         if args.workers is not None:
             workers = args.workers
+        elif engine == "turbo":
+            workers = 24 if args.fast else 12
         else:
-            workers = 24 if engine == "turbo" else 5
+            workers = 5
         if args.delay is not None:
             spacing = args.delay
         elif args.spacing is not None:
             spacing = args.spacing
+        elif engine == "turbo":
+            spacing = 0.02 if args.fast else 0.05
         else:
-            spacing = 0.02 if engine == "turbo" else 0.12
+            spacing = 0.12
+        max_passes = 1 if args.fast else max(1, args.max_passes)
     pipeline = BulkPipeline(
         marketplace=args.marketplace,
         spacing=spacing,
         workers=workers,
         checkpoint_every=args.checkpoint_every,
         engine=engine,
+        max_passes=max_passes,
+        stable=stable and engine == "turbo",
     )
     stats = pipeline.run(
         asins,
@@ -295,7 +316,9 @@ def _cmd_bulk(args: argparse.Namespace) -> int:
         allow_duplicates=bool(args.allow_duplicates),
     )
     rate = (stats.ok / stats.total) if stats.total else 0
-    return 0 if rate >= 0.95 else 1
+    # Stable mode requires 100%; fast mode tolerates >=95%.
+    threshold = 1.0 if (stable and engine == "turbo") else 0.95
+    return 0 if rate + 1e-12 >= threshold else 1
 
 
 def _cmd_probe(args: argparse.Namespace) -> int:

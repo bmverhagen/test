@@ -1,9 +1,9 @@
-"""Bulk download pipeline — turbo by default, soft/safe available.
+"""Bulk download pipeline — stable multipass turbo by default.
 
-Speed ladder validated on amazon.nl (no HTTP cache):
-- --safe sequential soft: ~0.57/s
-- soft parallel w5/s0.12: ~3.9/s
-- turbo w24/s0.02 + fast_parse: ~9.9/s on 200/200 (0 captcha)
+Priority: **100% success**, then speed.
+- Pass 1: parallel turbo (ajaxv2 → dimension → aw → dp), no-cache
+- Later passes: retry only failures with higher spacing / fewer workers
+- Soft-fail and captcha both widen spacing; successes decay it
 """
 
 from __future__ import annotations
@@ -38,10 +38,11 @@ class PipelineStats:
     captcha_hits: int = 0
     retries: int = 0
     bytes_total: int = 0
+    passes: int = 0
     by_provider: dict[str, int] = field(default_factory=dict)
     started_at: float = field(default_factory=time.time)
-    delay: float = 0.02
-    workers: int = 24
+    delay: float = 0.05
+    workers: int = 12
     engine: str = "turbo"
 
     def note_success(self, product: ProductDescription) -> None:
@@ -68,10 +69,12 @@ class PipelineStats:
 
     @property
     def eta_seconds(self) -> float | None:
-        remaining = self.total - self.attempted
-        if remaining <= 0 or self.rate <= 0:
+        remaining = self.total - self.ok - self.failed
+        # During multipass, treat unfinished as remaining work
+        unfinished = max(0, self.total - self.ok)
+        if unfinished <= 0 or self.rate <= 0:
             return 0.0
-        return remaining / self.rate
+        return unfinished / max(self.rate, 0.01)
 
     def to_dict(self) -> dict:
         return {
@@ -79,24 +82,26 @@ class PipelineStats:
             "elapsed": round(self.elapsed, 2),
             "rate_per_sec": round(self.rate, 3),
             "eta_seconds": None if self.eta_seconds is None else round(self.eta_seconds, 1),
-            "success_rate": round(self.ok / self.attempted, 4) if self.attempted else None,
+            "success_rate": round(self.ok / self.total, 4) if self.total else None,
         }
 
 
 class SpacingGate:
     def __init__(
         self,
-        spacing: float = 0.02,
-        min_spacing: float = 0.015,
-        max_spacing: float = 2.0,
-        growth: float = 1.8,
-        decay_every: int = 40,
-        decay_factor: float = 0.92,
+        spacing: float = 0.05,
+        min_spacing: float = 0.03,
+        max_spacing: float = 4.0,
+        growth: float = 1.35,
+        soft_growth: float = 1.12,
+        decay_every: int = 25,
+        decay_factor: float = 0.94,
     ) -> None:
         self.spacing = spacing
         self.min_spacing = min_spacing
         self.max_spacing = max_spacing
         self.growth = growth
+        self.soft_growth = soft_growth
         self.decay_every = decay_every
         self.decay_factor = decay_factor
         self._lock = threading.Lock()
@@ -120,10 +125,22 @@ class SpacingGate:
                 self.spacing = max(self.min_spacing, self.spacing * self.decay_factor)
                 self._success_streak = 0
 
+    def on_soft_fail(self) -> None:
+        """Mild backoff for empty/404 responses under load."""
+        with self._lock:
+            self._success_streak = 0
+            self.spacing = min(
+                self.max_spacing,
+                max(self.min_spacing, self.spacing) * self.soft_growth,
+            )
+
     def on_block(self) -> None:
         with self._lock:
             self._success_streak = 0
-            self.spacing = min(self.max_spacing, max(self.min_spacing, self.spacing) * self.growth)
+            self.spacing = min(
+                self.max_spacing,
+                max(self.min_spacing, self.spacing) * self.growth,
+            )
 
 
 class AdaptivePacer:
@@ -214,9 +231,11 @@ class BulkPipeline:
         marketplace: str | Marketplace = "nl",
         delay: float | None = None,
         spacing: float | None = None,
-        workers: int = 24,
+        workers: int = 12,
         checkpoint_every: int = 50,
         engine: str = "turbo",
+        max_passes: int = 15,
+        stable: bool = True,
         log: Callable[[str], None] | None = None,
         stream: TextIO | None = None,
     ) -> None:
@@ -226,9 +245,11 @@ class BulkPipeline:
             else resolve_marketplace(marketplace)
         )
         self.engine = engine
+        self.stable = stable
+        self.max_passes = max(1, max_passes)
         if engine == "turbo":
-            default_spacing = 0.02
-            default_workers = 24
+            default_spacing = 0.05 if stable else 0.02
+            default_workers = 12 if stable else 24
         else:
             default_spacing = 0.12
             default_workers = 5
@@ -244,11 +265,12 @@ class BulkPipeline:
         self._log = log or (lambda msg: print(msg, file=self.stream, flush=True))
         self.gate = SpacingGate(
             spacing=initial,
-            min_spacing=0.015 if engine == "turbo" else 0.08,
-            max_spacing=2.0 if engine == "turbo" else 4.0,
-            growth=1.8,
-            decay_every=40,
-            decay_factor=0.92,
+            min_spacing=0.03 if (engine == "turbo" and stable) else (0.015 if engine == "turbo" else 0.08),
+            max_spacing=4.0 if engine == "turbo" else 8.0,
+            growth=1.5,
+            soft_growth=1.12,
+            decay_every=25 if stable else 40,
+            decay_factor=0.94,
         )
         self._stats_lock = threading.Lock()
         self._io_lock = threading.Lock()
@@ -275,16 +297,35 @@ class BulkPipeline:
         return provider.fetch(asin, self.marketplace)
 
     def _fetch_asin(self, asin: str) -> ProductDescription:
-        self.gate.wait_turn()
-        product = self._client_fetch(asin)
-        if _is_good(product):
-            return product
-        # Only back off on captcha/blocks — soft misses (e.g. empty parse) get one
-        # retry without blowing adaptive spacing (critical for 1k–10k runs).
-        if _is_captcha_error(product):
-            self.gate.on_block()
-        self.gate.wait_turn()
-        return self._client_fetch(asin)
+        """Fetch with up to 2 in-pass attempts; backoff only on captcha/soft-fail."""
+        last = None
+        for attempt in range(2):
+            self.gate.wait_turn()
+            product = self._client_fetch(asin)
+            last = product
+            if _is_good(product):
+                return product
+            if _is_captcha_error(product):
+                self.gate.on_block()
+                time.sleep(min(8.0, self.gate.spacing * 2))
+            else:
+                self.gate.on_soft_fail()
+        assert last is not None
+        return last
+
+    def _warm(self) -> None:
+        if self.engine == "turbo":
+            self._turbo = TurboClient(
+                pool_size=max(80, self.workers * 6),
+                retries=2,
+                timeout=12.0 if self.stable else 8.0,
+                no_cache=True,
+            )
+            self._turbo.warm(self.marketplace)
+        else:
+            Fetcher(language=f"{self.marketplace.language},en;q=0.8").get(
+                self.marketplace.base_url + "/", check_robot=False
+            )
 
     def run(
         self,
@@ -315,15 +356,15 @@ class BulkPipeline:
         done = _load_checkpoint(checkpoint_path) if resume and not allow_duplicates else {}
         if done:
             self.log(f"RESUME: loaded {len(done)} OK products from {checkpoint_path}")
-        # With allow_duplicates each line is a fresh no-cache fetch (speed tests).
-        pending = (
-            list(normalized)
-            if allow_duplicates
-            else [a for a in normalized if a not in done]
-        )
+
+        # Unique pending for stable 100% mode; allow_duplicates keeps every line.
+        if allow_duplicates:
+            pending = list(normalized)
+        else:
+            pending = [a for a in normalized if a not in done]
 
         stats = PipelineStats(
-            total=len(normalized),
+            total=len(normalized) if allow_duplicates else len(dict.fromkeys(normalized)),
             delay=self.gate.spacing,
             workers=self.workers,
             engine=self.engine,
@@ -335,107 +376,176 @@ class BulkPipeline:
             stats.by_provider[prov] = stats.by_provider.get(prov, 0) + 1
             stats.bytes_total += int(item.get("source_bytes") or 0)
 
+        mode = "stable-multipass" if self.stable else "fast-single"
         self.log(
-            f"START engine={self.engine} marketplace={self.marketplace.domain} "
-            f"total={len(normalized)} pending={len(pending)} workers={self.workers} "
-            f"spacing={self.gate.spacing:.3f}s checkpoint_every={self.checkpoint_every} no_cache=1"
+            f"START engine={self.engine} mode={mode} marketplace={self.marketplace.domain} "
+            f"total={stats.total} pending={len(pending)} workers={self.workers} "
+            f"spacing={self.gate.spacing:.3f}s max_passes={self.max_passes} "
+            f"checkpoint_every={self.checkpoint_every} no_cache=1"
         )
 
-        if self.engine == "turbo":
-            self._turbo = TurboClient(pool_size=max(120, self.workers * 5), retries=1, timeout=8.0)
-            self._turbo.warm(self.marketplace)
-        else:
-            Fetcher(language=f"{self.marketplace.language},en;q=0.8").get(
-                self.marketplace.base_url + "/", check_robot=False
-            )
+        self._warm()
         self.log("Session warmed")
 
         failures: list[dict] = []
+        last_miss: dict[str, ProductDescription] = {}
         since_checkpoint = 0
+        remaining = list(pending)
 
-        def handle_result(asin: str, product: ProductDescription) -> None:
+        def write_checkpoint() -> None:
             nonlocal since_checkpoint
-            captcha = _is_captcha_error(product)
+            with self._io_lock:
+                with self._stats_lock:
+                    payload = {
+                        "scraped_at": datetime.now(timezone.utc).isoformat(),
+                        "marketplace": self.marketplace.domain,
+                        "provider": self.engine,
+                        "stats": stats.to_dict(),
+                        "total": len(done),
+                        "products": list(done.values()),
+                        "failures": failures[-50:],
+                        "pending": remaining[:200],
+                    }
+                    since_checkpoint = 0
+                _atomic_write_json(checkpoint_path, payload)
+                self.log(
+                    f"CHECKPOINT wrote {payload['total']} products → {checkpoint_path} "
+                    f"providers={dict(stats.by_provider)} pending={len(remaining)}"
+                )
+
+        def handle_success(asin: str, product: ProductDescription) -> None:
+            nonlocal since_checkpoint
             with self._stats_lock:
-                if _is_good(product):
-                    done[asin] = product.to_dict()
-                    stats.note_success(product)
-                    self.gate.on_success()
-                    status = "OK"
-                    since_checkpoint += 1
-                else:
-                    stats.note_failure(product, captcha=captcha)
-                    failures.append(product.to_dict())
-                    if captcha:
-                        self.gate.on_block()
-                    status = "FAIL"
+                done[asin] = product.to_dict()
+                stats.note_success(product)
+                self.gate.on_success()
                 stats.delay = self.gate.spacing
-                attempted = stats.attempted
+                since_checkpoint += 1
                 ok = stats.ok
-                failed = stats.failed
-                captcha_hits = stats.captcha_hits
+                attempted = stats.attempted
                 rate = stats.rate
                 eta = stats.eta_seconds
                 spacing = self.gate.spacing
-                providers = dict(stats.by_provider)
                 should_checkpoint = since_checkpoint >= self.checkpoint_every
-
             eta_s = "?" if eta is None else f"{eta/60:.1f}m"
             self.log(
-                f"{status} [{attempted}/{stats.total}] asin={asin} "
+                f"OK [{ok}/{stats.total}] asin={asin} "
                 f"provider={product.provider} bullets={len(product.feature_bullets)} "
                 f"bytes={product.source_bytes or 0} "
-                f"ok={ok} fail={failed} captcha={captcha_hits} "
-                f"rate={rate:.2f}/s eta={eta_s} spacing={spacing:.3f}s workers={self.workers}"
+                f"ok={ok} fail={stats.failed} captcha={stats.captcha_hits} "
+                f"rate={rate:.2f}/s eta={eta_s} spacing={spacing:.3f}s "
+                f"workers={self.workers} pass={stats.passes}"
+            )
+            if should_checkpoint:
+                write_checkpoint()
+
+        for pass_num in range(1, self.max_passes + 1):
+            if not remaining:
+                break
+            stats.passes = pass_num
+            # Narrow concurrency on later passes for stability
+            pass_workers = self.workers
+            if self.stable and pass_num >= 2:
+                pass_workers = max(4, self.workers - 2 * (pass_num - 1))
+            if self.stable and pass_num >= 3:
+                self.gate.spacing = min(
+                    self.gate.max_spacing,
+                    max(self.gate.spacing, 0.08 * pass_num),
+                )
+
+            self.log(
+                f"PASS {pass_num}/{self.max_passes}: pending={len(remaining)} "
+                f"workers={pass_workers} spacing={self.gate.spacing:.3f}s "
+                f"ok_so_far={stats.ok}/{stats.total}"
             )
 
-            if should_checkpoint or attempted >= stats.total:
-                with self._io_lock:
-                    with self._stats_lock:
-                        payload = {
-                            "scraped_at": datetime.now(timezone.utc).isoformat(),
-                            "marketplace": self.marketplace.domain,
-                            "provider": self.engine,
-                            "stats": stats.to_dict(),
-                            "total": len(done),
-                            "products": list(done.values()),
-                            "failures": failures[-50:],
-                        }
-                        since_checkpoint = 0
-                    _atomic_write_json(checkpoint_path, payload)
-                    self.log(
-                        f"CHECKPOINT wrote {payload['total']} products → {checkpoint_path} "
-                        f"providers={providers}"
+            if pass_num > 1:
+                # Fresh session helps after throttle windows
+                self._warm()
+                pause = min(45.0, 1.8 ** (pass_num - 1))
+                self.log(f"PASS cooldown {pause:.1f}s before retrying failures")
+                time.sleep(pause)
+
+            pass_failures: list[tuple[str, ProductDescription]] = []
+            batch = list(remaining)
+            unresolved_in_pass = len(batch)
+
+            def run_one(asin: str) -> tuple[str, ProductDescription]:
+                try:
+                    return asin, self._fetch_asin(asin)
+                except Exception as exc:  # noqa: BLE001
+                    return asin, ProductDescription(
+                        asin=asin,
+                        marketplace=self.marketplace.domain,
+                        url=self.marketplace.product_url(asin),
+                        provider=self.engine,
+                        error=str(exc),
                     )
 
-        if self.workers == 1:
-            for asin in pending:
-                product = self._fetch_asin(asin)
-                if not _is_good(product):
+            if pass_workers == 1:
+                results = [run_one(a) for a in batch]
+            else:
+                results = []
+                with ThreadPoolExecutor(max_workers=pass_workers) as pool:
+                    futures = [pool.submit(run_one, a) for a in batch]
+                    for fut in as_completed(futures):
+                        results.append(fut.result())
+
+            for asin, product in results:
+                if _is_good(product):
+                    last_miss.pop(asin, None)
+                    handle_success(asin, product)
+                else:
                     with self._stats_lock:
                         stats.retries += 1
-                handle_result(asin, product)
-        else:
-            with ThreadPoolExecutor(max_workers=self.workers) as pool:
-                futures = {pool.submit(self._fetch_asin, asin): asin for asin in pending}
-                for future in as_completed(futures):
-                    asin = futures[future]
-                    try:
-                        product = future.result()
-                    except Exception as exc:  # noqa: BLE001
-                        product = ProductDescription(
-                            asin=asin,
-                            marketplace=self.marketplace.domain,
-                            url=self.marketplace.product_url(asin),
-                            provider=self.engine,
-                            error=str(exc),
-                        )
-                    if not _is_good(product):
-                        with self._stats_lock:
-                            stats.retries += 1
-                    handle_result(asin, product)
+                    last_miss[asin] = product
+                    pass_failures.append((asin, product))
+                    if _is_captcha_error(product):
+                        self.gate.on_block()
+                    else:
+                        self.gate.on_soft_fail()
+                    self.log(
+                        f"MISS [pass={pass_num}] asin={asin} "
+                        f"provider={product.provider} err={(product.error or 'empty')[:60]} "
+                        f"spacing={self.gate.spacing:.3f}s still_bad={len(pass_failures)}"
+                    )
+
+            remaining = [a for a, _ in pass_failures]
+            write_checkpoint()
+
+            if remaining and pass_num < self.max_passes:
+                self.log(
+                    f"PASS {pass_num} done: recovered batch; "
+                    f"{len(remaining)} still pending → next pass"
+                )
+
+        # Final failures after all passes
+        for asin in remaining:
+            product = last_miss.get(asin) or ProductDescription(
+                asin=asin,
+                marketplace=self.marketplace.domain,
+                url=self.marketplace.product_url(asin),
+                provider=self.engine,
+                error="exhausted multipass retries",
+            )
+            if not product.error:
+                product.error = "exhausted multipass retries"
+            captcha = _is_captcha_error(product)
+            with self._stats_lock:
+                stats.note_failure(product, captcha=captcha)
+                failures.append(product.to_dict())
+            self.log(
+                f"FAIL [{stats.ok + stats.failed}/{stats.total}] asin={asin} exhausted passes"
+            )
+
+        write_checkpoint()
 
         products = [_product_from_dict(item, self.marketplace) for item in done.values()]
+        # Preserve input order for unique mode
+        if not allow_duplicates:
+            order = {a: i for i, a in enumerate(dict.fromkeys(normalized))}
+            products.sort(key=lambda p: order.get(p.asin, 10**9))
+
         if output_path.suffix.lower() == ".csv":
             write_csv(output_path, products)
         else:
@@ -448,12 +558,14 @@ class BulkPipeline:
             final = json.loads(output_path.read_text(encoding="utf-8"))
             final["stats"] = stats.to_dict()
             final["failures_count"] = stats.failed
+            final["pending_final"] = remaining
             _atomic_write_json(output_path, final)
 
         success_rate = (stats.ok / stats.total) if stats.total else 0
         self.log(
-            f"DONE engine={self.engine} ok={stats.ok}/{stats.total} fail={stats.failed} "
-            f"captcha_hits={stats.captcha_hits} success_rate={success_rate:.1%} "
+            f"DONE engine={self.engine} mode={mode} ok={stats.ok}/{stats.total} "
+            f"fail={stats.failed} captcha_hits={stats.captcha_hits} "
+            f"success_rate={success_rate:.1%} passes={stats.passes} "
             f"elapsed={stats.elapsed:.1f}s avg_rate={stats.rate:.2f}/s "
             f"workers={self.workers} spacing={self.gate.spacing:.3f}s "
             f"providers={stats.by_provider} output={output_path}"

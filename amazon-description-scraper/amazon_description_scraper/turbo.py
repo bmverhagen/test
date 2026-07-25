@@ -101,20 +101,22 @@ class TurboClient:
 
     def fetch(self, asin: str, marketplace: Marketplace) -> ProductDescription:
         # Endpoint hunt (2026-07): no free light JSON without captcha/tokens.
-        # Best free chain: ajaxv2 (~same as twister, often faster) → mobile aw/d
-        # (high hit-rate, ~650KB) → desktop /dp fallback.
-        for getter in (self._ajaxv2, self._aw, self._dp):
+        # Stable chain: ajaxv2 → dimension → mobile aw/d → desktop /dp.
+        captcha_hit: ProductDescription | None = None
+        for getter in (self._ajaxv2, self._twister, self._aw, self._dp):
             product = getter(asin, marketplace)
             if product and (product.title or product.feature_bullets):
                 return product
             if product and product.error and "captcha" in product.error:
-                return product
+                captcha_hit = product
+        if captcha_hit is not None:
+            return captcha_hit
         return ProductDescription(
             asin=asin,
             marketplace=marketplace.domain,
             url=marketplace.product_url(asin),
             provider="turbo",
-            error="turbo fetch failed (ajaxv2+aw+dp)",
+            error="turbo fetch failed (ajaxv2+dimension+aw+dp)",
         )
 
     def _twister_like(
