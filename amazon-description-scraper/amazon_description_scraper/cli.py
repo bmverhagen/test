@@ -307,9 +307,9 @@ def _cmd_probe(args: argparse.Namespace) -> int:
                 p.name for p in probes if p.has_description_markers
             ],
             "recommendation": (
-                "Use provider=soft (twister-first + /dp fallback, sequential, no-cache) "
-                "for ~100 ASINs without captcha. No free multi-ASIN Amazon JSON API; "
-                "for scale use paapi/rainforest/keepa/generic_json."
+                "Free path: turbo bulk uses ajaxv2 → /gp/aw/d → /dp (no light JSON "
+                "without captcha/tokens found). Soft sequential for safest ~100. "
+                "For scale without blocks: paapi/rainforest/keepa/generic_json."
             ),
         },
     }

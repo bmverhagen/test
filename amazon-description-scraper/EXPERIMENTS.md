@@ -32,4 +32,31 @@ Harness: `bench_speed.py` + follow-up validations. Marketplace: amazon.nl. No HT
 
 ## Shipped defaults
 
-`bulk` → engine=`turbo`, workers=`24`, spacing=`0.02` (adaptive floor 0.015), shared pooled Session, twister→dp, regex-first parse.
+`bulk` → engine=`turbo`, workers=`24`, spacing=`0.02` (adaptive floor 0.015), shared pooled Session, **ajaxv2→aw→dp**, regex-first parse.
+
+## Endpoint hunt (no captcha / no rate-limit candidates)
+
+Probed 60+ URLs looking for a light free description API. **None** returned
+descriptions without the heavy twister/HTML family or third-party keys.
+
+Dead / useless for descriptions: ACP `GetFeatureBullets` / get-cards (404),
+`experienceId=productDescriptionSection|featureBullets|…` (503/404), AOD
+offers ajax, reviews widgets, completion autocomplete, `api.amazon.nl` (403),
+smile/m. hosts (DNS), oembed/rss/print (404 or full HTML), Keepa public graph
+(no desc), adsystem widgets (DNS/egress).
+
+Still-working free description carriers:
+
+| Endpoint | Load (80 ASINs, w16) |
+| --- | --- |
+| `/gp/twister/ajaxv2` | ~18.5/s, ~74% hit (404 miss) |
+| `/gp/twister/dimension` | ~16.8/s, ~72% hit |
+| `/gp/aw/d/{ASIN}` | ~11.7/s, **100% hit**, 0 captcha |
+| `/dp/{ASIN}` | heavier desktop HTML fallback |
+| FR/ES/IT twister | cross-EU failover (wrong locale text) |
+
+**Shipped chain after hunt:** `ajaxv2 → aw/d → /dp`.
+
+Head-to-head 200 ASINs @ w24: legacy twister→dp **185/200** (~22.7/s) vs
+ajaxv2→aw→dp **199/200** (~20.7/s). Artifact:
+`/opt/cursor/artifacts/endpoint_hunt_loadtest.json`.

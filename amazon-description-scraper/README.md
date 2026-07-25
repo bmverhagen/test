@@ -6,14 +6,18 @@ twister-first + `/dp` fallback, sequential, **zonder HTTP-cache**, getest op
 
 ## Endpoint-bevindingen
 
+Endpoint-hunt (60+ URLs): **geen** gratis light JSON zonder captcha/tokens.
+Werkende free paths blijven de zware twister/HTML-familie:
+
 | Endpoint | Omschrijving? | Bulk? |
 | --- | --- | --- |
-| `/gp/twister/dimension?isDimensionSlotsAjax=1&asinList={ASIN}&vs=1` | **Ja** (streaming JSON met feature-HTML) | 1 ASIN (multi-ASIN = 404 op NL) |
-| `/dp/{ASIN}` | **Ja** | 1 ASIN |
-| `/gp/product/ajax/aodAjaxMain/` | Nee (offers) | 1 ASIN |
-| Multi-ASIN twister / legacy description-ajax | Nee | — |
+| `/gp/twister/ajaxv2?asinList={ASIN}&…` | **Ja** (streaming JSON) | 1 ASIN — turbo primary |
+| `/gp/twister/dimension?…` | **Ja** | 1 ASIN (multi-ASIN = 404) |
+| `/gp/aw/d/{ASIN}` | **Ja** (mobiele HTML, hoge hit-rate) | 1 ASIN — turbo mid fallback |
+| `/dp/{ASIN}` | **Ja** | 1 ASIN — final fallback |
+| ACP / experienceId ajax / AOD / completion / api.amazon | Nee | — |
 
-Er is **geen gratis Amazon-batch-JSON** voor 100 descriptions in één call.
+Turbo free chain: **ajaxv2 → aw/d → /dp** (199/200 @ w24 vs 185/200 voor twister→dp).
 Voor écht block-vrij op schaal: `paapi` / `rainforest` / `keepa` / `generic_json`.
 
 ### Soft bulk (aanbevolen, geen cache)
@@ -91,8 +95,8 @@ uses the **turbo** engine:
 
 Validated 1000 ASINs with turbo: **54.6s (~18.3/s), 0 captcha**.
 
-What turbo stacks (from the experiment winners):
-shared pooled Session, gzip/br, twister→dp, skip retry on twister 404,
+What turbo stacks (from the experiment winners + endpoint hunt):
+shared pooled Session, gzip/br, **ajaxv2→aw→dp**, skip retry on twister 404,
 regex-first parse, 24 workers, 0.02s spacing gate, adaptive backoff.
 
 ```bash
@@ -108,8 +112,8 @@ python scrape_descriptions.py bulk -f asins.txt -o out.json --safe
 ```
 
 ```text
-[09:40:01] OK [200/200] provider=turbo/twister bullets=5
-           ok=200 fail=0 captcha=0 rate=9.9/s spacing=0.015s workers=24
+[09:40:01] OK [200/200] provider=turbo/ajaxv2 bullets=5
+           ok=200 fail=0 captcha=0 rate=20.7/s spacing=0.015s workers=24
 ```
 
 ## Tests

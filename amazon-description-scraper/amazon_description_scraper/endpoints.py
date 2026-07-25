@@ -1,29 +1,40 @@
 """Known Amazon / third-party endpoints for product data.
 
-## Live findings (amazon.nl, 2026-07)
+## Live findings (amazon.nl, 2026-07) — endpoint hunt
 
-Amazon has **no free unauthenticated batch JSON API** that returns descriptions
-for 100 ASINs in one call. What works:
+Amazon has **no free unauthenticated light JSON API** that returns descriptions
+without captcha/tokens. Probed 60+ URLs (ACP cards, experienceId ajax, AOD,
+reviews widgets, smile/m./api hosts, oembed, print, cross-marketplace, ads
+widgets, Keepa graph, …). Only heavy HTML / twister-family responses carry
+description markers.
 
 | Endpoint | Size | Description? | Bulk? | Notes |
 |---|---|---|---|---|
-| `/gp/twister/dimension?isDimensionSlotsAjax=1&asinList={ASIN}&vs=1` | ~0.7–0.9 MB streaming JSON | **Yes** (feature div HTML) | 1 ASIN only | Best free path. Multi-ASIN `asinList` → 404 |
-| `/dp/{ASIN}` | ~0.7–1.4 MB HTML | **Yes** | 1 ASIN | Fallback when twister 404s |
-| `/gp/product/ajax/aodAjaxMain/?asin=` | ~35 KB | No (offers) | 1 ASIN | |
-| Twister multi-ASIN / POST batch | 404 | No | — | Does not work on NL |
-| `completion.amazon.*/suggestions` | tiny JSON | No | — | Autocomplete only |
-| Legacy `experienceId=productDescriptionSection` | 404 | No | — | Gone |
+| `/gp/twister/ajaxv2?asinList={ASIN}&isDimensionSlotsAjax=1&vs=1` | ~0.7 MB | **Yes** | 1 ASIN | Best free primary (≈ twister/dimension, often faster) |
+| `/gp/twister/dimension?isDimensionSlotsAjax=1&asinList={ASIN}&vs=1` | ~0.7–0.9 MB | **Yes** | 1 ASIN | Same streaming JSON; multi-ASIN → 404 |
+| `/gp/aw/d/{ASIN}` | ~0.65 MB | **Yes** | 1 ASIN | Mobile HTML; high hit-rate; good mid fallback |
+| `/dp/{ASIN}` | ~0.7–1.4 MB | **Yes** | 1 ASIN | Desktop HTML final fallback |
+| `/gp/product/{ASIN}`, `/gp/product/images/…` | ~dp size | Yes | 1 ASIN | Same heavy HTML family |
+| FR/ES/IT twister | ~1 MB | Yes* | 1 ASIN | Works as cross-EU failover; language may differ |
+| ACP / experienceId ajax / AOD / reviews widgets | 404/503 | No | — | Need signed tokens or dead |
+| `completion.amazon.*` | tiny | No | — | Autocomplete only |
+| `api.amazon.nl`, smile/m. hosts | 403 / DNS fail | No | — | |
 
-### Soft bulk strategy (validated)
+### Turbo free chain (validated)
 
-100 ASINs, **no captcha**, **no HTTP cache** (`Cache-Control` + `_=<nonce>`):
+80 ASINs @ w16, no HTTP cache:
 
-1. Warm session on `https://www.amazon.nl/`
-2. Per ASIN: try **twister** first, fall back to **`/dp`**
-3. `workers=1`, delay ≈ 0.55s, retry on captcha
-4. Result: **100/100 OK in ~196s** (74 twister / 26 dp)
+| Mode | OK | Captcha | Rate |
+|---|---|---|---|
+| ajaxv2 only | 59/80 | 0 | ~18.5/s |
+| aw/d only | 80/80 | 0 | ~11.7/s |
+| twister→dp | 79/80 | 0 | ~16.2/s |
+| **ajaxv2→aw→dp** | **80/80** | **0** | ~14.9/s |
 
-`workers>=3` from a datacenter IP quickly triggers captchas/404s.
+200 ASINs @ turbo w24: ajaxv2→aw→dp **199/200** vs legacy twister→dp **185/200**.
+
+Note: Amazon 404 pages sometimes contain captcha marker strings — treat
+`status != 200` as a miss, not a captcha.
 
 ### Plug-in JSON APIs (true no-block at scale)
 
@@ -72,6 +83,17 @@ def twister_dimension_url(marketplace: Marketplace, asin: str) -> str:
         f"{marketplace.base_url}/gp/twister/dimension"
         f"?isDimensionSlotsAjax=1&asinList={asin}&vs=1"
     )
+
+
+def twister_ajaxv2_url(marketplace: Marketplace, asin: str) -> str:
+    return (
+        f"{marketplace.base_url}/gp/twister/ajaxv2"
+        f"?isDimensionSlotsAjax=1&asinList={asin}&vs=1"
+    )
+
+
+def mobile_aw_url(marketplace: Marketplace, asin: str) -> str:
+    return f"{marketplace.base_url}/gp/aw/d/{asin}?psc=1&th=1"
 
 
 def aod_ajax_url(marketplace: Marketplace, asin: str) -> str:
@@ -134,20 +156,51 @@ def probe_endpoints(
         max_retries=1,
         backoff=0.8,
     )
+    base = marketplace.base_url
     candidates: list[tuple[str, str, str]] = [
+        (
+            "twister_ajaxv2",
+            twister_ajaxv2_url(marketplace, asin),
+            "Streaming JSON feature divs — best free primary (1 ASIN)",
+        ),
         (
             "twister_dimension",
             twister_dimension_url(marketplace, asin),
-            "Streaming JSON feature divs — best free description path (1 ASIN)",
+            "Streaming JSON feature divs — legacy twister path (1 ASIN)",
         ),
-        ("dp_html", product_html_url(marketplace, asin), "Full DP HTML fallback"),
+        (
+            "aw_mobile",
+            mobile_aw_url(marketplace, asin),
+            "Mobile HTML — high hit-rate mid fallback (~0.65 MB)",
+        ),
+        ("dp_html", product_html_url(marketplace, asin), "Full DP HTML final fallback"),
+        (
+            "gp_product",
+            f"{base}/gp/product/{asin}",
+            "Alias of DP HTML family",
+        ),
         ("aod_ajax", aod_ajax_url(marketplace, asin), "Offers only; not product description"),
+        (
+            "experience_desc",
+            f"{base}/gp/product/ajax?asin={asin}&experienceId=productDescriptionSection",
+            "Legacy description ajax — usually 404/503",
+        ),
+        (
+            "acp_feature_bullets",
+            f"{base}/acp/detailpage/GetFeatureBullets?asin={asin}",
+            "ACP cards — need signed tokens → 404",
+        ),
         ("twister_slots", twister_ajax_url(marketplace, asin), "Variant slots; not description"),
         ("completion", completion_url(marketplace, asin), "Autocomplete JSON; not description"),
         (
             "twister_multi_asin",
             twister_dimension_url(marketplace, f"{asin},B000000000"),
             "Multi-ASIN batch — expected 404 on amazon.nl",
+        ),
+        (
+            "fr_twister",
+            f"https://www.amazon.fr/gp/twister/dimension?isDimensionSlotsAjax=1&asinList={asin}&vs=1",
+            "Cross-EU failover (FR language)",
         ),
     ]
 

@@ -1,10 +1,10 @@
 """Ultra-fast Amazon description client.
 
-Winning knobs from 55+ experiments + 250/200 validations (amazon.nl, no cache):
+Winning knobs from 55+ experiments + endpoint hunt (amazon.nl, no cache):
 - shared Session + large HTTPAdapter pool
 - workers ≈ 20–24
 - global spacing ≈ 0.02–0.025s (adaptive)
-- twister first; on non-200 go to /dp without burning retries on 404
+- free path: ajaxv2 → mobile `/gp/aw/d` → `/dp` (no captcha-free light JSON found)
 - urllib3 Retry only for 429/5xx
 - regex-first parse (`fast_parse`), BS4 fallback
 - gzip/br accept-encoding, keep-alive
@@ -100,21 +100,31 @@ class TurboClient:
             pass
 
     def fetch(self, asin: str, marketplace: Marketplace) -> ProductDescription:
-        product = self._twister(asin, marketplace)
-        if product and (product.title or product.feature_bullets):
-            return product
-        product = self._dp(asin, marketplace)
-        if product and (product.title or product.feature_bullets):
-            return product
+        # Endpoint hunt (2026-07): no free light JSON without captcha/tokens.
+        # Best free chain: ajaxv2 (~same as twister, often faster) → mobile aw/d
+        # (high hit-rate, ~650KB) → desktop /dp fallback.
+        for getter in (self._ajaxv2, self._aw, self._dp):
+            product = getter(asin, marketplace)
+            if product and (product.title or product.feature_bullets):
+                return product
+            if product and product.error and "captcha" in product.error:
+                return product
         return ProductDescription(
             asin=asin,
             marketplace=marketplace.domain,
             url=marketplace.product_url(asin),
             provider="turbo",
-            error="turbo fetch failed (twister+dp)",
+            error="turbo fetch failed (ajaxv2+aw+dp)",
         )
 
-    def _twister(self, asin: str, marketplace: Marketplace) -> ProductDescription | None:
+    def _twister_like(
+        self,
+        asin: str,
+        marketplace: Marketplace,
+        *,
+        path: str,
+        provider: str,
+    ) -> ProductDescription | None:
         params = {
             "isDimensionSlotsAjax": "1",
             "asinList": asin,
@@ -122,7 +132,7 @@ class TurboClient:
         }
         if self.no_cache:
             params["_"] = _bust()
-        url = f"{marketplace.base_url}/gp/twister/dimension?{urlencode(params)}"
+        url = f"{marketplace.base_url}{path}?{urlencode(params)}"
         try:
             response = self.session.get(
                 url,
@@ -146,7 +156,53 @@ class TurboClient:
             asin=asin,
             marketplace=marketplace.domain,
             url=marketplace.product_url(asin),
+            provider=provider,
+        )
+        product.source_bytes = len(response.content or b"")
+        return product
+
+    def _ajaxv2(self, asin: str, marketplace: Marketplace) -> ProductDescription | None:
+        return self._twister_like(
+            asin,
+            marketplace,
+            path="/gp/twister/ajaxv2",
+            provider="turbo/ajaxv2",
+        )
+
+    def _twister(self, asin: str, marketplace: Marketplace) -> ProductDescription | None:
+        """Legacy twister/dimension path (kept for soft provider / experiments)."""
+        return self._twister_like(
+            asin,
+            marketplace,
+            path="/gp/twister/dimension",
             provider="turbo/twister",
+        )
+
+    def _aw(self, asin: str, marketplace: Marketplace) -> ProductDescription | None:
+        """Mobile product page — often lighter than /dp and higher hit-rate than twister."""
+        bust = f"&_={_bust()}" if self.no_cache else ""
+        url = f"{marketplace.base_url}/gp/aw/d/{asin}?psc=1&th=1{bust}"
+        try:
+            response = self.session.get(url, timeout=self.timeout)
+        except requests.RequestException:
+            return None
+        raw = response.text or ""
+        if response.status_code != 200 or _captcha(raw):
+            if _captcha(raw):
+                return ProductDescription(
+                    asin=asin,
+                    marketplace=marketplace.domain,
+                    url=marketplace.product_url(asin),
+                    provider="turbo/aw",
+                    error="robot/captcha page",
+                )
+            return None
+        product = fast_parse_html(
+            raw,
+            asin=asin,
+            marketplace=marketplace.domain,
+            url=marketplace.product_url(asin),
+            provider="turbo/aw",
         )
         product.source_bytes = len(response.content or b"")
         return product
