@@ -78,38 +78,39 @@ python scrape_descriptions.py scrape B0B4WQXL21 -p rainforest
 `source_bytes`, `error`.
 
 
-## Bulk pipeline (100–1000+)
+## Bulk pipeline (100–1000+) — turbo default
 
-Parallel long-run mode with **global spacing**, **adaptive backoff**,
-**checkpoint/resume**, and live progress on stderr.
-
-Validated live (no HTTP cache):
+After **55+ micro-benchmarks** and multi-hundred validations, default `bulk`
+uses the **turbo** engine:
 
 | Mode | Config | Result |
 | --- | --- | --- |
-| safe sequential | `--safe` | **1000/1000** in ~29min (~0.57/s) |
-| fast parallel (default) | workers=5, spacing=0.12 | **200/200 in 52s (~3.86/s)**, 0 captcha → ~4–5min/1000 |
+| `--safe` | soft sequential | 1000/1000 ~29min (~0.57/s) |
+| soft parallel | w5 / s0.12 | 200/200 ~52s (~3.9/s) |
+| **turbo default** | w24 / s0.02 + fast_parse | **1000/1000 in 54.6s (~18.3/s)**, 0 captcha |
+
+Validated 1000 ASINs with turbo: **54.6s (~18.3/s), 0 captcha**.
+
+What turbo stacks (from the experiment winners):
+shared pooled Session, gzip/br, twister→dp, skip retry on twister 404,
+regex-first parse, 24 workers, 0.02s spacing gate, adaptive backoff.
 
 ```bash
-# Fast default (~4–6× sneller dan sequential)
+# Ultra-fast default
 python scrape_descriptions.py bulk -f asins.txt --max 1000 -o out.json
 
-# Tune
-python scrape_descriptions.py bulk -f asins.txt -o out.json --workers 5 --spacing 0.12
+# Tune even more aggressively
+python scrape_descriptions.py bulk -f asins.txt -o out.json --workers 24 --spacing 0.02
 
-# Safest (sequential)
+# Classic soft parallel / safest sequential
+python scrape_descriptions.py bulk -f asins.txt -o out.json --engine soft --workers 5 --spacing 0.12
 python scrape_descriptions.py bulk -f asins.txt -o out.json --safe
 ```
 
-Progress lines look like:
-
 ```text
-[09:20:01] OK [80/1000] asin=B0... provider=soft/twister bullets=5
-           ok=80 fail=0 captcha=0 rate=3.28/s eta=4.7m spacing=0.15s workers=4
+[09:40:01] OK [200/200] provider=turbo/twister bullets=5
+           ok=200 fail=0 captcha=0 rate=9.9/s spacing=0.015s workers=24
 ```
-
-On captcha/block spacing grows; after success streaks it eases down.
-Checkpoint files let you Ctrl+C and resume without re-downloading OK items.
 
 ## Tests
 

@@ -1,14 +1,9 @@
-"""Stable + fast bulk download pipeline for hundreds/thousands of ASINs.
+"""Bulk download pipeline — turbo by default, soft/safe available.
 
-Validated on amazon.nl (no HTTP cache):
-- Sequential soft: ~0.57/s, 1000/1000 OK
-- Parallel fast (workers=4–5, spacing≈0.12–0.15s): ~3.1–3.7/s on 80 ASINs
-
-Design:
-- SoftProvider (twister → /dp)
-- Global request spacing (token gate) + N workers
-- Adaptive spacing grows on captcha/fail streaks, eases on success
-- Checkpoint/resume, live stderr progress
+Speed ladder validated on amazon.nl (no HTTP cache):
+- --safe sequential soft: ~0.57/s
+- soft parallel w5/s0.12: ~3.9/s
+- turbo w24/s0.02 + fast_parse: ~9.9/s on 200/200 (0 captcha)
 """
 
 from __future__ import annotations
@@ -24,10 +19,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, TextIO
 
-from .fetcher import Fetcher
 from .models import Marketplace, ProductDescription, resolve_marketplace
+from .parser import extract_asin
 from .providers.soft import SoftProvider
+from .fetcher import Fetcher
 from .storage import write_csv, write_json
+from .turbo import TurboClient
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +40,9 @@ class PipelineStats:
     bytes_total: int = 0
     by_provider: dict[str, int] = field(default_factory=dict)
     started_at: float = field(default_factory=time.time)
-    delay: float = 0.15
-    workers: int = 1
+    delay: float = 0.02
+    workers: int = 24
+    engine: str = "turbo"
 
     def note_success(self, product: ProductDescription) -> None:
         self.ok += 1
@@ -86,16 +84,14 @@ class PipelineStats:
 
 
 class SpacingGate:
-    """Global minimum spacing between request *starts* (thread-safe)."""
-
     def __init__(
         self,
-        spacing: float = 0.15,
-        min_spacing: float = 0.08,
-        max_spacing: float = 3.0,
-        growth: float = 1.6,
+        spacing: float = 0.02,
+        min_spacing: float = 0.015,
+        max_spacing: float = 2.0,
+        growth: float = 1.8,
         decay_every: int = 40,
-        decay_factor: float = 0.9,
+        decay_factor: float = 0.92,
     ) -> None:
         self.spacing = spacing
         self.min_spacing = min_spacing
@@ -108,6 +104,8 @@ class SpacingGate:
         self._success_streak = 0
 
     def wait_turn(self) -> None:
+        if self.spacing <= 0:
+            return
         with self._lock:
             now = time.time()
             wait = self._next_start - now
@@ -125,12 +123,11 @@ class SpacingGate:
     def on_block(self) -> None:
         with self._lock:
             self._success_streak = 0
-            self.spacing = min(self.max_spacing, self.spacing * self.growth)
+            self.spacing = min(self.max_spacing, max(self.min_spacing, self.spacing) * self.growth)
 
 
-# Back-compat alias used by tests
 class AdaptivePacer:
-    """Sequential pacer (delay grows on block, decays after success streaks)."""
+    """Back-compat sequential pacer for unit tests."""
 
     def __init__(
         self,
@@ -178,9 +175,8 @@ def _load_checkpoint(path: Path) -> dict[str, dict]:
     if not path.exists():
         return {}
     data = json.loads(path.read_text(encoding="utf-8"))
-    products = data.get("products") or []
     out: dict[str, dict] = {}
-    for item in products:
+    for item in data.get("products") or []:
         asin = item.get("asin")
         if asin and not item.get("error"):
             out[asin] = item
@@ -206,22 +202,21 @@ def _product_from_dict(item: dict, marketplace: Marketplace) -> ProductDescripti
         aplus_text=item.get("aplus_text"),
         overview=item.get("overview") or {},
         meta_description=item.get("meta_description"),
-        provider=item.get("provider") or "soft",
+        provider=item.get("provider") or "turbo",
         source_bytes=item.get("source_bytes"),
         error=item.get("error"),
     )
 
 
 class BulkPipeline:
-    """Long-running ASIN download pipeline with resume + parallel pacing."""
-
     def __init__(
         self,
         marketplace: str | Marketplace = "nl",
         delay: float | None = None,
         spacing: float | None = None,
-        workers: int = 4,
-        checkpoint_every: int = 25,
+        workers: int = 24,
+        checkpoint_every: int = 50,
+        engine: str = "turbo",
         log: Callable[[str], None] | None = None,
         stream: TextIO | None = None,
     ) -> None:
@@ -230,53 +225,63 @@ class BulkPipeline:
             if isinstance(marketplace, Marketplace)
             else resolve_marketplace(marketplace)
         )
-        # `delay` kept as alias for spacing (CLI back-compat).
-        initial = 0.15 if spacing is None and delay is None else (spacing if spacing is not None else delay)
+        self.engine = engine
+        if engine == "turbo":
+            default_spacing = 0.02
+            default_workers = 24
+        else:
+            default_spacing = 0.12
+            default_workers = 5
+        initial = (
+            default_spacing
+            if spacing is None and delay is None
+            else (spacing if spacing is not None else delay)
+        )
         assert initial is not None
-        self.workers = max(1, workers)
+        self.workers = max(1, workers if workers is not None else default_workers)
         self.checkpoint_every = max(1, checkpoint_every)
         self.stream = stream or sys.stderr
         self._log = log or (lambda msg: print(msg, file=self.stream, flush=True))
         self.gate = SpacingGate(
             spacing=initial,
-            min_spacing=0.08 if self.workers > 1 else 0.20,
-            max_spacing=4.0,
-            growth=1.6,
-            decay_every=40 if self.workers > 1 else 20,
-            decay_factor=0.9,
+            min_spacing=0.015 if engine == "turbo" else 0.08,
+            max_spacing=2.0 if engine == "turbo" else 4.0,
+            growth=1.8,
+            decay_every=40,
+            decay_factor=0.92,
         )
-        self._language = f"{self.marketplace.language},en;q=0.8"
-        self._local = threading.local()
         self._stats_lock = threading.Lock()
         self._io_lock = threading.Lock()
+        self._turbo: TurboClient | None = None
+        self._soft_local = threading.local()
 
     def log(self, msg: str) -> None:
         ts = datetime.now(timezone.utc).strftime("%H:%M:%S")
         self._log(f"[{ts}] {msg}")
 
-    def _provider(self) -> SoftProvider:
-        """Thread-local SoftProvider (requests.Session is not thread-safe)."""
-        provider = getattr(self._local, "provider", None)
+    def _client_fetch(self, asin: str) -> ProductDescription:
+        if self.engine == "turbo":
+            assert self._turbo is not None
+            return self._turbo.fetch(asin, self.marketplace)
+        provider = getattr(self._soft_local, "provider", None)
         if provider is None:
             fetcher = Fetcher(
-                language=self._language,
+                language=f"{self.marketplace.language},en;q=0.8",
                 max_retries=2,
                 backoff=1.0,
             )
-            provider = SoftProvider(fetcher=fetcher, no_cache=True, max_attempts=3)
-            self._local.provider = provider
-        return provider
+            provider = SoftProvider(fetcher=fetcher, no_cache=True, max_attempts=2)
+            self._soft_local.provider = provider
+        return provider.fetch(asin, self.marketplace)
 
     def _fetch_asin(self, asin: str) -> ProductDescription:
-        provider = self._provider()
         self.gate.wait_turn()
-        product = provider.fetch(asin, self.marketplace)
+        product = self._client_fetch(asin)
         if _is_good(product):
             return product
-        # One paced retry after backoff
         self.gate.on_block()
         self.gate.wait_turn()
-        return provider.fetch(asin, self.marketplace)
+        return self._client_fetch(asin)
 
     def run(
         self,
@@ -289,11 +294,8 @@ class BulkPipeline:
         output_path = Path(output)
         checkpoint_path = output_path.with_suffix(output_path.suffix + ".checkpoint.json")
 
-        # normalize
         seen: set[str] = set()
         normalized: list[str] = []
-        from .parser import extract_asin
-
         for value in asins:
             asin = extract_asin(value)
             if asin and asin not in seen:
@@ -302,15 +304,16 @@ class BulkPipeline:
         if max_items is not None:
             normalized = normalized[:max_items]
 
-        done: dict[str, dict] = _load_checkpoint(checkpoint_path) if resume else {}
+        done = _load_checkpoint(checkpoint_path) if resume else {}
         if done:
             self.log(f"RESUME: loaded {len(done)} OK products from {checkpoint_path}")
-
         pending = [a for a in normalized if a not in done]
+
         stats = PipelineStats(
             total=len(normalized),
             delay=self.gate.spacing,
             workers=self.workers,
+            engine=self.engine,
         )
         stats.ok = len(done)
         stats.attempted = len(done)
@@ -320,19 +323,25 @@ class BulkPipeline:
             stats.bytes_total += int(item.get("source_bytes") or 0)
 
         self.log(
-            f"START marketplace={self.marketplace.domain} total={len(normalized)} "
-            f"pending={len(pending)} workers={self.workers} spacing={self.gate.spacing:.2f}s "
-            f"checkpoint_every={self.checkpoint_every} no_cache=1"
+            f"START engine={self.engine} marketplace={self.marketplace.domain} "
+            f"total={len(normalized)} pending={len(pending)} workers={self.workers} "
+            f"spacing={self.gate.spacing:.3f}s checkpoint_every={self.checkpoint_every} no_cache=1"
         )
-        self._provider().warm(self.marketplace)
+
+        if self.engine == "turbo":
+            self._turbo = TurboClient(pool_size=max(120, self.workers * 5), retries=1, timeout=8.0)
+            self._turbo.warm(self.marketplace)
+        else:
+            Fetcher(language=f"{self.marketplace.language},en;q=0.8").get(
+                self.marketplace.base_url + "/", check_robot=False
+            )
         self.log("Session warmed")
 
         failures: list[dict] = []
         since_checkpoint = 0
-        completed_since_start = 0
 
         def handle_result(asin: str, product: ProductDescription) -> None:
-            nonlocal since_checkpoint, completed_since_start
+            nonlocal since_checkpoint
             captcha = _is_captcha_error(product)
             with self._stats_lock:
                 if _is_good(product):
@@ -347,7 +356,6 @@ class BulkPipeline:
                     self.gate.on_block()
                     status = "FAIL"
                 stats.delay = self.gate.spacing
-                completed_since_start += 1
                 attempted = stats.attempted
                 ok = stats.ok
                 failed = stats.failed
@@ -364,7 +372,7 @@ class BulkPipeline:
                 f"provider={product.provider} bullets={len(product.feature_bullets)} "
                 f"bytes={product.source_bytes or 0} "
                 f"ok={ok} fail={failed} captcha={captcha_hits} "
-                f"rate={rate:.2f}/s eta={eta_s} spacing={spacing:.2f}s workers={self.workers}"
+                f"rate={rate:.2f}/s eta={eta_s} spacing={spacing:.3f}s workers={self.workers}"
             )
 
             if should_checkpoint or attempted >= stats.total:
@@ -373,7 +381,7 @@ class BulkPipeline:
                         payload = {
                             "scraped_at": datetime.now(timezone.utc).isoformat(),
                             "marketplace": self.marketplace.domain,
-                            "provider": "soft",
+                            "provider": self.engine,
                             "stats": stats.to_dict(),
                             "total": len(done),
                             "products": list(done.values()),
@@ -405,7 +413,7 @@ class BulkPipeline:
                             asin=asin,
                             marketplace=self.marketplace.domain,
                             url=self.marketplace.product_url(asin),
-                            provider="soft",
+                            provider=self.engine,
                             error=str(exc),
                         )
                     if not _is_good(product):
@@ -413,7 +421,6 @@ class BulkPipeline:
                             stats.retries += 1
                     handle_result(asin, product)
 
-        # Final outputs
         products = [_product_from_dict(item, self.marketplace) for item in done.values()]
         if output_path.suffix.lower() == ".csv":
             write_csv(output_path, products)
@@ -422,7 +429,7 @@ class BulkPipeline:
                 output_path,
                 products,
                 marketplace=self.marketplace.domain,
-                provider="soft",
+                provider=self.engine,
             )
             final = json.loads(output_path.read_text(encoding="utf-8"))
             final["stats"] = stats.to_dict()
@@ -431,10 +438,10 @@ class BulkPipeline:
 
         success_rate = (stats.ok / stats.total) if stats.total else 0
         self.log(
-            f"DONE ok={stats.ok}/{stats.total} fail={stats.failed} "
+            f"DONE engine={self.engine} ok={stats.ok}/{stats.total} fail={stats.failed} "
             f"captcha_hits={stats.captcha_hits} success_rate={success_rate:.1%} "
             f"elapsed={stats.elapsed:.1f}s avg_rate={stats.rate:.2f}/s "
-            f"workers={self.workers} spacing={self.gate.spacing:.2f}s "
+            f"workers={self.workers} spacing={self.gate.spacing:.3f}s "
             f"providers={stats.by_provider} output={output_path}"
         )
         return stats

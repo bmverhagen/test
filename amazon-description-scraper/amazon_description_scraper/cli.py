@@ -126,8 +126,8 @@ def build_parser() -> argparse.ArgumentParser:
     bulk = sub.add_parser(
         "bulk",
         help=(
-            "Fast long-run pipeline for 100–1000+ ASINs: parallel soft provider, "
-            "adaptive spacing, checkpoint/resume, live progress on stderr"
+            "Ultra-fast long-run pipeline for 100–1000+ ASINs (turbo engine default): "
+            "pooled connections, 24 workers, fast parse, checkpoint/resume"
         ),
     )
     bulk.add_argument("asins", nargs="*", help="ASINs or /dp/ URLs")
@@ -146,16 +146,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Output JSON/CSV path (checkpoint written alongside)",
     )
     bulk.add_argument(
+        "--engine",
+        choices=("turbo", "soft"),
+        default="turbo",
+        help="Fetch engine (default turbo)",
+    )
+    bulk.add_argument(
         "--workers",
         type=int,
-        default=4,
-        help="Parallel workers (default 4; use 1 for safest sequential mode)",
+        default=None,
+        help="Parallel workers (default 24 turbo / 5 soft)",
     )
     bulk.add_argument(
         "--spacing",
         type=float,
-        default=0.15,
-        help="Min seconds between request starts globally (default 0.15; adaptive)",
+        default=None,
+        help="Min seconds between request starts (default 0.02 turbo / 0.12 soft)",
     )
     bulk.add_argument(
         "--delay",
@@ -166,8 +172,8 @@ def build_parser() -> argparse.ArgumentParser:
     bulk.add_argument(
         "--checkpoint-every",
         type=int,
-        default=25,
-        help="Write checkpoint every N successful new items (default 25)",
+        default=50,
+        help="Write checkpoint every N successful new items (default 50)",
     )
     bulk.add_argument(
         "--max",
@@ -184,7 +190,7 @@ def build_parser() -> argparse.ArgumentParser:
     bulk.add_argument(
         "--safe",
         action="store_true",
-        help="Sequential safe mode (workers=1, spacing=0.55) — slower, max stability",
+        help="Sequential soft mode (workers=1, spacing=0.55) — slowest, max stability",
     )
 
     return parser
@@ -250,13 +256,28 @@ def _cmd_bulk(args: argparse.Namespace) -> int:
     if not asins:
         print("No ASINs provided. Pass ASINs, --file, or --stdin.", file=sys.stderr)
         return 2
-    workers = 1 if args.safe else args.workers
-    spacing = 0.55 if args.safe else (args.delay if args.delay is not None else args.spacing)
+    if args.safe:
+        engine = "soft"
+        workers = 1
+        spacing = 0.55
+    else:
+        engine = args.engine
+        if args.workers is not None:
+            workers = args.workers
+        else:
+            workers = 24 if engine == "turbo" else 5
+        if args.delay is not None:
+            spacing = args.delay
+        elif args.spacing is not None:
+            spacing = args.spacing
+        else:
+            spacing = 0.02 if engine == "turbo" else 0.12
     pipeline = BulkPipeline(
         marketplace=args.marketplace,
         spacing=spacing,
         workers=workers,
         checkpoint_every=args.checkpoint_every,
+        engine=engine,
     )
     stats = pipeline.run(
         asins,
@@ -264,7 +285,6 @@ def _cmd_bulk(args: argparse.Namespace) -> int:
         resume=not args.no_resume,
         max_items=args.max_items,
     )
-    # Exit 0 if success rate >= 95%, else 1
     rate = (stats.ok / stats.total) if stats.total else 0
     return 0 if rate >= 0.95 else 1
 
