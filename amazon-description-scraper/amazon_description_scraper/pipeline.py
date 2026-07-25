@@ -521,9 +521,11 @@ class BulkPipeline:
                 self.gate.min_spacing, 0.05 if self.stable else self.gate.spacing
             )
             # Cap global spacing so soft-fails cannot push the gate to ~1s.
-            self.gate.cap_spacing(0.20)
+            self.gate.cap_spacing(0.22)
             self.gate.reset_spacing(pass1_spacing)
-            tail_workers = max(4, min(6, max(1, self.workers // 4)))
+            # Tail concurrency: moderate, then tighter when few ASINs remain.
+            tail_workers = max(4, min(8, max(1, self.workers // 3)))
+            deep_tail_workers = 3
             ok_by_try: dict[int, int] = {}
             fail_by_try: dict[int, int] = {}
             max_try_seen = 1
@@ -531,17 +533,23 @@ class BulkPipeline:
 
             def _asin_backoff(attempt: int) -> float:
                 # Per-ASIN delay before next try (does not slow other ASINs).
-                return min(2.5, 0.10 * (1.45 ** max(0, attempt - 1)))
+                base = min(1.6, 0.12 * (1.30 ** max(0, attempt - 1)))
+                # Deep tries: extra cool-down so Amazon soft-5xx can clear.
+                if attempt >= 10:
+                    base += 0.8
+                return base
 
             def _fetch_try(asin: str, attempt: int) -> ProductDescription:
                 skip_dp = attempt == 1
                 in_fetch_attempts = 1 if attempt == 1 else 2
-                # No global soft-fail growth — per-ASIN backoff handles pressure.
+                # Mild global growth only in bulk; tail relies on per-ASIN backoff + cap.
                 grow = attempt == 1
+                # Late tries: HTML-first + EU aw failover for stubborn soft-5xx ASINs.
+                prefer_html = attempt >= 15
                 try:
                     return self._fetch_asin(
                         asin,
-                        prefer_html=False,
+                        prefer_html=prefer_html,
                         attempts=in_fetch_attempts,
                         grow_on_soft_fail=grow,
                         confirm_unavailable=False,
@@ -606,8 +614,8 @@ class BulkPipeline:
 
             # Phase 2 — low concurrency + per-ASIN delayed requeue.
             if phase1_misses and self.max_retries > 0:
-                self.gate.cap_spacing(0.20)
-                self.gate.reset_spacing(min(0.08, pass1_spacing * 1.2))
+                self.gate.cap_spacing(0.25)
+                self.gate.reset_spacing(0.10)
                 self._warm()
 
                 heap: list[tuple[float, int, str, int]] = []
@@ -615,15 +623,32 @@ class BulkPipeline:
                 heap_lock = threading.Lock()
                 pending_terminal = len(phase1_misses)
                 terminal_lock = threading.Lock()
+                inflight_limit = {"n": tail_workers}
+                limit_lock = threading.Lock()
+                inflight_n = 0
+                inflight_lock = threading.Lock()
+                wake = threading.Event()
 
                 now0 = time.time()
                 for asin, _prod in phase1_misses:
-                    # Stagger initial retry admission slightly.
                     heapq.heappush(
                         heap, (now0 + _asin_backoff(1), next(seq), asin, 2)
                     )
 
-                wake = threading.Event()
+                def _adjust_inflight_limit() -> None:
+                    with terminal_lock:
+                        left = pending_terminal
+                    target = deep_tail_workers if left <= 40 else tail_workers
+                    with limit_lock:
+                        if target == inflight_limit["n"]:
+                            return
+                        old = inflight_limit["n"]
+                        inflight_limit["n"] = target
+                    if target < old:
+                        self.log(
+                            f"STREAM deep-tail: pending≈{left} → "
+                            f"inflight_limit {old}->{target}"
+                        )
 
                 def push_retry(asin: str, next_attempt: int) -> None:
                     ready = time.time() + _asin_backoff(next_attempt - 1)
@@ -636,22 +661,30 @@ class BulkPipeline:
                         if not heap:
                             return None
                         ready, _, asin, attempt = heap[0]
-                        wait = ready - time.time()
-                        if wait > 0:
+                        if ready - time.time() > 0:
                             return None
                         heapq.heappop(heap)
                         return asin, attempt
 
                 def tail_worker() -> None:
-                    nonlocal max_try_seen, pending_terminal
+                    nonlocal max_try_seen, pending_terminal, inflight_n
                     while True:
                         with terminal_lock:
                             if pending_terminal <= 0:
                                 wake.set()
                                 return
+                        _adjust_inflight_limit()
+                        with limit_lock:
+                            allowed = inflight_limit["n"]
+                        with inflight_lock:
+                            at_cap = inflight_n >= allowed
+                        if at_cap:
+                            wake.wait(timeout=0.15)
+                            wake.clear()
+                            continue
+
                         item = pop_ready()
                         if item is None:
-                            # Sleep until next heap item or completion.
                             with heap_lock:
                                 if heap:
                                     wait = max(0.01, heap[0][0] - time.time())
@@ -661,51 +694,72 @@ class BulkPipeline:
                             wake.clear()
                             continue
 
-                        asin, attempt = item
-                        with self._stats_lock:
-                            max_try_seen = max(max_try_seen, attempt)
-                            stats.passes = max_try_seen
-
-                        product = _fetch_try(asin, attempt)
-                        if _is_good(product):
-                            last_miss.pop(asin, None)
-                            with self._stats_lock:
-                                ok_by_try[attempt] = ok_by_try.get(attempt, 0) + 1
-                            handle_success(asin, product)
-                            with terminal_lock:
-                                pending_terminal -= 1
-                            wake.set()
-                        elif attempt < max_tries:
-                            last_miss[asin] = product
-                            with self._stats_lock:
-                                stats.retries += 1
-                                fail_by_try[attempt] = fail_by_try.get(attempt, 0) + 1
-                                requeues = stats.retries
-                            push_retry(asin, attempt + 1)
-                            if requeues % progress_every == 0:
+                        with inflight_lock:
+                            if inflight_n >= allowed:
+                                # Slot lost — put work back.
+                                asin, attempt = item
                                 with heap_lock:
-                                    hq = len(heap)
-                                self.log(
-                                    f"STREAM requeue asin={asin} try={attempt}->{attempt + 1} "
-                                    f"ok={stats.ok}/{stats.total} requeues={requeues} "
-                                    f"tail_q≈{hq} spacing={self.gate.spacing:.3f}s "
-                                    f"backoff={_asin_backoff(attempt):.2f}s"
-                                )
-                        else:
-                            last_miss[asin] = product
+                                    heapq.heappush(
+                                        heap, (time.time(), next(seq), asin, attempt)
+                                    )
+                                continue
+                            inflight_n += 1
+
+                        try:
+                            asin, attempt = item
                             with self._stats_lock:
-                                fail_by_try[attempt] = fail_by_try.get(attempt, 0) + 1
-                                stats.note_failure(
-                                    product, captcha=_is_captcha_error(product)
+                                max_try_seen = max(max_try_seen, attempt)
+                                stats.passes = max_try_seen
+
+                            product = _fetch_try(asin, attempt)
+                            if _is_good(product):
+                                last_miss.pop(asin, None)
+                                with self._stats_lock:
+                                    ok_by_try[attempt] = ok_by_try.get(attempt, 0) + 1
+                                handle_success(asin, product)
+                                with terminal_lock:
+                                    pending_terminal -= 1
+                            elif attempt < max_tries:
+                                last_miss[asin] = product
+                                with self._stats_lock:
+                                    stats.retries += 1
+                                    fail_by_try[attempt] = (
+                                        fail_by_try.get(attempt, 0) + 1
+                                    )
+                                    requeues = stats.retries
+                                push_retry(asin, attempt + 1)
+                                if requeues % progress_every == 0:
+                                    with heap_lock:
+                                        hq = len(heap)
+                                    self.log(
+                                        f"STREAM requeue asin={asin} "
+                                        f"try={attempt}->{attempt + 1} "
+                                        f"ok={stats.ok}/{stats.total} "
+                                        f"requeues={requeues} tail_q≈{hq} "
+                                        f"inflight_cap={allowed} "
+                                        f"spacing={self.gate.spacing:.3f}s "
+                                        f"backoff={_asin_backoff(attempt):.2f}s"
+                                    )
+                            else:
+                                last_miss[asin] = product
+                                with self._stats_lock:
+                                    fail_by_try[attempt] = (
+                                        fail_by_try.get(attempt, 0) + 1
+                                    )
+                                    stats.note_failure(
+                                        product, captcha=_is_captcha_error(product)
+                                    )
+                                    failures.append(product.to_dict())
+                                self.log(
+                                    f"FAIL [{stats.ok + stats.failed}/{stats.total}] "
+                                    f"asin={asin} exhausted stream retries "
+                                    f"(tries={attempt}/{max_tries})"
                                 )
-                                failures.append(product.to_dict())
-                            self.log(
-                                f"FAIL [{stats.ok + stats.failed}/{stats.total}] "
-                                f"asin={asin} exhausted stream retries "
-                                f"(tries={attempt}/{max_tries})"
-                            )
-                            with terminal_lock:
-                                pending_terminal -= 1
+                                with terminal_lock:
+                                    pending_terminal -= 1
+                        finally:
+                            with inflight_lock:
+                                inflight_n -= 1
                             wake.set()
 
                 threads = [
