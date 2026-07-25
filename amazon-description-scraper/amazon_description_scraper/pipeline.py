@@ -305,6 +305,7 @@ class BulkPipeline:
         *,
         prefer_html: bool = False,
         confirm_unavailable: bool = False,
+        skip_dp: bool = False,
     ) -> ProductDescription:
         if self.engine == "turbo":
             assert self._turbo is not None
@@ -313,6 +314,7 @@ class BulkPipeline:
                 self.marketplace,
                 prefer_html=prefer_html,
                 confirm_unavailable=confirm_unavailable,
+                skip_dp=skip_dp,
             )
         provider = getattr(self._soft_local, "provider", None)
         if provider is None:
@@ -333,6 +335,7 @@ class BulkPipeline:
         attempts: int = 2,
         grow_on_soft_fail: bool = True,
         confirm_unavailable: bool = False,
+        skip_dp: bool = False,
     ) -> ProductDescription:
         """Fetch with in-pass attempts; optional soft-fail growth."""
         last = None
@@ -342,6 +345,7 @@ class BulkPipeline:
                 asin,
                 prefer_html=prefer_html,
                 confirm_unavailable=confirm_unavailable,
+                skip_dp=skip_dp,
             )
             last = product
             if _is_good(product):
@@ -499,8 +503,9 @@ class BulkPipeline:
             stats.passes = iter_num
             # Reset to pass-1 baseline each iteration (adaptive growth still applies in-iter).
             self.gate.spacing = pass1_spacing
-            # Iter 1: single attempt (throughput). Later: 2 attempts for soft-5xx recovery.
+            # Iter 1: single attempt, skip heavy /dp. Later: 2 attempts + full chain.
             attempts = 1 if iter_num == 1 else 2
+            skip_dp = iter_num == 1
 
             before_ok = stats.ok
             before_pending = len(remaining)
@@ -508,8 +513,8 @@ class BulkPipeline:
             self.log(
                 f"ITER {iter_num}/{self.max_passes}: pending={before_pending} "
                 f"workers={pass_workers} spacing={self.gate.spacing:.3f}s "
-                f"attempts={attempts} no_twister_known={no_twister_n} "
-                f"ok_so_far={stats.ok}/{stats.total}"
+                f"attempts={attempts} skip_dp={int(skip_dp)} "
+                f"no_twister_known={no_twister_n} ok_so_far={stats.ok}/{stats.total}"
             )
 
             if iter_num > 1:
@@ -531,6 +536,7 @@ class BulkPipeline:
                         attempts=attempts,
                         grow_on_soft_fail=grow_on_soft_fail,
                         confirm_unavailable=confirm_unavailable,
+                        skip_dp=skip_dp,
                     )
                 except Exception as exc:  # noqa: BLE001
                     return asin, ProductDescription(

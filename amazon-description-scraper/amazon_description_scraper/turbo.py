@@ -135,12 +135,15 @@ class TurboClient:
         *,
         prefer_html: bool = False,
         confirm_unavailable: bool = False,
+        skip_dp: bool = False,
     ) -> ProductDescription:
         # Endpoint hunt (2026-07): no free light JSON without captcha/tokens.
-        # Fast path: ajaxv2 → [dimension only if not structural 404] → aw → dp
-        # Known no-twister / prefer_html: aw → dp (skip burned twister RTTs)
+        # Fast path: ajaxv2 → [dimension only if not structural 404] → aw → [dp]
+        # Known no-twister / prefer_html: aw → [dp] (skip burned twister RTTs)
+        # skip_dp: omit heavy /dp on hot first pass (cuts load + latency)
         captcha_hit: ProductDescription | None = None
         aw_first = prefer_html or self.knows_no_twister(asin)
+        html_getters = (self._aw,) if skip_dp else (self._aw, self._dp)
 
         if not aw_first:
             product, reason = self._twister_like(
@@ -170,14 +173,15 @@ class TurboClient:
                 if reason == "structural_404":
                     self.remember_no_twister(asin)
 
-            for getter in (self._aw, self._dp):
+            for getter in html_getters:
                 product = getter(asin, marketplace)
                 if product and (product.title or product.feature_bullets):
                     return product
                 if product and product.error and "captcha" in product.error:
                     captcha_hit = product
         else:
-            for getter in (self._aw, self._dp, self._ajaxv2):
+            getters = (*html_getters, self._ajaxv2)
+            for getter in getters:
                 product = getter(asin, marketplace)
                 if product and (product.title or product.feature_bullets):
                     return product
