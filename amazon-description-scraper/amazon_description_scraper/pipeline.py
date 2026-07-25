@@ -458,12 +458,12 @@ class BulkPipeline:
             # Narrow concurrency on later passes for stability
             pass_workers = self.workers
             if self.stable and pass_num >= 2:
-                pass_workers = max(4, self.workers - 2 * (pass_num - 1))
-            if self.stable and pass_num >= 3:
-                self.gate.spacing = min(
-                    self.gate.max_spacing,
-                    max(self.gate.spacing, 0.08 * pass_num),
-                )
+                pass_workers = max(3, self.workers - 2 * (pass_num - 1))
+            # Reset spacing each pass — do not inherit a blown-up value from
+            # the previous miss storm (critical for finishing 10k retries).
+            if self.stable:
+                target = 0.05 if pass_num == 1 else min(0.35, 0.08 * pass_num)
+                self.gate.spacing = max(self.gate.min_spacing, target)
 
             self.log(
                 f"PASS {pass_num}/{self.max_passes}: pending={len(remaining)} "
@@ -474,7 +474,7 @@ class BulkPipeline:
             if pass_num > 1:
                 # Fresh session helps after throttle windows
                 self._warm()
-                pause = min(45.0, 1.8 ** (pass_num - 1))
+                pause = min(20.0, 1.5 ** (pass_num - 1))
                 self.log(f"PASS cooldown {pause:.1f}s before retrying failures")
                 time.sleep(pause)
 
