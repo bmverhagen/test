@@ -111,12 +111,15 @@ class SpacingGate:
     def wait_turn(self) -> None:
         if self.spacing <= 0:
             return
-        with self._lock:
-            now = time.time()
-            wait = self._next_start - now
-            if wait > 0:
-                time.sleep(wait)
-            self._next_start = time.time() + self.spacing
+        while True:
+            with self._lock:
+                now = time.time()
+                wait = self._next_start - now
+                if wait <= 0:
+                    self._next_start = now + self.spacing
+                    return
+            # Sleep outside the lock so other workers are not blocked.
+            time.sleep(wait)
 
     def on_success(self) -> None:
         with self._lock:
@@ -404,13 +407,14 @@ class BulkPipeline:
                         "total": len(done),
                         "products": list(done.values()),
                         "failures": failures[-50:],
-                        "pending": remaining[:200],
+                        "pending_estimate": max(0, stats.total - stats.ok),
                     }
                     since_checkpoint = 0
+                    pending_est = payload["pending_estimate"]
                 _atomic_write_json(checkpoint_path, payload)
                 self.log(
                     f"CHECKPOINT wrote {payload['total']} products → {checkpoint_path} "
-                    f"providers={dict(stats.by_provider)} pending={len(remaining)}"
+                    f"providers={dict(stats.by_provider)} pending≈{pending_est}"
                 )
 
         def handle_success(asin: str, product: ProductDescription) -> None:
@@ -482,33 +486,38 @@ class BulkPipeline:
                         error=str(exc),
                     )
 
-            if pass_workers == 1:
-                results = [run_one(a) for a in batch]
-            else:
-                results = []
-                with ThreadPoolExecutor(max_workers=pass_workers) as pool:
-                    futures = [pool.submit(run_one, a) for a in batch]
-                    for fut in as_completed(futures):
-                        results.append(fut.result())
-
-            for asin, product in results:
-                if _is_good(product):
-                    last_miss.pop(asin, None)
-                    handle_success(asin, product)
+            # Process in chunks so we don't enqueue 10k futures at once and so
+            # checkpoints/logs stream steadily during long runs.
+            chunk_size = max(pass_workers * 10, 100)
+            for chunk_start in range(0, len(batch), chunk_size):
+                chunk = batch[chunk_start : chunk_start + chunk_size]
+                if pass_workers == 1:
+                    chunk_results = [run_one(a) for a in chunk]
                 else:
-                    with self._stats_lock:
-                        stats.retries += 1
-                    last_miss[asin] = product
-                    pass_failures.append((asin, product))
-                    if _is_captcha_error(product):
-                        self.gate.on_block()
+                    chunk_results = []
+                    with ThreadPoolExecutor(max_workers=pass_workers) as pool:
+                        futures = [pool.submit(run_one, a) for a in chunk]
+                        for fut in as_completed(futures):
+                            chunk_results.append(fut.result())
+
+                for asin, product in chunk_results:
+                    if _is_good(product):
+                        last_miss.pop(asin, None)
+                        handle_success(asin, product)
                     else:
-                        self.gate.on_soft_fail()
-                    self.log(
-                        f"MISS [pass={pass_num}] asin={asin} "
-                        f"provider={product.provider} err={(product.error or 'empty')[:60]} "
-                        f"spacing={self.gate.spacing:.3f}s still_bad={len(pass_failures)}"
-                    )
+                        with self._stats_lock:
+                            stats.retries += 1
+                        last_miss[asin] = product
+                        pass_failures.append((asin, product))
+                        if _is_captcha_error(product):
+                            self.gate.on_block()
+                        else:
+                            self.gate.on_soft_fail()
+                        self.log(
+                            f"MISS [pass={pass_num}] asin={asin} "
+                            f"provider={product.provider} err={(product.error or 'empty')[:60]} "
+                            f"spacing={self.gate.spacing:.3f}s still_bad={len(pass_failures)}"
+                        )
 
             remaining = [a for a, _ in pass_failures]
             write_checkpoint()
