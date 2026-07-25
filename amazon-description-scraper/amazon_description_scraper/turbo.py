@@ -35,11 +35,12 @@ _CAPTCHA_MARKERS = (
     "sorry, we just need to make sure you're not a robot",
 )
 
-# Amazon "Pagina niet gevonden" shells on twister endpoints — not a throttle.
+# Amazon "Pagina niet gevonden" shells — not a throttle / soft-5xx.
 _STRUCTURAL_404_MARKERS = (
     "pagina niet gevonden",
     "page not found",
     "dogs of amazon",
+    "looking for something",
 )
 
 
@@ -53,13 +54,15 @@ def _captcha(text: str) -> bool:
 
 
 def _structural_404(status: int, text: str) -> bool:
-    if status != 404:
-        return False
-    # Real twister misses are tiny HTML 404 shells (~2KB), not JSON payloads.
-    if len(text) > 8000:
+    """True for hard Amazon 404/gone pages (not soft 500/503 throttle shells)."""
+    if status == 404:
+        return True
+    if status != 200:
         return False
     low = text.casefold()
-    return any(m in low for m in _STRUCTURAL_404_MARKERS) or len(text) < 4000
+    if any(m in low for m in _STRUCTURAL_404_MARKERS) and len(text) < 20000:
+        return True
+    return False
 
 
 class TurboClient:
@@ -189,7 +192,7 @@ class TurboClient:
                     captcha_hit = product
 
         # Last resort for hard NL throttles: sibling EU storefronts (aw HTML).
-        dead_votes = 0
+        structural_404s = 0
         probed = 0
         if prefer_html:
             for host in (
@@ -201,29 +204,25 @@ class TurboClient:
                 "www.amazon.co.uk",
             ):
                 probed += 1
-                product = self._aw_host(asin, host, marketplace)
+                product, reason = self._aw_host_ex(
+                    asin, host, marketplace, provider=f"turbo/aw/{host.split('.')[-1]}"
+                )
                 if product and (product.title or product.feature_bullets):
                     return product
-                if product is None:
-                    dead_votes += 1
+                if product and product.error and "captcha" in product.error:
+                    captcha_hit = product
+                if reason == "structural_404":
+                    structural_404s += 1
+
+        if captcha_hit is not None and not confirm_unavailable:
+            return captcha_hit
+
+        # Only confirm delist on hard 404s across storefronts — never on soft 5xx.
+        if confirm_unavailable and structural_404s >= 3:
+            return self._unavailable_product(asin, marketplace)
 
         if captcha_hit is not None:
             return captcha_hit
-
-        if (
-            confirm_unavailable
-            and prefer_html
-            and probed >= 4
-            and dead_votes >= probed - 1
-        ):
-            return ProductDescription(
-                asin=asin,
-                marketplace=marketplace.domain,
-                url=marketplace.product_url(asin),
-                provider="turbo/unavailable",
-                unavailable=True,
-                description="Product page unavailable / delisted on Amazon",
-            )
 
         return ProductDescription(
             asin=asin,
@@ -232,6 +231,45 @@ class TurboClient:
             provider="turbo",
             error="turbo fetch failed (ajaxv2+dimension+aw+dp+eu)",
         )
+
+    def _unavailable_product(
+        self, asin: str, marketplace: Marketplace
+    ) -> ProductDescription:
+        return ProductDescription(
+            asin=asin,
+            marketplace=marketplace.domain,
+            url=marketplace.product_url(asin),
+            provider="turbo/unavailable",
+            unavailable=True,
+            description="Product page unavailable / delisted on Amazon",
+        )
+
+    def probe_delisted(
+        self, asin: str, marketplace: Marketplace, *, min_404s: int = 3
+    ) -> ProductDescription | None:
+        """Cheap multi-host 404 check. Returns unavailable product or None.
+
+        Soft 5xx / empty responses do NOT count — avoids false delist under load.
+        """
+        hosts = (
+            marketplace.host,
+            "www.amazon.de",
+            "www.amazon.fr",
+            "www.amazon.co.uk",
+        )
+        hits = 0
+        for host in hosts:
+            product, reason = self._aw_host_ex(
+                asin, host, marketplace, provider=f"turbo/aw/{host.split('.')[-1]}"
+            )
+            if product and (product.title or product.feature_bullets):
+                return None
+            if reason == "structural_404":
+                hits += 1
+                if hits >= min_404s:
+                    self.remember_no_twister(asin)
+                    return self._unavailable_product(asin, marketplace)
+        return None
 
     def _twister_like(
         self,
@@ -315,7 +353,10 @@ class TurboClient:
 
     def _aw(self, asin: str, marketplace: Marketplace) -> ProductDescription | None:
         """Mobile product page — often lighter than /dp and higher hit-rate than twister."""
-        return self._aw_host(asin, marketplace.host, marketplace, provider="turbo/aw")
+        product, _reason = self._aw_host_ex(
+            asin, marketplace.host, marketplace, provider="turbo/aw"
+        )
+        return product
 
     def _aw_host(
         self,
@@ -325,23 +366,43 @@ class TurboClient:
         *,
         provider: str | None = None,
     ) -> ProductDescription | None:
+        product, _reason = self._aw_host_ex(
+            asin, host, marketplace, provider=provider
+        )
+        return product
+
+    def _aw_host_ex(
+        self,
+        asin: str,
+        host: str,
+        marketplace: Marketplace,
+        *,
+        provider: str | None = None,
+    ) -> tuple[ProductDescription | None, str]:
         bust = f"&_={_bust()}" if self.no_cache else ""
         url = f"https://{host}/gp/aw/d/{asin}?psc=1&th=1{bust}"
         try:
             response = self.session.get(url, timeout=self.timeout)
         except requests.RequestException:
-            return None
+            return None, "network"
         raw = response.text or ""
-        if response.status_code != 200 or _captcha(raw) or len(raw) < 5000:
-            if _captcha(raw):
-                return ProductDescription(
+        if _captcha(raw):
+            return (
+                ProductDescription(
                     asin=asin,
                     marketplace=marketplace.domain,
                     url=marketplace.product_url(asin),
                     provider=provider or f"turbo/aw/{host}",
                     error="robot/captcha page",
-                )
-            return None
+                ),
+                "captcha",
+            )
+        if _structural_404(response.status_code, raw):
+            return None, "structural_404"
+        if response.status_code != 200:
+            return None, f"http_{response.status_code}"
+        if len(raw) < 5000:
+            return None, "tiny_html"
         product = fast_parse_html(
             raw,
             asin=asin,
@@ -351,8 +412,11 @@ class TurboClient:
         )
         product.source_bytes = len(response.content or b"")
         if not (product.title or product.feature_bullets):
-            return None
-        return product
+            # Title-only pages (e.g. some Prime Video) may still have description.
+            if product.description or product.best_description:
+                return product, "ok"
+            return None, "empty_parse"
+        return product, "ok"
 
     def _dp(self, asin: str, marketplace: Marketplace) -> ProductDescription | None:
         suffix = f"?th=1&psc=1&_={_bust()}" if self.no_cache else "?th=1&psc=1"

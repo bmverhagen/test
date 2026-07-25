@@ -544,15 +544,17 @@ class BulkPipeline:
                 in_fetch_attempts = 1 if attempt == 1 else 2
                 # Mild global growth only in bulk; tail relies on per-ASIN backoff + cap.
                 grow = attempt == 1
-                # Late tries: HTML-first + EU aw failover for stubborn soft-5xx ASINs.
-                prefer_html = attempt >= 15
+                no_tw = bool(self._turbo and self._turbo.knows_no_twister(asin))
+                # Known no-twister: early HTML/EU + delist confirm. Others: later.
+                prefer_html = (no_tw and attempt >= 4) or attempt >= 12
+                confirm_unavailable = prefer_html
                 try:
-                    return self._fetch_asin(
+                    product = self._fetch_asin(
                         asin,
                         prefer_html=prefer_html,
                         attempts=in_fetch_attempts,
                         grow_on_soft_fail=grow,
-                        confirm_unavailable=False,
+                        confirm_unavailable=confirm_unavailable,
                         skip_dp=skip_dp,
                     )
                 except Exception as exc:  # noqa: BLE001
@@ -563,6 +565,24 @@ class BulkPipeline:
                         provider=self.engine,
                         error=str(exc),
                     )
+                if _is_good(product):
+                    return product
+                # Stop burning retries on hard-404 / delisted ASINs.
+                if (
+                    self._turbo is not None
+                    and attempt >= 3
+                    and (no_tw or attempt >= 6)
+                ):
+                    delisted = self._turbo.probe_delisted(
+                        asin, self.marketplace, min_404s=3
+                    )
+                    if delisted is not None:
+                        self.log(
+                            f"DELIST asin={asin} try={attempt} "
+                            f"→ unavailable (stop retries)"
+                        )
+                        return delisted
+                return product
 
             self.log(
                 f"STREAM start: pending={len(remaining)} bulk_workers={self.workers} "
