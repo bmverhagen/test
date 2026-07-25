@@ -464,16 +464,18 @@ class BulkPipeline:
             if not remaining:
                 break
             stats.passes = pass_num
-            # Retry passes: fewer workers, HTML-first, fixed spacing (no soft-fail storms).
-            prefer_html = self.stable and pass_num >= 2
+            # Retry / resume-tail: HTML-first, fixed spacing (no soft-fail storms).
+            # If we already have successes (checkpoint resume), treat pass 1 as retry.
+            resume_tail = bool(done) and pass_num == 1 and len(remaining) < stats.total
+            prefer_html = self.stable and (pass_num >= 2 or resume_tail)
             grow_on_soft_fail = not prefer_html
-            attempts = 2 if pass_num == 1 else (3 if pass_num < 5 else 4)
-            if self.stable and pass_num >= 2:
-                pass_workers = max(2, min(6, self.workers - 2 * (pass_num - 1)))
+            attempts = 2 if (pass_num == 1 and not prefer_html) else (3 if pass_num < 5 else 4)
+            if prefer_html:
+                pass_workers = max(2, min(6, self.workers - 2 * max(0, pass_num - 1)))
             else:
                 pass_workers = self.workers
             if self.stable:
-                if pass_num == 1:
+                if not prefer_html:
                     self.gate.spacing = max(self.gate.min_spacing, 0.05)
                 elif pass_num < 5:
                     self.gate.spacing = 0.12
