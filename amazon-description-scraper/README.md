@@ -77,6 +77,36 @@ python scrape_descriptions.py scrape B0B4WQXL21 -p rainforest
 `best_description`, `provider` (bij soft: `soft/twister` of `soft/html`),
 `source_bytes`, `error`.
 
+
+## Bulk pipeline (100–1000+)
+
+Stable long-run mode with **adaptive delay**, **checkpoint/resume**, and live
+progress on stderr. Validated: 100/100 in ~161s, then scaled to 1000.
+
+```bash
+# Staged stress test
+python scrape_descriptions.py bulk -f asins.txt --max 100 -o out100.json
+
+# Full 1000 (resumable)
+python scrape_descriptions.py bulk -f asins.txt --max 1000 -o out1000.json \
+  --delay 0.5 --checkpoint-every 25
+
+# Resume after interrupt (default)
+python scrape_descriptions.py bulk -f asins.txt --max 1000 -o out1000.json
+```
+
+Progress lines look like:
+
+```text
+[08:35:33] OK [80/1000] asin=B0... provider=soft/twister bullets=5 bytes=928694
+           ok=80 fail=0 captcha=0 rate=0.63/s eta=24.5m delay=0.35s
+[08:35:33] CHECKPOINT wrote 80 products → out1000.json.checkpoint.json
+```
+
+On captcha/block the delay grows (`×1.7`, cap 8s); after success streaks it
+eases back toward `min_delay` (0.35s). Checkpoint files let you Ctrl+C and
+continue later without re-downloading OK items.
+
 ## Tests
 
 ```bash

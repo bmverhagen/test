@@ -10,6 +10,7 @@ from pathlib import Path
 from .endpoints import probe_endpoints, probe_to_dict
 from .models import MARKETPLACES, ProviderName
 from .parser import extract_asin
+from .pipeline import BulkPipeline
 from .scraper import DescriptionScraper
 from .storage import write_csv, write_json
 
@@ -122,6 +123,53 @@ def build_parser() -> argparse.ArgumentParser:
     )
     probe.add_argument("-o", "--output", help="Optional JSON output path")
 
+    bulk = sub.add_parser(
+        "bulk",
+        help=(
+            "Stable long-run pipeline for 100–1000+ ASINs: soft provider, "
+            "adaptive delay, checkpoint/resume, live progress on stderr"
+        ),
+    )
+    bulk.add_argument("asins", nargs="*", help="ASINs or /dp/ URLs")
+    bulk.add_argument("-f", "--file", required=False, help="File with ASINs (one per line)")
+    bulk.add_argument("--stdin", action="store_true")
+    bulk.add_argument(
+        "-m",
+        "--marketplace",
+        default="nl",
+        choices=sorted(MARKETPLACES),
+    )
+    bulk.add_argument(
+        "-o",
+        "--output",
+        required=True,
+        help="Output JSON/CSV path (checkpoint written alongside)",
+    )
+    bulk.add_argument(
+        "--delay",
+        type=float,
+        default=0.55,
+        help="Initial per-request delay (adaptive; default 0.55)",
+    )
+    bulk.add_argument(
+        "--checkpoint-every",
+        type=int,
+        default=25,
+        help="Write checkpoint every N successful new items (default 25)",
+    )
+    bulk.add_argument(
+        "--max",
+        type=int,
+        default=None,
+        dest="max_items",
+        help="Only process first N ASINs (for staged stress tests)",
+    )
+    bulk.add_argument(
+        "--no-resume",
+        action="store_true",
+        help="Ignore existing checkpoint and start clean",
+    )
+
     return parser
 
 
@@ -180,6 +228,27 @@ def _cmd_scrape(args: argparse.Namespace) -> int:
     return 1 if errors and len(errors) == len(products) else 0
 
 
+def _cmd_bulk(args: argparse.Namespace) -> int:
+    asins = _read_asins(args)
+    if not asins:
+        print("No ASINs provided. Pass ASINs, --file, or --stdin.", file=sys.stderr)
+        return 2
+    pipeline = BulkPipeline(
+        marketplace=args.marketplace,
+        delay=args.delay,
+        checkpoint_every=args.checkpoint_every,
+    )
+    stats = pipeline.run(
+        asins,
+        output=args.output,
+        resume=not args.no_resume,
+        max_items=args.max_items,
+    )
+    # Exit 0 if success rate >= 95%, else 1
+    rate = (stats.ok / stats.total) if stats.total else 0
+    return 0 if rate >= 0.95 else 1
+
+
 def _cmd_probe(args: argparse.Namespace) -> int:
     asin = extract_asin(args.asin)
     if not asin:
@@ -216,6 +285,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command == "scrape":
         return _cmd_scrape(args)
+    if args.command == "bulk":
+        return _cmd_bulk(args)
     if args.command == "probe-endpoints":
         return _cmd_probe(args)
     parser.error(f"Unknown command {args.command}")
