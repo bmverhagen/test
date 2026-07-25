@@ -211,8 +211,8 @@ def build_parser() -> argparse.ArgumentParser:
         "--stream-retries",
         action="store_true",
         help=(
-            "Continuous retry queue: requeue misses immediately instead of "
-            "waiting for a full pass to finish (overlaps retries with first-pass)"
+            "Two-phase stream: full-worker first try, then low-concurrency "
+            "tail with per-ASIN backoff (faster 100% than batched passes)"
         ),
     )
     bulk.add_argument(

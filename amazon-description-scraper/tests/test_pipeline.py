@@ -1,4 +1,4 @@
-from amazon_description_scraper.pipeline import AdaptivePacer, PipelineStats
+from amazon_description_scraper.pipeline import AdaptivePacer, PipelineStats, SpacingGate
 from amazon_description_scraper.models import ProductDescription
 
 
@@ -9,6 +9,16 @@ def test_adaptive_pacer_grows_and_decays():
     pacer.on_success()
     pacer.on_success()
     assert pacer.delay == 1.0  # 2.0 * 0.5
+
+
+def test_spacing_gate_cap_and_reset():
+    gate = SpacingGate(spacing=0.05, min_spacing=0.03, max_spacing=1.5)
+    gate.spacing = 0.9
+    gate.cap_spacing(0.20)
+    assert gate.max_spacing == 0.20
+    assert gate.spacing == 0.20
+    gate.reset_spacing(0.08)
+    assert gate.spacing == 0.08
 
 
 def test_pipeline_stats_rates():

@@ -17,7 +17,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from queue import Queue
+import heapq
+import itertools
 from typing import Callable, TextIO
 
 from .models import Marketplace, ProductDescription, resolve_marketplace
@@ -153,6 +154,18 @@ class SpacingGate:
     def on_block(self) -> None:
         with self._lock:
             self._grow(self.growth)
+
+    def cap_spacing(self, max_spacing: float) -> None:
+        """Lower the ceiling and clamp current spacing (retry-tail mode)."""
+        with self._lock:
+            self.max_spacing = max(self.min_spacing, max_spacing)
+            self.spacing = min(self.spacing, self.max_spacing)
+
+    def reset_spacing(self, spacing: float) -> None:
+        with self._lock:
+            self.spacing = max(self.min_spacing, min(self.max_spacing, spacing))
+            self._success_streak = 0
+            self._next_start = 0.0
 
 
 class AdaptivePacer:
@@ -501,77 +514,182 @@ class BulkPipeline:
             if should_checkpoint:
                 write_checkpoint()
 
-        # --- Streaming retries: miss → requeue immediately (overlaps with first-pass) ---
+        # --- Fast stream: bulk first-pass → low-concurrency delayed retries ---
         if self.stream_retries and self.engine == "turbo":
             max_tries = 1 + self.max_retries
             pass1_spacing = max(
                 self.gate.min_spacing, 0.05 if self.stable else self.gate.spacing
             )
-            self.gate.spacing = pass1_spacing
-            work: Queue[tuple[str | None, int]] = Queue()
-            for asin in remaining:
-                work.put((asin, 1))
-
+            # Cap global spacing so soft-fails cannot push the gate to ~1s.
+            self.gate.cap_spacing(0.20)
+            self.gate.reset_spacing(pass1_spacing)
+            tail_workers = max(4, min(6, max(1, self.workers // 4)))
             ok_by_try: dict[int, int] = {}
             fail_by_try: dict[int, int] = {}
             max_try_seen = 1
             progress_every = max(25, min(100, stats.total // 20 or 25))
 
+            def _asin_backoff(attempt: int) -> float:
+                # Per-ASIN delay before next try (does not slow other ASINs).
+                return min(2.5, 0.10 * (1.45 ** max(0, attempt - 1)))
+
+            def _fetch_try(asin: str, attempt: int) -> ProductDescription:
+                skip_dp = attempt == 1
+                in_fetch_attempts = 1 if attempt == 1 else 2
+                # No global soft-fail growth — per-ASIN backoff handles pressure.
+                grow = attempt == 1
+                try:
+                    return self._fetch_asin(
+                        asin,
+                        prefer_html=False,
+                        attempts=in_fetch_attempts,
+                        grow_on_soft_fail=grow,
+                        confirm_unavailable=False,
+                        skip_dp=skip_dp,
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    return ProductDescription(
+                        asin=asin,
+                        marketplace=self.marketplace.domain,
+                        url=self.marketplace.product_url(asin),
+                        provider=self.engine,
+                        error=str(exc),
+                    )
+
             self.log(
-                f"STREAM start: pending={len(remaining)} workers={self.workers} "
-                f"max_retries={self.max_retries} max_tries={max_tries} "
-                f"spacing={self.gate.spacing:.3f}s"
+                f"STREAM start: pending={len(remaining)} bulk_workers={self.workers} "
+                f"tail_workers={tail_workers} max_retries={self.max_retries} "
+                f"max_tries={max_tries} spacing={self.gate.spacing:.3f}s "
+                f"spacing_cap={self.gate.max_spacing:.3f}s"
             )
 
-            def stream_worker() -> None:
-                nonlocal max_try_seen
-                while True:
-                    asin, attempt = work.get()
-                    try:
-                        if asin is None:
-                            return
+            # Phase 1 — full concurrency, first try only (no retry overlap).
+            phase1_misses: list[tuple[str, ProductDescription]] = []
+            bulk = list(remaining)
+            stats.passes = 1
+            if bulk:
+                chunk_size = max(self.workers * 10, 100)
+
+                def bulk_one(asin: str) -> tuple[str, ProductDescription]:
+                    return asin, _fetch_try(asin, 1)
+
+                for chunk_start in range(0, len(bulk), chunk_size):
+                    chunk = bulk[chunk_start : chunk_start + chunk_size]
+                    if self.workers == 1:
+                        chunk_results = [bulk_one(a) for a in chunk]
+                    else:
+                        chunk_results = []
+                        with ThreadPoolExecutor(max_workers=self.workers) as pool:
+                            futs = [pool.submit(bulk_one, a) for a in chunk]
+                            for fut in as_completed(futs):
+                                chunk_results.append(fut.result())
+                    for asin, product in chunk_results:
+                        if _is_good(product):
+                            last_miss.pop(asin, None)
+                            with self._stats_lock:
+                                ok_by_try[1] = ok_by_try.get(1, 0) + 1
+                            handle_success(asin, product)
+                        else:
+                            last_miss[asin] = product
+                            with self._stats_lock:
+                                stats.retries += 1
+                                fail_by_try[1] = fail_by_try.get(1, 0) + 1
+                            phase1_misses.append((asin, product))
+
+            write_checkpoint()
+            no_twister_n = len(self._turbo._no_twister) if self._turbo else 0
+            self.log(
+                f"STREAM phase1 done: ok={stats.ok}/{stats.total} "
+                f"misses={len(phase1_misses)} no_twister_known={no_twister_n} "
+                f"spacing={self.gate.spacing:.3f}s → tail_workers={tail_workers}"
+            )
+
+            # Phase 2 — low concurrency + per-ASIN delayed requeue.
+            if phase1_misses and self.max_retries > 0:
+                self.gate.cap_spacing(0.20)
+                self.gate.reset_spacing(min(0.08, pass1_spacing * 1.2))
+                self._warm()
+
+                heap: list[tuple[float, int, str, int]] = []
+                seq = itertools.count()
+                heap_lock = threading.Lock()
+                pending_terminal = len(phase1_misses)
+                terminal_lock = threading.Lock()
+
+                now0 = time.time()
+                for asin, _prod in phase1_misses:
+                    # Stagger initial retry admission slightly.
+                    heapq.heappush(
+                        heap, (now0 + _asin_backoff(1), next(seq), asin, 2)
+                    )
+
+                wake = threading.Event()
+
+                def push_retry(asin: str, next_attempt: int) -> None:
+                    ready = time.time() + _asin_backoff(next_attempt - 1)
+                    with heap_lock:
+                        heapq.heappush(heap, (ready, next(seq), asin, next_attempt))
+                    wake.set()
+
+                def pop_ready() -> tuple[str, int] | None:
+                    with heap_lock:
+                        if not heap:
+                            return None
+                        ready, _, asin, attempt = heap[0]
+                        wait = ready - time.time()
+                        if wait > 0:
+                            return None
+                        heapq.heappop(heap)
+                        return asin, attempt
+
+                def tail_worker() -> None:
+                    nonlocal max_try_seen, pending_terminal
+                    while True:
+                        with terminal_lock:
+                            if pending_terminal <= 0:
+                                wake.set()
+                                return
+                        item = pop_ready()
+                        if item is None:
+                            # Sleep until next heap item or completion.
+                            with heap_lock:
+                                if heap:
+                                    wait = max(0.01, heap[0][0] - time.time())
+                                else:
+                                    wait = 0.05
+                            wake.wait(timeout=min(wait, 0.25))
+                            wake.clear()
+                            continue
+
+                        asin, attempt = item
                         with self._stats_lock:
                             max_try_seen = max(max_try_seen, attempt)
                             stats.passes = max_try_seen
-                        skip_dp = attempt == 1
-                        # Later tries: one in-fetch retry helps soft 5xx without batching.
-                        in_fetch_attempts = 1 if attempt == 1 else 2
-                        try:
-                            product = self._fetch_asin(
-                                asin,
-                                prefer_html=False,
-                                attempts=in_fetch_attempts,
-                                grow_on_soft_fail=True,
-                                confirm_unavailable=False,
-                                skip_dp=skip_dp,
-                            )
-                        except Exception as exc:  # noqa: BLE001
-                            product = ProductDescription(
-                                asin=asin,
-                                marketplace=self.marketplace.domain,
-                                url=self.marketplace.product_url(asin),
-                                provider=self.engine,
-                                error=str(exc),
-                            )
 
+                        product = _fetch_try(asin, attempt)
                         if _is_good(product):
                             last_miss.pop(asin, None)
                             with self._stats_lock:
                                 ok_by_try[attempt] = ok_by_try.get(attempt, 0) + 1
                             handle_success(asin, product)
+                            with terminal_lock:
+                                pending_terminal -= 1
+                            wake.set()
                         elif attempt < max_tries:
                             last_miss[asin] = product
                             with self._stats_lock:
                                 stats.retries += 1
                                 fail_by_try[attempt] = fail_by_try.get(attempt, 0) + 1
-                            # Requeue at back → overlaps once first-pass queue shrinks.
-                            work.put((asin, attempt + 1))
-                            if stats.retries % progress_every == 0:
+                                requeues = stats.retries
+                            push_retry(asin, attempt + 1)
+                            if requeues % progress_every == 0:
+                                with heap_lock:
+                                    hq = len(heap)
                                 self.log(
                                     f"STREAM requeue asin={asin} try={attempt}->{attempt + 1} "
-                                    f"ok={stats.ok}/{stats.total} "
-                                    f"requeues={stats.retries} q≈{work.qsize()} "
-                                    f"spacing={self.gate.spacing:.3f}s"
+                                    f"ok={stats.ok}/{stats.total} requeues={requeues} "
+                                    f"tail_q≈{hq} spacing={self.gate.spacing:.3f}s "
+                                    f"backoff={_asin_backoff(attempt):.2f}s"
                                 )
                         else:
                             last_miss[asin] = product
@@ -586,28 +704,28 @@ class BulkPipeline:
                                 f"asin={asin} exhausted stream retries "
                                 f"(tries={attempt}/{max_tries})"
                             )
-                    finally:
-                        work.task_done()
+                            with terminal_lock:
+                                pending_terminal -= 1
+                            wake.set()
 
-            workers_n = self.workers if remaining else 0
-            threads = [
-                threading.Thread(target=stream_worker, name=f"stream-{i}", daemon=True)
-                for i in range(workers_n)
-            ]
-            for t in threads:
-                t.start()
-            work.join()
-            for _ in threads:
-                work.put((None, 0))
-            for t in threads:
-                t.join(timeout=30)
+                threads = [
+                    threading.Thread(
+                        target=tail_worker, name=f"stream-tail-{i}", daemon=True
+                    )
+                    for i in range(tail_workers)
+                ]
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join()
 
             remaining = []
             write_checkpoint()
             self.log(
                 f"STREAM done: ok_by_try={dict(sorted(ok_by_try.items()))} "
                 f"miss_by_try={dict(sorted(fail_by_try.items()))} "
-                f"requeues={stats.retries} max_try_seen={max_try_seen}"
+                f"requeues={stats.retries} max_try_seen={max_try_seen} "
+                f"tail_workers={tail_workers}"
             )
 
             products = [
@@ -632,6 +750,7 @@ class BulkPipeline:
                 final["pending_final"] = remaining
                 final["ok_by_try"] = ok_by_try
                 final["miss_by_try"] = fail_by_try
+                final["tail_workers"] = tail_workers
                 _atomic_write_json(output_path, final)
 
             success_rate = (stats.ok / stats.total) if stats.total else 0
@@ -641,8 +760,8 @@ class BulkPipeline:
                 f"success_rate={success_rate:.1%} max_try={stats.passes} "
                 f"requeues={stats.retries} elapsed={stats.elapsed:.1f}s "
                 f"avg_rate={stats.rate:.2f}/s workers={self.workers} "
-                f"spacing={self.gate.spacing:.3f}s providers={stats.by_provider} "
-                f"output={output_path}"
+                f"tail_workers={tail_workers} spacing={self.gate.spacing:.3f}s "
+                f"providers={stats.by_provider} output={output_path}"
             )
             if stats.failed == 0 and stats.total > 0:
                 self.log(

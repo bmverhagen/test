@@ -180,8 +180,8 @@ class TurboClient:
                 if product and product.error and "captcha" in product.error:
                     captcha_hit = product
         else:
-            getters = (*html_getters, self._ajaxv2)
-            for getter in getters:
+            # Known no-twister / aw-first: never re-hit ajaxv2 (structural 404s).
+            for getter in html_getters:
                 product = getter(asin, marketplace)
                 if product and (product.title or product.feature_bullets):
                     return product
