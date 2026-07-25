@@ -43,6 +43,48 @@ _STRUCTURAL_404_MARKERS = (
     "looking for something",
 )
 
+# Global /gp/aw/d failover hosts (locale may differ from marketplace).
+_GLOBAL_AW_HOSTS = (
+    "www.amazon.de",
+    "www.amazon.fr",
+    "www.amazon.es",
+    "www.amazon.it",
+    "www.amazon.co.uk",
+    "www.amazon.com",  # US
+    "www.amazon.ca",
+    "www.amazon.com.be",
+    "www.amazon.com.au",
+    "www.amazon.co.jp",
+    "www.amazon.com.mx",
+    "www.amazon.in",
+)
+
+_HOST_LABELS = {
+    "www.amazon.com": "us",
+    "www.amazon.co.uk": "uk",
+    "www.amazon.com.au": "au",
+    "www.amazon.co.jp": "jp",
+    "www.amazon.com.mx": "mx",
+    "www.amazon.com.be": "be",
+    "www.amazon.de": "de",
+    "www.amazon.fr": "fr",
+    "www.amazon.es": "es",
+    "www.amazon.it": "it",
+    "www.amazon.ca": "ca",
+    "www.amazon.in": "in",
+    "www.amazon.nl": "nl",
+}
+
+
+def _host_label(host: str) -> str:
+    host = host.lower()
+    if host in _HOST_LABELS:
+        return _HOST_LABELS[host]
+    # www.amazon.X -> X
+    if host.startswith("www.amazon."):
+        return host.removeprefix("www.amazon.").replace(".", "")
+    return host.split(".")[-1]
+
 
 def _bust() -> str:
     return hashlib.md5(f"{time.time_ns()}{random.random()}".encode()).hexdigest()[:10]
@@ -139,10 +181,12 @@ class TurboClient:
         prefer_html: bool = False,
         confirm_unavailable: bool = False,
         skip_dp: bool = False,
+        multi_host: bool = False,
     ) -> ProductDescription:
         # Endpoint hunt (2026-07): no free light JSON without captcha/tokens.
         # Fast path: ajaxv2 → [dimension only if not structural 404] → aw → [dp]
         # Known no-twister / prefer_html: aw → [dp] (skip burned twister RTTs)
+        # multi_host: after local miss, probe global aw hosts (EU/US/etc.)
         # skip_dp: omit heavy /dp on hot first pass (cuts load + latency)
         captcha_hit: ProductDescription | None = None
         aw_first = prefer_html or self.knows_no_twister(asin)
@@ -191,23 +235,22 @@ class TurboClient:
                 if product and product.error and "captcha" in product.error:
                     captcha_hit = product
 
-        # Last resort for hard NL throttles: sibling EU storefronts (aw HTML).
+        # Global aw failover (EU/US/…): only after local chain missed.
         structural_404s = 0
-        probed = 0
-        if prefer_html:
-            for host in (
-                marketplace.host,
-                "www.amazon.de",
-                "www.amazon.fr",
-                "www.amazon.es",
-                "www.amazon.it",
-                "www.amazon.co.uk",
-            ):
-                probed += 1
+        if prefer_html or multi_host:
+            seen: set[str] = set()
+            hosts: list[str] = [marketplace.host, *_GLOBAL_AW_HOSTS]
+            for host in hosts:
+                if host in seen:
+                    continue
+                seen.add(host)
+                label = _host_label(host)
                 product, reason = self._aw_host_ex(
-                    asin, host, marketplace, provider=f"turbo/aw/{host.split('.')[-1]}"
+                    asin, host, marketplace, provider=f"turbo/aw/{label}"
                 )
-                if product and (product.title or product.feature_bullets):
+                if product and (
+                    product.title or product.feature_bullets or product.description
+                ):
                     return product
                 if product and product.error and "captcha" in product.error:
                     captcha_hit = product
@@ -229,7 +272,7 @@ class TurboClient:
             marketplace=marketplace.domain,
             url=marketplace.product_url(asin),
             provider="turbo",
-            error="turbo fetch failed (ajaxv2+dimension+aw+dp+eu)",
+            error="turbo fetch failed (ajaxv2+aw+dp+global)",
         )
 
     def _unavailable_product(
@@ -256,11 +299,12 @@ class TurboClient:
             "www.amazon.de",
             "www.amazon.fr",
             "www.amazon.co.uk",
+            "www.amazon.com",
         )
         hits = 0
         for host in hosts:
             product, reason = self._aw_host_ex(
-                asin, host, marketplace, provider=f"turbo/aw/{host.split('.')[-1]}"
+                asin, host, marketplace, provider=f"turbo/aw/{_host_label(host)}"
             )
             if product and (product.title or product.feature_bullets):
                 return None

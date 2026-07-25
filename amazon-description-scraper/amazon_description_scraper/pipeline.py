@@ -323,6 +323,7 @@ class BulkPipeline:
         prefer_html: bool = False,
         confirm_unavailable: bool = False,
         skip_dp: bool = False,
+        multi_host: bool = False,
     ) -> ProductDescription:
         if self.engine == "turbo":
             assert self._turbo is not None
@@ -332,6 +333,7 @@ class BulkPipeline:
                 prefer_html=prefer_html,
                 confirm_unavailable=confirm_unavailable,
                 skip_dp=skip_dp,
+                multi_host=multi_host,
             )
         provider = getattr(self._soft_local, "provider", None)
         if provider is None:
@@ -353,6 +355,7 @@ class BulkPipeline:
         grow_on_soft_fail: bool = True,
         confirm_unavailable: bool = False,
         skip_dp: bool = False,
+        multi_host: bool = False,
     ) -> ProductDescription:
         """Fetch with in-pass attempts; optional soft-fail growth."""
         last = None
@@ -363,6 +366,7 @@ class BulkPipeline:
                 prefer_html=prefer_html,
                 confirm_unavailable=confirm_unavailable,
                 skip_dp=skip_dp,
+                multi_host=multi_host,
             )
             last = product
             if _is_good(product):
@@ -545,11 +549,11 @@ class BulkPipeline:
                 # Mild global growth only in bulk; tail relies on per-ASIN backoff + cap.
                 grow = attempt == 1
                 no_tw = bool(self._turbo and self._turbo.knows_no_twister(asin))
-                # EU-wave earlier: NL-only retries after try ~5 have ~10% hit-rate,
-                # while HTML/EU recovers the sticky tail in one wave.
-                # no-twister: try 4+; everyone else: try 6+ (was 12).
-                prefer_html = (no_tw and attempt >= 4) or attempt >= 6
-                confirm_unavailable = prefer_html
+                # Global aw failover (EU/US/…) from try 1 after local miss.
+                # prefer_html only forces aw-first order for known no-twister.
+                prefer_html = no_tw
+                multi_host = True
+                confirm_unavailable = attempt >= 3
                 try:
                     product = self._fetch_asin(
                         asin,
@@ -558,6 +562,7 @@ class BulkPipeline:
                         grow_on_soft_fail=grow,
                         confirm_unavailable=confirm_unavailable,
                         skip_dp=skip_dp,
+                        multi_host=multi_host,
                     )
                 except Exception as exc:  # noqa: BLE001
                     return ProductDescription(
@@ -590,7 +595,8 @@ class BulkPipeline:
                 f"STREAM start: pending={len(remaining)} bulk_workers={self.workers} "
                 f"tail_workers={tail_workers} max_retries={self.max_retries} "
                 f"max_tries={max_tries} spacing={self.gate.spacing:.3f}s "
-                f"spacing_cap={self.gate.max_spacing:.3f}s"
+                f"spacing_cap={self.gate.max_spacing:.3f}s "
+                f"multi_host=1 (EU/US/global from try 1)"
             )
 
             # Phase 1 — full concurrency, first try only (no retry overlap).
