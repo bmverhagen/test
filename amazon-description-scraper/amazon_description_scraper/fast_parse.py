@@ -37,10 +37,15 @@ _NOISE = re.compile(
     r"(make sure this fits|zie dat dit past|javascript|click here|klik hier)",
     re.I,
 )
+# Only match real Amazon error-page titles — NOT product names like
+# "Sonicare 5500" or "Shampoo 500 ml" (bare `500\b` falsely rejected those).
 _BAD_TITLE = re.compile(
-    r"(503\b|500\b|service niet beschikbaar|something went wrong|"
+    r"(service niet beschikbaar|something went wrong|"
     r"er is iets misgegaan|page not found|robot check|validatecaptcha|"
-    r"fout:|error\b)",
+    r"^(503|500)\b|"
+    r"\b(503|500)\s*-\s*fout\b|"
+    r"^error\b|"
+    r"^fout:)",
     re.I,
 )
 
