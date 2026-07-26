@@ -175,9 +175,10 @@ async (cfg) => {
   }
 
   if (cfg.cleanup) {
-    await gql(cfg.hashes.removeItem, 'RemoveItem', {
+    // Fire-and-forget: niet op kritieke pad.
+    gql(cfg.hashes.removeItem, 'RemoveItem', {
       input: { basketId, itemId },
-    });
+    }).catch(() => null);
   }
 
   return {
@@ -309,10 +310,9 @@ async (cfg) => {
     }
 
     const runOnce = async () => {
-      // Overlap vorige RemoveItem met deze add (als cleanup aan staat).
-      const addP = addItem(p);
-      await pendingRemove;
-      const add = await addP;
+      // Kritieke pad = add + update. RemoveItem is puur fire-and-forget
+      // (niet awaiten — scheelt ~50–150ms/product zonder accuracy-verlies).
+      const add = await addItem(p);
 
       if (isBlocked(add.status, add.text)) {
         return { blocked: true, error: `Toevoegen mislukt (${add.status})` };
@@ -320,8 +320,8 @@ async (cfg) => {
 
       let itemId = null;
       try { itemId = JSON.parse(add.text).itemId; } catch {}
-      if (!itemId) {
-        // 409: item bestaat al → state raadplegen
+      if (!itemId && add.status === 409) {
+        // Item bestaat al → state raadplegen
         const state = await readState();
         itemId = (state.itemRows || []).find(
           (row) => String(row.productId) === String(p.productId)
@@ -370,6 +370,7 @@ async (cfg) => {
       }
 
       if (cfg.cleanup) {
+        // Niet awaiten — volgende add mag meteen starten.
         pendingRemove = gql(cfg.hashes.removeItem, 'RemoveItem', {
           input: { basketId, itemId },
         }).catch(() => null);
@@ -651,9 +652,9 @@ class BolStockChecker:
         self.proxy = proxy
         # Vernieuw basketId na N items zodat GraphQL niet traag wordt op volle carts.
         self.basket_rotate_every = 25
-        # Turbo: kleinere chunks + korte pauze → stabieler op 1 IP, snellere 100-runs.
-        self.turbo_chunk_size = 8
-        self.turbo_chunk_pause = 0.35
+        # Turbo: grotere chunks, minimale pauze — FF-remove houdt cart licht.
+        self.turbo_chunk_size = 50
+        self.turbo_chunk_pause = 0.0
 
     def _import_camoufox(self):
         try:
@@ -1834,9 +1835,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     offer_cache_path = args.offer_cache
     turbo = args.turbo
     if args.fast:
-        # Mini-delay spaart Akamai op 1 IP; met proxy mag delay 0.
-        delay = 0.0 if args.proxy else max(delay, 0.05)
-        # Cleanup aan: RemoveItem fire-and-forget ∥ volgende add (voorkomt volle cart).
+        delay = 0.0
+        # Cleanup aan: RemoveItem fire-and-forget (kritieke pad = add+update).
         keep_in_cart = False
         turbo = True
         # Zonder proxy: 1 turbo-worker is stabieler; met proxy mag workers>1.
