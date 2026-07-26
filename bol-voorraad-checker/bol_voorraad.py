@@ -48,12 +48,10 @@ BLOCKED_URL_SNIPPETS = (
 
 CART_JS = """
 async (cfg) => {
-  // Directe backend-calls vanuit de browser-context (Akamai vereist browser-TLS).
-  // Productpagina levert offerUid; daarna alleen REST/GraphQL basket-API's.
+  // Snelle basket-flow: parallel create/state, hergebruik bestaande regel, geen cleanup.
   const xsrfMatch = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/);
   const xsrf = xsrfMatch ? decodeURIComponent(xsrfMatch[1]) : '';
   const pageId = crypto.randomUUID();
-
   const restHeaders = {
     'Accept': 'application/json',
     'Content-Type': 'application/json;charset=UTF-8',
@@ -93,77 +91,65 @@ async (cfg) => {
     });
     const text = await resp.text();
     try { return JSON.parse(text); } catch {
-      return { itemRows: [], _raw: text.slice(0, 200), _status: resp.status };
+      return { itemRows: [] };
     }
   };
 
   let basketId = cfg.basketId || null;
+  const createP = basketId
+    ? Promise.resolve(null)
+    : gql(cfg.hashes.createBasket, 'CreateBasket', {});
+  const stateP = readState();
+  const [created, state0] = await Promise.all([createP, stateP]);
   if (!basketId) {
-    const created = await gql(cfg.hashes.createBasket, 'CreateBasket', {});
-    basketId = created.json?.data?.basket?.createBasketV2?.id;
+    basketId = created?.json?.data?.basket?.createBasketV2?.id;
     if (!basketId) {
       return { ok: false, error: 'Geen basketId van bol.com ontvangen', created };
     }
   }
 
-  const clearBasket = async () => {
-    const state = await readState();
-    for (const row of (state.itemRows || [])) {
-      await gql(cfg.hashes.removeItem, 'RemoveItem', {
-        removeItemInput: { basketId, itemId: row.id },
-      });
-      await gql(cfg.hashes.removeItem, 'RemoveItem', {
-        input: { basketId, itemId: row.id },
-      });
-    }
-  };
-
-  if (cfg.clearFirst) {
-    await clearBasket();
-  }
-
-  const addOnce = async () => fetch('/nl/rnwy/basket/v2/items', {
-    method: 'POST',
-    credentials: 'include',
-    headers: restHeaders,
-    body: JSON.stringify({
-      globalId: cfg.productId,
-      quantity: 1,
-      offerUid: cfg.offerUid,
-    }),
-  });
-
-  let addResp = await addOnce();
-  let addText = await addResp.text();
-  if (addResp.status === 409 || addResp.status === 400) {
-    await clearBasket();
-    addResp = await addOnce();
-    addText = await addResp.text();
-  }
-  if (addResp.status >= 400) {
-    return { ok: false, error: `Toevoegen mislukt (${addResp.status}): ${addText}`, basketId };
-  }
-
-  let itemId = null;
-  try { itemId = JSON.parse(addText).itemId; } catch {}
-
-  const state = await readState();
-  const matching = (state.itemRows || []).find(
+  let itemId = (state0.itemRows || []).find(
     (row) => String(row.productId) === String(cfg.productId)
-  );
-  if (matching) {
-    itemId = matching.id;
-  }
+  )?.id || null;
+
   if (!itemId) {
-    return {
-      ok: false,
-      error: 'Geen itemId na toevoegen aan winkelwagen',
-      addText,
-      basketId,
-      rows: (state.itemRows || []).map((r) => ({
-        id: r.id, productId: r.productId, qty: r.quantity,
-      })),
-    };
+    const addResp = await fetch('/nl/rnwy/basket/v2/items', {
+      method: 'POST',
+      credentials: 'include',
+      headers: restHeaders,
+      body: JSON.stringify({
+        globalId: cfg.productId,
+        quantity: 1,
+        offerUid: cfg.offerUid,
+      }),
+    });
+    const addText = await addResp.text();
+    if (addResp.status >= 400) {
+      // Mogelijk al aanwezig / conflict: state opnieuw lezen.
+      const state = await readState();
+      itemId = (state.itemRows || []).find(
+        (row) => String(row.productId) === String(cfg.productId)
+      )?.id || null;
+      if (!itemId) {
+        return {
+          ok: false,
+          error: `Toevoegen mislukt (${addResp.status}): ${addText}`,
+          basketId,
+        };
+      }
+    } else {
+      try { itemId = JSON.parse(addText).itemId; } catch {}
+      if (!itemId) {
+        const state = await readState();
+        itemId = (state.itemRows || []).find(
+          (row) => String(row.productId) === String(cfg.productId)
+        )?.id || null;
+      }
+    }
+  }
+
+  if (!itemId) {
+    return { ok: false, error: 'Geen itemId na toevoegen aan winkelwagen', basketId };
   }
 
   const update = await gql(cfg.hashes.updateQty, 'UpdateItemQuantity', {
@@ -185,18 +171,27 @@ async (cfg) => {
     items.find((i) => String(i?.sellingOffer?.product?.id || i?.productId || '') === String(cfg.productId)) ||
     null;
 
-  let available = item?.quantity ?? null;
-  let title = item?.sellingOffer?.product?.title || null;
-  let outState = updatedBasket || null;
+  // State is bron van waarheid voor dit productId (GraphQL items-shape wisselt).
+  let outState = await readState();
+  let row = (outState.itemRows || []).find(
+    (r) => String(r.productId) === String(cfg.productId)
+  );
+  let available = row?.quantity ?? item?.quantity ?? null;
+  let title = row?.productTitle || item?.sellingOffer?.product?.title || null;
 
-  // Fallback: basket/state voor dit productId (niet items[0] — winkelwagen kan meer rijen hebben).
-  if (available == null) {
-    outState = await readState();
-    const row = (outState.itemRows || []).find(
-      (r) => String(r.productId) === String(cfg.productId)
-    );
-    available = row?.quantity ?? null;
-    title = row?.productTitle || title;
+  // Soms blijft qty op 1 na een flaky update — één retry.
+  if (available === 1 && Number(cfg.maxQuantity) > 1) {
+    const retry = await gql(cfg.hashes.updateQty, 'UpdateItemQuantity', {
+      input: { basketId, itemId, quantity: cfg.maxQuantity },
+    });
+    if (!(retry.status >= 400 || retry.json?.errors)) {
+      outState = await readState();
+      row = (outState.itemRows || []).find(
+        (r) => String(r.productId) === String(cfg.productId)
+      );
+      available = row?.quantity ?? available;
+      title = row?.productTitle || title;
+    }
   }
 
   if (available == null) {
@@ -206,9 +201,6 @@ async (cfg) => {
   if (cfg.cleanup) {
     await gql(cfg.hashes.removeItem, 'RemoveItem', {
       input: { basketId, itemId },
-    });
-    await gql(cfg.hashes.removeItem, 'RemoveItem', {
-      removeItemInput: { basketId, itemId },
     });
   }
 
@@ -223,7 +215,6 @@ async (cfg) => {
   };
 }
 """
-
 
 @dataclass
 class StockResult:
@@ -320,6 +311,63 @@ def load_products(path: Path) -> list[str]:
     return items
 
 
+def _chunked(items: list[str], n: int) -> list[list[str]]:
+    if n <= 1:
+        return [items]
+    n = min(n, max(len(items), 1))
+    size = (len(items) + n - 1) // n
+    return [items[i : i + size] for i in range(0, len(items), size)]
+
+
+def load_offer_cache(path: Optional[Path]) -> dict[str, str]:
+    if path is None or not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {str(k): str(v) for k, v in data.items() if k and v}
+
+
+def save_offer_cache(path: Optional[Path], cache: dict[str, str]) -> None:
+    if path is None:
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(cache, ensure_ascii=False, indent=0, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _batch_worker(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Subprocess-worker voor parallelle batch (eigen Camoufox-proces)."""
+    cache_path = Path(payload["offer_cache"]) if payload.get("offer_cache") else None
+    checker = BolStockChecker(
+        max_quantity=payload["max_quantity"],
+        country=payload["country"],
+        headless=payload["headless"],
+        block_resources=payload["block_resources"],
+        delay_seconds=payload["delay_seconds"],
+        offer_cache=load_offer_cache(cache_path),
+        offer_cache_path=cache_path,
+    )
+    results = checker.check_batch(
+        payload["products"],
+        cleanup=payload["cleanup"],
+        include_raw=payload["include_raw"],
+        out_path=None,
+        progress=payload.get("progress", False),
+        refresh_every=payload["refresh_every"],
+        max_block_streak=payload["max_block_streak"],
+        isolated=payload["isolated"],
+        workers=1,
+    )
+    return [r.as_public_dict() for r in results]
+
+
+
 class BolStockChecker:
     def __init__(
         self,
@@ -328,13 +376,19 @@ class BolStockChecker:
         country: str = "nl",
         headless: bool = True,
         block_resources: bool = True,
-        delay_seconds: float = 0.15,
+        delay_seconds: float = 0.0,
+        offer_cache: Optional[dict[str, str]] = None,
+        offer_cache_path: Optional[Path] = None,
     ) -> None:
         self.max_quantity = max_quantity
         self.country = country.lower()
         self.headless = headless
         self.block_resources = block_resources
         self.delay_seconds = delay_seconds
+        self.offer_cache: dict[str, str] = dict(offer_cache or {})
+        self.offer_cache_path = offer_cache_path
+        # Vernieuw basketId na N items zodat GraphQL niet traag wordt op volle carts.
+        self.basket_rotate_every = 12
 
     def _import_camoufox(self):
         try:
@@ -400,6 +454,39 @@ class BolStockChecker:
             if self._page_ok(page):
                 self._dismiss_consent(page)
                 return
+        raise BolBlockedError(
+            f"Pagina geblokkeerd of onbruikbaar ({url}, {last_len} bytes)."
+        )
+
+    def _load_product_html(
+        self, page: Any, url: str, product_id: str, attempts: int = 2
+    ) -> str:
+        """Snellere productload: commit + korte poll tot offerUid; fail-fast bij block."""
+        last_len = 0
+        for attempt in range(attempts):
+            wait = "commit" if attempt == 0 else "domcontentloaded"
+            page.goto(url, wait_until=wait, timeout=45000)
+            # Eerst kort wachten op groei; ~9KB = Akamai-blockpage.
+            t0 = time.perf_counter()
+            html = page.content()
+            last_len = len(html)
+            stable_small = 0
+            while time.perf_counter() - t0 < 3.5:
+                html = page.content()
+                last_len = len(html)
+                if last_len >= 20000 and "offerUid" in html:
+                    self._dismiss_consent(page)
+                    return html
+                if last_len < 15000:
+                    stable_small += 1
+                    if stable_small >= 4 and time.perf_counter() - t0 > 0.6:
+                        break  # blockpage — volgende poging
+                else:
+                    stable_small = 0
+                time.sleep(0.08)
+            if last_len >= 20000 and "offerUid" in html:
+                self._dismiss_consent(page)
+                return html
         raise BolBlockedError(
             f"Pagina geblokkeerd of onbruikbaar ({url}, {last_len} bytes)."
         )
@@ -495,15 +582,28 @@ class BolStockChecker:
         started = time.perf_counter()
         product_id = extract_product_id(product)
         explicit_offer = extract_offer_uid(product, offer_uid)
+        if not explicit_offer:
+            explicit_offer = self.offer_cache.get(product_id)
         product_url = self._product_url(product_id, product)
 
         try:
-            self._goto_ok(page, product_url, attempts=3)
-            html = page.content()
-            if explicit_offer:
+            session_ready = bool(
+                page.evaluate(
+                    """() => location.hostname.endsWith('bol.com')
+                      && document.cookie.includes('XSRF-TOKEN')
+                      && document.documentElement.outerHTML.length > 20000"""
+                )
+            )
+            if explicit_offer and session_ready:
+                found_offer = explicit_offer
+                title = None
+            elif explicit_offer:
+                # Eerste hit: echte productpagina voor Akamai-cookies, daarna cart-only.
+                html = self._load_product_html(page, product_url, product_id, attempts=2)
                 found_offer = explicit_offer
                 title = self._title_from_html(html)
             else:
+                html = self._load_product_html(page, product_url, product_id, attempts=2)
                 found_offer, title = self._extract_offer_from_html(html, product_id)
 
             payload = {
@@ -518,7 +618,6 @@ class BolStockChecker:
                     "removeItem": GQL_REMOVE_ITEM,
                 },
                 "cleanup": cleanup,
-                # RemoveItem is onbetrouwbaar; we matchen op productId i.p.v. leegmaken.
                 "clearFirst": False,
             }
             raw = page.evaluate(CART_JS, payload)
@@ -530,6 +629,10 @@ class BolStockChecker:
                 started=started,
                 include_raw=include_raw,
             )
+            if result.error is None and found_offer:
+                self.offer_cache[product_id] = found_offer
+                if self.offer_cache_path is not None:
+                    save_offer_cache(self.offer_cache_path, self.offer_cache)
             return result, raw.get("basketId") or basket_id
         except Exception as exc:  # noqa: BLE001
             return (
@@ -628,24 +731,159 @@ class BolStockChecker:
         self,
         products: Iterable[str],
         *,
-        cleanup: bool = True,
+        cleanup: bool = False,
         include_raw: bool = False,
         out_path: Optional[Path] = None,
         progress: bool = True,
-        refresh_every: int = 15,
+        refresh_every: int = 25,
+        max_block_streak: int = 2,
+        isolated: bool = False,
+        workers: int = 1,
+    ) -> list[StockResult]:
+        """Batch via directe basket-API's.
+
+        Tip: met een offer-cache (productId→offerUid) valt de HTML-stap weg (~1s/product).
+        workers>1 helpt zelden op één shared IP (Akamai); meestal is 1 worker sneller.
+        """
+        products_list = list(products)
+        if workers > 1 and len(products_list) > 1:
+            return self._check_batch_parallel(
+                products_list,
+                cleanup=cleanup,
+                include_raw=include_raw,
+                out_path=out_path,
+                progress=progress,
+                refresh_every=refresh_every,
+                max_block_streak=max_block_streak,
+                isolated=isolated,
+                workers=workers,
+            )
+        return self._check_batch_serial(
+            products_list,
+            cleanup=cleanup,
+            include_raw=include_raw,
+            out_path=out_path,
+            progress=progress,
+            refresh_every=refresh_every,
+            max_block_streak=max_block_streak,
+            isolated=isolated,
+        )
+
+    def _check_batch_parallel(
+        self,
+        products_list: list[str],
+        *,
+        cleanup: bool,
+        include_raw: bool,
+        out_path: Optional[Path],
+        progress: bool,
+        refresh_every: int,
+        max_block_streak: int,
+        isolated: bool,
+        workers: int,
+    ) -> list[StockResult]:
+        from concurrent.futures import ProcessPoolExecutor, as_completed
+
+        chunks = _chunked(products_list, workers)
+        if progress:
+            print(
+                f"Parallel batch: {len(products_list)} producten, "
+                f"{len(chunks)} workers",
+                flush=True,
+            )
+        started_all = time.perf_counter()
+        payloads = [
+            {
+                "products": chunk,
+                "max_quantity": self.max_quantity,
+                "country": self.country,
+                "headless": self.headless,
+                "block_resources": self.block_resources,
+                "delay_seconds": self.delay_seconds,
+                "cleanup": cleanup,
+                "include_raw": include_raw,
+                "refresh_every": refresh_every,
+                "max_block_streak": max_block_streak,
+                "isolated": isolated,
+                "progress": False,
+                "offer_cache": str(self.offer_cache_path)
+                if self.offer_cache_path
+                else None,
+                "index": idx,
+            }
+            for idx, chunk in enumerate(chunks)
+        ]
+
+        chunk_results: dict[int, list[dict[str, Any]]] = {}
+        with ProcessPoolExecutor(max_workers=len(chunks)) as pool:
+            futures = {
+                pool.submit(_batch_worker, {k: v for k, v in p.items() if k != "index"}): p["index"]
+                for p in payloads
+            }
+            for fut in as_completed(futures):
+                idx = futures[fut]
+                chunk_results[idx] = fut.result()
+                if progress:
+                    ok = sum(1 for r in chunk_results[idx] if r.get("error") is None)
+                    print(
+                        f"Worker {idx + 1}/{len(chunks)} klaar: "
+                        f"{ok}/{len(chunk_results[idx])} ok",
+                        flush=True,
+                    )
+
+        ordered_dicts: list[dict[str, Any]] = []
+        for idx in range(len(chunks)):
+            ordered_dicts.extend(chunk_results.get(idx, []))
+
+        results = [
+            StockResult(
+                product_id=d["product_id"],
+                offer_uid=d.get("offer_uid") or "",
+                available=d.get("available"),
+                requested=d.get("requested") or self.max_quantity,
+                capped_at_max=bool(d.get("capped_at_max")),
+                stock_adjusted=bool(d.get("stock_adjusted")),
+                product_title=d.get("product_title"),
+                message=d.get("message"),
+                elapsed_seconds=d.get("elapsed_seconds"),
+                error=d.get("error"),
+                raw_basket=d.get("raw_basket"),
+            )
+            for d in ordered_dicts
+        ]
+
+        if out_path is not None:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            with out_path.open("w", encoding="utf-8") as out_file:
+                for result in results:
+                    out_file.write(
+                        json.dumps(result.as_public_dict(), ensure_ascii=False) + "\n"
+                    )
+
+        if progress:
+            ok = sum(1 for r in results if r.error is None and r.available is not None)
+            elapsed = round(time.perf_counter() - started_all, 2)
+            print(
+                f"Klaar: {ok}/{len(results)} ok in {elapsed}s "
+                f"(avg {elapsed / max(len(results), 1):.2f}s/product, "
+                f"throughput {len(results) / max(elapsed, 0.01):.2f}/s)",
+                flush=True,
+            )
+        return results
+
+    def _check_batch_serial(
+        self,
+        products_list: list[str],
+        *,
+        cleanup: bool = False,
+        include_raw: bool = False,
+        out_path: Optional[Path] = None,
+        progress: bool = True,
+        refresh_every: int = 25,
         max_block_streak: int = 2,
         isolated: bool = False,
     ) -> list[StockResult]:
-        """Batch via directe basket REST/GraphQL in één browsersessie.
-
-        Standaard: zelfde page hergebruiken; per product HTML voor offerUid +
-        daarna backend basket-API's. Match op productId voorkomt foute voorraden
-        als de winkelwagen meerdere rijen heeft.
-
-        isolated=True: verse browser-context per product (langzamer).
-        """
         Camoufox = self._import_camoufox()
-        products_list = list(products)
         results: list[StockResult] = []
         started_all = time.perf_counter()
         block_streak = 0
@@ -726,6 +964,7 @@ class BolStockChecker:
                 or "xsrf" in err
                 or "onbruikbaar" in err
                 or "aantal wijzigen mislukt" in err
+                or "geen basketid" in err
             )
 
         try:
@@ -736,14 +975,21 @@ class BolStockChecker:
                     if progress:
                         print(f"Sessie-refresh na {idx - 1} producten...", flush=True)
                     close_browser()
-                    time.sleep(2.5)
+                    time.sleep(1.5)
                     browser_cm, browser, page = open_browser()
+                elif (
+                    idx > 1
+                    and basket_id is not None
+                    and (idx - 1) % max(self.basket_rotate_every, 1) == 0
+                ):
+                    # Frisse basket houdt UpdateItemQuantity snel.
+                    basket_id = None
 
                 result = check_one(product)
 
                 if is_blocked(result):
                     block_streak += 1
-                    backoff = min(45.0, 3.0 * block_streak)
+                    backoff = min(20.0, 2.0 * block_streak)
                     if progress:
                         print(
                             f"Blokkade ({block_streak}): backoff {backoff:.0f}s + retry",
@@ -752,12 +998,11 @@ class BolStockChecker:
                     time.sleep(backoff)
                     if block_streak >= max_block_streak:
                         close_browser()
-                        time.sleep(3.0)
+                        time.sleep(1.5)
                         browser_cm, browser, page = open_browser()
                     result = check_one(product)
                     if is_blocked(result):
                         block_streak += 1
-                        time.sleep(min(30.0, 2.0 * block_streak))
                     else:
                         block_streak = 0
                 else:
@@ -847,13 +1092,30 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--delay",
         type=float,
-        default=0.15,
-        help="Pauze tussen batch-items in seconden (default: 0.15)",
+        default=0.0,
+        help="Pauze tussen batch-items in seconden (default: 0)",
     )
     parser.add_argument(
         "--isolated",
         action="store_true",
         help="Batch: verse browser-context per product (langzamer, meer isolatie)",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Parallelle browser-workers (default: 1; op shared IP vaak trager)",
+    )
+    parser.add_argument(
+        "--fast",
+        action="store_true",
+        help="Snelheidspreset: delay=0, geen cleanup, offer-cache aan",
+    )
+    parser.add_argument(
+        "--offer-cache",
+        type=Path,
+        default=None,
+        help="JSON-cache productId→offerUid (slaat HTML-stap over bij hits)",
     )
     return parser
 
@@ -862,12 +1124,25 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
+    workers = args.workers
+    delay = args.delay
+    keep_in_cart = args.keep_in_cart
+    offer_cache_path = args.offer_cache
+    if args.fast:
+        delay = 0.0
+        keep_in_cart = True
+        workers = 1  # parallel op shared IP is meestal trager (Akamai)
+        if offer_cache_path is None:
+            offer_cache_path = Path("offer_cache.json")
+
     checker = BolStockChecker(
         max_quantity=args.max_quantity,
         country=args.country,
         headless=not args.headed,
         block_resources=not args.no_block_resources,
-        delay_seconds=args.delay,
+        delay_seconds=delay,
+        offer_cache=load_offer_cache(offer_cache_path),
+        offer_cache_path=offer_cache_path,
     )
 
     # Collect and/or batch mode.
@@ -914,11 +1189,12 @@ def main(argv: Optional[list[str]] = None) -> int:
             out = args.out or Path("results.jsonl")
             results = checker.check_batch(
                 products,
-                cleanup=not args.keep_in_cart,
+                cleanup=not keep_in_cart,
                 include_raw=args.include_raw,
                 out_path=out,
                 progress=True,
                 isolated=args.isolated,
+                workers=max(1, workers),
             )
             summary = {
                 "total": len(results),
@@ -942,7 +1218,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         result = checker.check_stock(
             args.product,
             offer_uid=args.offer_uid,
-            cleanup=not args.keep_in_cart,
+            cleanup=not keep_in_cart,
             include_raw=args.include_raw,
         )
     except BolBlockedError as exc:

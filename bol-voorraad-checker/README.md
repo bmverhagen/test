@@ -34,11 +34,11 @@ python bol_voorraad.py 9300000123456789 --offer-uid 41925260-65c5-4e37-be1e-7a4b
 # JSON-output
 python bol_voorraad.py 9300000123456789 --json
 
-# Batch: 100 producten verzamelen + checken
-python bol_voorraad.py --collect 100 --batch-run --out results.jsonl --delay 0.6
+# Batch snel (offer-cache + cart-only na 1e product)
+python bol_voorraad.py --batch products.txt --out results.jsonl --fast
 
-# Batch vanaf bestaande lijst
-python bol_voorraad.py --batch products.txt --out results.jsonl --delay 0.6
+# Tweede run is sneller: offer_cache.json slaat HTML-stap over (~1s/product)
+python bol_voorraad.py --batch products.txt --out results.jsonl --fast --offer-cache offer_cache.json
 ```
 
 ### Opties
@@ -55,7 +55,10 @@ python bol_voorraad.py --batch products.txt --out results.jsonl --delay 0.6
 | `--collect N` | Verzamel N product-ids van bol.com |
 | `--batch-run` | Na `--collect` meteen voorraad checken |
 | `--out FILE` | JSONL-resultatenbestand |
-| `--delay SEC` | Pauze tussen batch-items (default 0.15) |
+| `--delay SEC` | Pauze tussen batch-items (default 0) |
+| `--workers N` | Parallelle browsers (op 1 IP vaak trager) |
+| `--fast` | Preset: delay=0, geen cleanup, offer-cache |
+| `--offer-cache FILE` | Cache productId→offerUid (cart-only) |
 | `--isolated` | Batch: verse browser-context per product |
 
 ## Voorbeelduitvoer
@@ -73,15 +76,15 @@ Als bol.com `500` teruggeeft zonder voorraadmelding, is de voorraad **mogelijk 5
 
 ## Snelheid
 
-Typische runtime: **~2.5–5.5s** per product in batch (directe basket-API’s, één browsersessie).
-Losse HTTP/`curl` vanaf een cloud-IP krijgt **HTTP 403** (Akamai); daarom blijven calls in de Camoufox-context (`fetch`).
+Typisch: **~2–3s/product** (met HTML), **~1–1.5s/product** met offer-cache (cart-only).
+Losse HTTP/`curl` → **403** (Akamai); calls blijven in Camoufox.
 
 Optimalisaties:
+- Snellere productload (`commit` + fail-fast op blockpages)
+- Parallel createBasket + state; hergebruik cart-regel; basket-rotatie
+- Offer-cache: na 1e run geen product-HTML meer nodig
+- Geen RemoveItem-cleanup; match op `productId`
 - Images/fonts/trackers geblokkeerd
-- Basket via REST + GraphQL persisted queries (geen winkelwagen-UI)
-- Batch hergebruikt één page; matcht `productId` in de cart (RemoveItem is onbetrouwbaar)
-- `--isolated` voor verse context per product indien nodig
-- Sessie-refresh + backoff bij Akamai-blokkades
 
 ## Technische flow
 
