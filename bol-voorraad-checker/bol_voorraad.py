@@ -667,8 +667,8 @@ class BolStockChecker:
         # Turbo: één grote JS-loop waar mogelijk; fail-fast bij 403.
         self.turbo_chunk_size = 100
         self.turbo_chunk_pause = 0.0
-        # Dual HTTP: 2 Camoufox-contexts → 2 cookie-jars → parallel requests (~2×).
-        self.http_sessions = 2
+        # Dual HTTP: N Camoufox-contexts → N cookie-jars → parallel requests.
+        self.http_sessions = 3
 
     def _import_camoufox(self):
         try:
@@ -1406,7 +1406,7 @@ class BolStockChecker:
                 self._setup_page(page)
                 # Stagger warms to reduce Akamai collisions.
                 if session_idx > 0:
-                    time.sleep(3.5)
+                    time.sleep(2.0)
                 offset = session_idx * max(1, len(warm_list) // sessions)
                 rotated = warm_list[offset:] + warm_list[:offset]
                 if not self._turbo_warm(page, rotated):
@@ -2337,13 +2337,13 @@ def main(argv: Optional[list[str]] = None) -> int:
             http_sessions = 1
         else:
             workers = 1
-            http_sessions = 2
+            http_sessions = 3
         if offer_cache_path is None:
             offer_cache_path = Path("offer_cache.json")
     if args.sessions is not None:
-        http_sessions = max(1, args.sessions)
+        http_sessions = max(1, min(args.sessions, 4))
     if args.turbo and not args.fast and args.sessions is None and not args.proxy:
-        http_sessions = 2
+        http_sessions = 3
 
     checker = BolStockChecker(
         max_quantity=args.max_quantity,
