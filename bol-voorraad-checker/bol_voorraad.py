@@ -633,8 +633,9 @@ class BolStockChecker:
         self.proxy = proxy
         # Vernieuw basketId na N items zodat GraphQL niet traag wordt op volle carts.
         self.basket_rotate_every = 25
-        # Turbo: kleine chunks + mid-batch rewarm → minder 403-streaks, snellere 100-runs.
-        self.turbo_chunk_size = 10
+        # Turbo: kleinere chunks + korte pauze → stabieler op 1 IP, snellere 100-runs.
+        self.turbo_chunk_size = 8
+        self.turbo_chunk_pause = 0.35
 
     def _import_camoufox(self):
         try:
@@ -1210,21 +1211,38 @@ class BolStockChecker:
 
             basket_id: Optional[str] = None
             done = 0
+            pending_retry: list[dict[str, str]] = []
             chunks = [
                 ordered[i : i + chunk_size] for i in range(0, len(ordered), chunk_size)
             ]
+            block_streak = 0
 
-            for chunk_idx, chunk in enumerate(chunks):
-                raw = page.evaluate(
+            def _is_block_row(row: dict[str, Any]) -> bool:
+                err = str(row.get("error") or "")
+                return bool(
+                    row.get("blocked")
+                    or "403" in err
+                    or "429" in err
+                    or "Geblokkeerd" in err
+                    or "basketId" in err
+                )
+
+            def _eval_chunk(
+                chunk_products: list[dict[str, str]],
+                *,
+                use_basket: Optional[str],
+                backoff_ms: int,
+            ) -> tuple[list[dict[str, Any]], Optional[str]]:
+                raw_eval = page.evaluate(
                     CART_BATCH_JS,
                     {
-                        "products": chunk,
+                        "products": chunk_products,
                         "maxQuantity": self.max_quantity,
                         "country": self.country,
-                        "basketId": basket_id,
+                        "basketId": use_basket,
                         "rotateEvery": self.basket_rotate_every,
                         "delayMs": int(self.delay_seconds * 1000),
-                        "blockBackoffMs": 2000,
+                        "blockBackoffMs": backoff_ms,
                         "hashes": {
                             "createBasket": GQL_CREATE_BASKET,
                             "updateQty": GQL_UPDATE_QTY,
@@ -1233,60 +1251,87 @@ class BolStockChecker:
                         "cleanup": cleanup,
                     },
                 )
-                basket_id = raw.get("basketId") or basket_id
-                rows = list(raw.get("results") or [])
+                return list(raw_eval.get("results") or []), raw_eval.get("basketId") or use_basket
 
-                # Retry mislukte items in deze chunk na korte rewarm.
-                failed = [
-                    r
-                    for r in rows
-                    if not r.get("ok")
-                    and (
-                        r.get("blocked")
-                        or "403" in str(r.get("error") or "")
-                        or "429" in str(r.get("error") or "")
-                        or "Geblokkeerd" in str(r.get("error") or "")
-                        or "basketId" in str(r.get("error") or "")
+            for chunk_idx, chunk in enumerate(chunks):
+                # Bij aanhoudende block: eerst afkoelen i.p.v. elk chunk te verbranden.
+                if block_streak >= 2:
+                    if progress:
+                        print(
+                            f"Akamai-blokkade — cooldown 20s vóór chunk "
+                            f"{chunk_idx + 1}/{len(chunks)}",
+                            flush=True,
+                        )
+                    time.sleep(20)
+                    self._turbo_warm(page, warm_list[:6])
+                    basket_id = None
+                    block_streak = 0
+
+                rows, basket_id = _eval_chunk(chunk, use_basket=basket_id, backoff_ms=1500)
+                failed = [r for r in rows if not r.get("ok") and _is_block_row(r)]
+                ok_n = sum(1 for r in rows if r.get("ok"))
+
+                if failed and ok_n == 0:
+                    block_streak += 1
+                    # Geen snelle retry: spaar voor eind-pass.
+                    pending_retry.extend(
+                        by_id[str(r["productId"])]
+                        for r in failed
+                        if str(r["productId"]) in by_id
                     )
-                ]
-                if failed:
                     if progress:
                         print(
                             f"Chunk {chunk_idx + 1}/{len(chunks)}: "
-                            f"{len(failed)} geblokkeerd → rewarm + retry",
+                            f"{len(failed)} geblokkeerd → later opnieuw",
                             flush=True,
                         )
-                    time.sleep(2.5)
-                    retry_ids = [str(r["productId"]) for r in failed]
-                    self._turbo_warm(page, retry_ids + warm_list[:4])
-                    basket_id = None
-                    retry_products = [by_id[pid] for pid in retry_ids if pid in by_id]
-                    if retry_products:
-                        raw2 = page.evaluate(
-                            CART_BATCH_JS,
-                            {
-                                "products": retry_products,
-                                "maxQuantity": self.max_quantity,
-                                "country": self.country,
-                                "basketId": None,
-                                "rotateEvery": self.basket_rotate_every,
-                                "delayMs": int(self.delay_seconds * 1000),
-                                "blockBackoffMs": 2500,
-                                "hashes": {
-                                    "createBasket": GQL_CREATE_BASKET,
-                                    "updateQty": GQL_UPDATE_QTY,
-                                    "removeItem": GQL_REMOVE_ITEM,
-                                },
-                                "cleanup": cleanup,
-                            },
+                elif failed:
+                    block_streak = 0
+                    if progress:
+                        print(
+                            f"Chunk {chunk_idx + 1}/{len(chunks)}: "
+                            f"{len(failed)} geblokkeerd → korte retry",
+                            flush=True,
                         )
-                        basket_id = raw2.get("basketId") or basket_id
-                        by_retry = {
-                            str(r.get("productId")): r for r in (raw2.get("results") or [])
-                        }
-                        rows = [by_retry.get(str(r.get("productId")), r) for r in rows]
+                    time.sleep(3.0)
+                    self._turbo_warm(
+                        page,
+                        [str(r["productId"]) for r in failed] + warm_list[:3],
+                    )
+                    retry_products = [
+                        by_id[str(r["productId"])]
+                        for r in failed
+                        if str(r["productId"]) in by_id
+                    ]
+                    # Hergebruik basket als die nog bestaat; forceer geen create.
+                    rows2, basket_id = _eval_chunk(
+                        retry_products, use_basket=basket_id, backoff_ms=2500
+                    )
+                    by_retry = {str(r.get("productId")): r for r in rows2}
+                    new_rows = []
+                    for r in rows:
+                        pid = str(r.get("productId"))
+                        if pid in by_retry:
+                            new_rows.append(by_retry[pid])
+                        else:
+                            new_rows.append(r)
+                    rows = new_rows
+                    still = [r for r in rows if not r.get("ok") and _is_block_row(r)]
+                    pending_retry.extend(
+                        by_id[str(r["productId"])]
+                        for r in still
+                        if str(r["productId"]) in by_id
+                    )
+                else:
+                    block_streak = 0
 
                 for row in rows:
+                    if not row.get("ok") and _is_block_row(row):
+                        # Nog geen definitief resultaat — eind-pass doet dit.
+                        if str(row.get("productId")) in {
+                            p["productId"] for p in pending_retry
+                        }:
+                            continue
                     result = self._row_to_stock_result(row)
                     results_by_id[result.product_id] = result
                     done += 1
@@ -1302,9 +1347,70 @@ class BolStockChecker:
                             flush=True,
                         )
 
-                # Lichte pauze tussen chunks om Akamai te sparen (betaalt zich terug in minder retries).
                 if chunk_idx + 1 < len(chunks):
-                    time.sleep(0.8)
+                    pause = self.turbo_chunk_pause
+                    if failed:
+                        pause = max(pause, 1.5)
+                    if pause > 0:
+                        time.sleep(pause)
+
+            # Eind-pass: alle geblokkeerde items in herstelrondes met verse page.
+            if pending_retry:
+                seen_r: set[str] = set()
+                uniq_retry: list[dict[str, str]] = []
+                for p in pending_retry:
+                    if p["productId"] not in seen_r:
+                        seen_r.add(p["productId"])
+                        uniq_retry.append(p)
+                remaining = uniq_retry
+                for pass_n in range(1, 4):
+                    if not remaining:
+                        break
+                    if progress:
+                        print(
+                            f"Eind-pass {pass_n}: {len(remaining)} items "
+                            f"(cooldown {15 * pass_n}s + nieuwe page)",
+                            flush=True,
+                        )
+                    time.sleep(15 * pass_n)
+                    try:
+                        page.close()
+                    except Exception:  # noqa: BLE001
+                        pass
+                    page = browser.new_page()
+                    self._setup_page(page)
+                    self._turbo_warm(
+                        page,
+                        [p["productId"] for p in remaining[:8]] + warm_list[:4],
+                    )
+                    basket_id = None
+                    still: list[dict[str, str]] = []
+                    for i in range(0, len(remaining), chunk_size):
+                        part = remaining[i : i + chunk_size]
+                        rows, basket_id = _eval_chunk(
+                            part, use_basket=basket_id, backoff_ms=3000
+                        )
+                        for row in rows:
+                            result = self._row_to_stock_result(row)
+                            results_by_id[result.product_id] = result
+                            if result.error is not None and _is_block_row(row):
+                                pid = result.product_id
+                                if pid in by_id:
+                                    still.append(by_id[pid])
+                            if progress:
+                                status = (
+                                    f"voorraad={result.available}"
+                                    if result.error is None
+                                    else f"FOUT={str(result.error)[:80]}"
+                                )
+                                print(
+                                    f"[retry{pass_n}] {result.product_id} {status} "
+                                    f"({result.elapsed_seconds}s)",
+                                    flush=True,
+                                )
+                        if i + chunk_size < len(remaining):
+                            time.sleep(1.5 + pass_n)
+                    remaining = still
 
         results = []
         for product in products_list:
@@ -1719,8 +1825,10 @@ def main(argv: Optional[list[str]] = None) -> int:
     offer_cache_path = args.offer_cache
     turbo = args.turbo
     if args.fast:
-        delay = 0.0
-        keep_in_cart = True
+        # Mini-delay spaart Akamai op 1 IP; met proxy mag delay 0.
+        delay = 0.0 if args.proxy else max(delay, 0.05)
+        # Cleanup aan: RemoveItem fire-and-forget ∥ volgende add (voorkomt volle cart).
+        keep_in_cart = False
         turbo = True
         # Zonder proxy: 1 turbo-worker is stabieler; met proxy mag workers>1.
         if workers <= 1 and args.proxy:
