@@ -276,8 +276,12 @@ async (cfg) => {
   let sinceRotate = 0;
   let consecBlocks = 0;
 
-  if (!basketId) {
-    const ensured = await ensureBasket();
+  // Eerste CreateBasket ∥ eerste add (scheelt één RTT bij koude basket).
+  let firstAdd = null;
+  if (!basketId && cfg.products.length > 0) {
+    const createP = ensureBasket();
+    firstAdd = addItem(cfg.products[0]);
+    const ensured = await createP;
     basketId = ensured.basketId;
     if (!basketId) {
       return {
@@ -314,7 +318,8 @@ async (cfg) => {
     const runOnce = async () => {
       // Kritieke pad = add + update. RemoveItem is puur fire-and-forget
       // (niet awaiten — scheelt ~50–150ms/product zonder accuracy-verlies).
-      const add = await addItem(p);
+      const add = (i === 0 && firstAdd) ? await firstAdd : await addItem(p);
+      firstAdd = null;
 
       if (isBlocked(add.status, add.text)) {
         return { blocked: true, error: `Toevoegen mislukt (${add.status})` };
@@ -1070,30 +1075,32 @@ class BolStockChecker:
         )
 
     def _turbo_warm(self, page: Any, candidates: list[str]) -> bool:
-        """Warm Akamai-sessie; True bij succes."""
-        for warm_id in candidates:
+        """Warm Akamai-sessie via productpagina (licht home/search is te zwak voor cart-API)."""
+        for warm_id in candidates[:8]:
             try:
                 warm_url = f"{BASE_URL}/{self.country}/nl/p/product/{warm_id}/"
                 self._load_product_html(page, warm_url, warm_id, attempts=2)
                 return True
             except Exception:  # noqa: BLE001
-                time.sleep(1.2)
+                time.sleep(0.6)
+        # Laatste poging: home → product (soms helpt verse landing).
         try:
             page.goto(
                 f"{BASE_URL}/{self.country}/nl/",
                 wait_until="domcontentloaded",
-                timeout=60000,
+                timeout=45000,
             )
-            time.sleep(2.0)
-            page.goto(
-                f"{BASE_URL}/{self.country}/nl/s/?searchtext=voorraad",
-                wait_until="domcontentloaded",
-                timeout=60000,
-            )
-            time.sleep(1.5)
-            return self._page_ok(page) or True
+            time.sleep(0.8)
+            for warm_id in candidates[:4]:
+                try:
+                    warm_url = f"{BASE_URL}/{self.country}/nl/p/product/{warm_id}/"
+                    self._load_product_html(page, warm_url, warm_id, attempts=1)
+                    return True
+                except Exception:  # noqa: BLE001
+                    time.sleep(0.5)
         except Exception:  # noqa: BLE001
-            return False
+            pass
+        return False
 
     def _row_to_stock_result(self, row: dict[str, Any]) -> StockResult:
         pid = str(row.get("productId") or "")
@@ -1521,8 +1528,8 @@ class BolStockChecker:
                 "progress": False,
                 "turbo": turbo,
                 "proxy": self.proxy,
-                # Stagger starts to reduce same-IP Akamai collisions.
-                "stagger_seconds": idx * 8.0,
+                # Lichte stagger: genoeg tegen cold-start collision, weinig wall-clock-verlies.
+                "stagger_seconds": idx * (2.0 if self.proxy else 3.0),
                 "offer_cache": str(self.offer_cache_path)
                 if self.offer_cache_path
                 else None,
@@ -1856,10 +1863,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         # Cleanup aan: RemoveItem fire-and-forget (kritieke pad = add+update).
         keep_in_cart = False
         turbo = True
-        # Zonder proxy: 1 turbo-worker is stabieler; met proxy mag workers>1.
-        if workers <= 1 and args.proxy:
-            workers = 2
-        elif workers <= 1:
+        # Zelfde IP + workers>1 → slechtere succesrate/wall-clock. Alleen met proxy opvoeren.
+        if args.proxy:
+            if workers <= 1:
+                workers = 2
+        else:
             workers = 1
         if offer_cache_path is None:
             offer_cache_path = Path("offer_cache.json")
