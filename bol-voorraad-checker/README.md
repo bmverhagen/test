@@ -33,6 +33,12 @@ python bol_voorraad.py 9300000123456789 --offer-uid 41925260-65c5-4e37-be1e-7a4b
 
 # JSON-output
 python bol_voorraad.py 9300000123456789 --json
+
+# Batch: 100 producten verzamelen + checken
+python bol_voorraad.py --collect 100 --batch-run --out results.jsonl --delay 0.6
+
+# Batch vanaf bestaande lijst
+python bol_voorraad.py --batch products.txt --out results.jsonl --delay 0.6
 ```
 
 ### Opties
@@ -45,6 +51,11 @@ python bol_voorraad.py 9300000123456789 --json
 | `--json` | Machineleesbare output |
 | `--keep-in-cart` | Product niet opruimen na de check |
 | `--headed` | Browser zichtbaar maken |
+| `--batch FILE` | Product-ids/URLs (één per regel) |
+| `--collect N` | Verzamel N product-ids van bol.com |
+| `--batch-run` | Na `--collect` meteen voorraad checken |
+| `--out FILE` | JSONL-resultatenbestand |
+| `--delay SEC` | Pauze tussen batch-items (default 0.15) |
 
 ## Voorbeelduitvoer
 
