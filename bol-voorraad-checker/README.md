@@ -59,13 +59,23 @@ Melding   : Het artikel ... is niet leverbaar in de gewenste hoeveelheid...
 
 Als bol.com `500` teruggeeft zonder voorraadmelding, is de voorraad **mogelijk 500 of hoger**.
 
+## Snelheid
+
+Typische runtime: **~6 seconden** per product (was ~22s).
+
+Optimalisaties:
+- Geen category-warmup / vaste sleeps
+- Images/fonts/trackers geblokkeerd
+- API-calls direct vanaf de productpagina (geen aparte basket-pagina)
+- Voorraad uit GraphQL-response i.p.v. extra state-fetch
+
 ## Technische flow
 
-1. Camoufox opent bol.com en warmt een sessie op
+1. Camoufox opent de productpagina (2e poging bij bot-blokkade)
 2. `offerUid` wordt uit de productpagina gehaald
 3. REST: `POST /nl/rnwy/basket/v2/items` met `{globalId, quantity:1, offerUid}`
 4. GraphQL: `UpdateItemQuantity` naar 500
-5. REST: `GET /nl/rnwy/basket/state` + `/messages` voor het werkelijke aantal
+5. REST: `/messages` voor limiet-/voorraadmeldingen
 
 ## Let op
 
