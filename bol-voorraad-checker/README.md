@@ -61,13 +61,14 @@ Als bol.com `500` teruggeeft zonder voorraadmelding, is de voorraad **mogelijk 5
 
 ## Snelheid
 
-Typische runtime: **~6 seconden** per product (was ~22s).
+Typische runtime: **~5.5 seconden** per product (was ~22s).
 
 Optimalisaties:
 - Geen category-warmup / vaste sleeps
 - Images/fonts/trackers geblokkeerd
-- API-calls direct vanaf de productpagina (geen aparte basket-pagina)
-- Voorraad uit GraphQL-response i.p.v. extra state-fetch
+- API-calls direct vanaf de productpagina
+- `CreateBasket` + add parallel
+- Voorraad uit GraphQL-response (state alleen als fallback)
 
 ## Technische flow
 
