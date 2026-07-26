@@ -1075,29 +1075,28 @@ class BolStockChecker:
         )
 
     def _turbo_warm(self, page: Any, candidates: list[str]) -> bool:
-        """Warm Akamai-sessie via productpagina (licht home/search is te zwak voor cart-API)."""
-        for warm_id in candidates[:8]:
+        """Warm Akamai-sessie via productpagina (home/search alleen is te zwak voor cart-API)."""
+        for warm_id in candidates[:12]:
             try:
                 warm_url = f"{BASE_URL}/{self.country}/nl/p/product/{warm_id}/"
                 self._load_product_html(page, warm_url, warm_id, attempts=2)
                 return True
             except Exception:  # noqa: BLE001
-                time.sleep(0.6)
-        # Laatste poging: home → product (soms helpt verse landing).
+                time.sleep(1.0)
         try:
             page.goto(
                 f"{BASE_URL}/{self.country}/nl/",
                 wait_until="domcontentloaded",
-                timeout=45000,
+                timeout=60000,
             )
-            time.sleep(0.8)
-            for warm_id in candidates[:4]:
+            time.sleep(1.5)
+            for warm_id in candidates[:8]:
                 try:
                     warm_url = f"{BASE_URL}/{self.country}/nl/p/product/{warm_id}/"
-                    self._load_product_html(page, warm_url, warm_id, attempts=1)
+                    self._load_product_html(page, warm_url, warm_id, attempts=2)
                     return True
                 except Exception:  # noqa: BLE001
-                    time.sleep(0.5)
+                    time.sleep(0.8)
         except Exception:  # noqa: BLE001
             pass
         return False
