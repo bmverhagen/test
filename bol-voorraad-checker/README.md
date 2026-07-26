@@ -76,26 +76,27 @@ Als bol.com `500` teruggeeft zonder voorraadmelding, is de voorraad **mogelijk 5
 
 ## Snelheid
 
-Typisch: **~2–3s/product** (met HTML), **~1–1.5s/product** met offer-cache (cart-only).
-Losse HTTP/`curl` → **403** (Akamai); calls blijven in Camoufox.
+| Pad | Tijd |
+| --- | --- |
+| Offer-cache (cart-only) | **~0.5–0.8s/product** |
+| Eerste keer / HTML nodig | ~2–4s |
+
+Geen publieke stock-API voor willekeurige producten. Retailer API = alleen eigen offers. Losse HTTP/`curl` → **403** (Akamai).
 
 Optimalisaties:
-- Snellere productload (`commit` + fail-fast op blockpages)
-- Parallel createBasket + state; hergebruik cart-regel; basket-rotatie
-- Offer-cache: na 1e run geen product-HTML meer nodig
-- Geen RemoveItem-cleanup; match op `productId`
-- Images/fonts/trackers geblokkeerd
+- `CreateBasket` ∥ REST-add parallel, daarna één `UpdateItemQuantity`
+- Quantity uit GraphQL (`itemId`-match), geen extra state-call
+- Offer-cache slaat HTML-stap over
+- Fail-fast op Akamai-blockpages
 
 ## Technische flow
 
-1. Camoufox opent de productpagina (Akamai; nodig voor `offerUid` + cookies)
-2. Directe backend-calls in die browser-context:
-   - GraphQL `CreateBasket`
-   - REST `POST /nl/rnwy/basket/v2/items` `{globalId, quantity:1, offerUid}`
-   - GraphQL `UpdateItemQuantity` → 500
-3. Voorraad = quantity van de rij met het gevraagde `productId` (niet blind `items[0]`)
+1. Camoufox voor Akamai-TLS + cookies (+ HTML alleen voor `offerUid` indien onbekend)
+2. Parallel: GraphQL `CreateBasket` + REST `POST /nl/rnwy/basket/v2/items` (qty 1)
+3. GraphQL `UpdateItemQuantity` → 500
+4. Voorraad = `items[].quantity` gematcht op `itemId`
 
-Pure `requests`/`curl_cffi` met gekopieerde cookies werkt **niet** (403). Officiële Retailer API vereist retailer-credentials en toont alleen **jouw** offers.
+Direct `POST` met `quantity:500` is sneller maar onbetrouwbaar (vaak qty=1 zonder echte stock-cap).
 
 ## Let op
 
