@@ -733,7 +733,8 @@ class BolStockChecker:
 
                 if is_blocked(result):
                     block_streak += 1
-                    backoff = min(12.0, 2.0 * block_streak)
+                    # Bij aanhoudende Akamai-blokkades langer afkoelen.
+                    backoff = min(45.0, 3.0 * block_streak)
                     if progress:
                         print(
                             f"Blokkade ({block_streak}): backoff {backoff:.0f}s + retry",
@@ -742,11 +743,13 @@ class BolStockChecker:
                     time.sleep(backoff)
                     if block_streak >= max_block_streak:
                         close_browser()
-                        time.sleep(2.0)
+                        time.sleep(3.0)
                         browser_cm, browser = open_browser()
                     result = check_one(product)
                     if is_blocked(result):
                         block_streak += 1
+                        # Extra afkoelpauze als retry ook faalt.
+                        time.sleep(min(30.0, 2.0 * block_streak))
                     else:
                         block_streak = 0
                 else:
