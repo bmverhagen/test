@@ -80,7 +80,8 @@ Als bol.com `500` teruggeeft zonder voorraadmelding, is de voorraad **mogelijk 5
 
 | Pad | Tijd | Succes |
 | --- | --- | --- |
-| `--fast` (dual/triple HTTP, 1 IP) | **~34–38s/100** (~2.7–2.9/s) | hoog (gemeten 100/100) |
+| `--fast` (2 HTTP-sessies, 1 IP) | **~38s/100** (~2.7/s) | hoog (gemeten 100/100) |
+| `--fast --sessions 3` | soms **~34s/100** | hoog als alle warms lukken |
 | 1 sessie turbo JS | ~60s/100 | hoog |
 | `--workers N` zonder proxy | vaak trager | slechter |
 | `--workers N --proxy …` | wall-clock ≈ /N | hoog met aparte exit-IP’s |

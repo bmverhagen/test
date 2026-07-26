@@ -668,7 +668,8 @@ class BolStockChecker:
         self.turbo_chunk_size = 100
         self.turbo_chunk_pause = 0.0
         # Dual HTTP: N Camoufox-contexts → N cookie-jars → parallel requests.
-        self.http_sessions = 3
+        # 2 is de sweet spot (3 helpt soms, maar warmup-fails kosten wall-clock).
+        self.http_sessions = 2
 
     def _import_camoufox(self):
         try:
@@ -1087,29 +1088,38 @@ class BolStockChecker:
             isolated=isolated,
         )
 
-    def _turbo_warm(self, page: Any, candidates: list[str]) -> bool:
+    def _turbo_warm(
+        self,
+        page: Any,
+        candidates: list[str],
+        *,
+        max_attempts: int = 12,
+        deep: bool = True,
+    ) -> bool:
         """Warm Akamai-sessie via productpagina (home/search alleen is te zwak voor cart-API)."""
-        for warm_id in candidates[:12]:
+        for warm_id in candidates[: max(1, max_attempts)]:
             try:
                 warm_url = f"{BASE_URL}/{self.country}/nl/p/product/{warm_id}/"
                 self._load_product_html(page, warm_url, warm_id, attempts=2)
                 return True
             except Exception:  # noqa: BLE001
-                time.sleep(1.0)
+                time.sleep(0.7)
+        if not deep:
+            return False
         try:
             page.goto(
                 f"{BASE_URL}/{self.country}/nl/",
                 wait_until="domcontentloaded",
                 timeout=60000,
             )
-            time.sleep(1.5)
-            for warm_id in candidates[:8]:
+            time.sleep(1.2)
+            for warm_id in candidates[: min(6, max_attempts)]:
                 try:
                     warm_url = f"{BASE_URL}/{self.country}/nl/p/product/{warm_id}/"
                     self._load_product_html(page, warm_url, warm_id, attempts=2)
                     return True
                 except Exception:  # noqa: BLE001
-                    time.sleep(0.8)
+                    time.sleep(0.6)
         except Exception:  # noqa: BLE001
             pass
         return False
@@ -1409,7 +1419,19 @@ class BolStockChecker:
                     time.sleep(2.0)
                 offset = session_idx * max(1, len(warm_list) // sessions)
                 rotated = warm_list[offset:] + warm_list[:offset]
-                if not self._turbo_warm(page, rotated):
+                # Extra sessies: fail-fast warm (geen lange 403-streaks).
+                ok_warm = self._turbo_warm(
+                    page,
+                    rotated,
+                    max_attempts=10 if session_idx == 0 else 4,
+                    deep=session_idx == 0,
+                )
+                if not ok_warm:
+                    if progress:
+                        print(
+                            f"Sessie {session_idx + 1}/{sessions}: warmup mislukt, skip",
+                            flush=True,
+                        )
                     try:
                         page.close()
                         ctx.close()
@@ -2337,13 +2359,13 @@ def main(argv: Optional[list[str]] = None) -> int:
             http_sessions = 1
         else:
             workers = 1
-            http_sessions = 3
+            http_sessions = 2
         if offer_cache_path is None:
             offer_cache_path = Path("offer_cache.json")
     if args.sessions is not None:
         http_sessions = max(1, min(args.sessions, 4))
     if args.turbo and not args.fast and args.sessions is None and not args.proxy:
-        http_sessions = 3
+        http_sessions = 2
 
     checker = BolStockChecker(
         max_quantity=args.max_quantity,
