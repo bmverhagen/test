@@ -271,6 +271,7 @@ async (cfg) => {
   const tAll = performance.now();
   let pendingRemove = Promise.resolve(null);
   let sinceRotate = 0;
+  let consecBlocks = 0;
 
   if (!basketId) {
     const ensured = await ensureBasket();
@@ -385,14 +386,29 @@ async (cfg) => {
     };
 
     try {
+      // Bij aanhoudende 403: chunk meteen afbreken (Python doet cooldown-pass).
+      if (consecBlocks >= 2) {
+        out.push({
+          productId: p.productId,
+          offerUid: p.offerUid,
+          ok: false,
+          error: 'Geblokkeerd (chunk afgebroken)',
+          ms: Math.round(performance.now() - t0),
+          basketId,
+          blocked: true,
+        });
+        continue;
+      }
+
       let result = await runOnce();
-      if (result.blocked) {
-        await sleep(cfg.blockBackoffMs || 2000);
+      if (result.blocked && consecBlocks < 1) {
+        await sleep(cfg.blockBackoffMs || 1500);
         const ensured = await ensureBasket();
         if (ensured.basketId) basketId = ensured.basketId;
         result = await runOnce();
       }
       if (result.ok) {
+        consecBlocks = 0;
         out.push({
           productId: p.productId,
           offerUid: p.offerUid,
@@ -405,6 +421,8 @@ async (cfg) => {
           stockAdjusted: result.stockAdjusted,
         });
       } else {
+        if (result.blocked) consecBlocks += 1;
+        else consecBlocks = 0;
         out.push({
           productId: p.productId,
           offerUid: p.offerUid,
@@ -1253,38 +1271,30 @@ class BolStockChecker:
                 )
                 return list(raw_eval.get("results") or []), raw_eval.get("basketId") or use_basket
 
-            for chunk_idx, chunk in enumerate(chunks):
-                # Bij aanhoudende block: eerst afkoelen i.p.v. elk chunk te verbranden.
-                if block_streak >= 2:
-                    if progress:
-                        print(
-                            f"Akamai-blokkade — cooldown 20s vóór chunk "
-                            f"{chunk_idx + 1}/{len(chunks)}",
-                            flush=True,
-                        )
-                    time.sleep(20)
-                    self._turbo_warm(page, warm_list[:6])
-                    basket_id = None
-                    block_streak = 0
-
-                rows, basket_id = _eval_chunk(chunk, use_basket=basket_id, backoff_ms=1500)
+            chunk_idx = 0
+            while chunk_idx < len(chunks):
+                chunk = chunks[chunk_idx]
+                rows, basket_id = _eval_chunk(chunk, use_basket=basket_id, backoff_ms=1200)
                 failed = [r for r in rows if not r.get("ok") and _is_block_row(r)]
                 ok_n = sum(1 for r in rows if r.get("ok"))
 
                 if failed and ok_n == 0:
                     block_streak += 1
-                    # Geen snelle retry: spaar voor eind-pass.
+                    # Hele rest + deze chunk naar eind-pass — niet elk chunk verbranden.
                     pending_retry.extend(
                         by_id[str(r["productId"])]
                         for r in failed
                         if str(r["productId"]) in by_id
                     )
+                    for later in chunks[chunk_idx + 1 :]:
+                        pending_retry.extend(later)
                     if progress:
                         print(
-                            f"Chunk {chunk_idx + 1}/{len(chunks)}: "
-                            f"{len(failed)} geblokkeerd → later opnieuw",
+                            f"Chunk {chunk_idx + 1}/{len(chunks)}: volledig geblokkeerd → "
+                            f"skip rest, {len(pending_retry)} naar eind-pass",
                             flush=True,
                         )
+                    break
                 elif failed:
                     block_streak = 0
                     if progress:
@@ -1325,12 +1335,10 @@ class BolStockChecker:
                 else:
                     block_streak = 0
 
+                pending_ids = {p["productId"] for p in pending_retry}
                 for row in rows:
                     if not row.get("ok") and _is_block_row(row):
-                        # Nog geen definitief resultaat — eind-pass doet dit.
-                        if str(row.get("productId")) in {
-                            p["productId"] for p in pending_retry
-                        }:
+                        if str(row.get("productId")) in pending_ids:
                             continue
                     result = self._row_to_stock_result(row)
                     results_by_id[result.product_id] = result
@@ -1347,7 +1355,8 @@ class BolStockChecker:
                             flush=True,
                         )
 
-                if chunk_idx + 1 < len(chunks):
+                chunk_idx += 1
+                if chunk_idx < len(chunks):
                     pause = self.turbo_chunk_pause
                     if failed:
                         pause = max(pause, 1.5)
