@@ -31,7 +31,9 @@ BASE_URL = "https://www.bol.com"
 
 GQL_CREATE_BASKET = "sha256:587bd5a0f944a4e357df5de83516531decad277bad12a62b526ba0026289a19e"
 GQL_UPDATE_QTY = "sha256:5df627c26015f5cda417ddcd412378957176a5db7975e541126b76a67bbf1255"
-GQL_REMOVE_ITEM = "sha256:5b9f05c3be3e4f607eedcdb5623410ea1c042032396d93d21fcf209a56f598a7"
+# BasketRemoveItemMutation (removeItemInput: {basketId, itemId})
+GQL_REMOVE_ITEM = "sha256:679136a7a0f9d6a0317d12b0008cb57d922cdd685959800b0db270f50a5417c8"
+GQL_REMOVE_OP = "BasketRemoveItemMutation"
 
 BLOCKED_RESOURCE_TYPES = {"image", "media", "font", "stylesheet"}
 BLOCKED_URL_SNIPPETS = (
@@ -176,8 +178,8 @@ async (cfg) => {
 
   if (cfg.cleanup) {
     // Fire-and-forget: niet op kritieke pad.
-    gql(cfg.hashes.removeItem, 'RemoveItem', {
-      input: { basketId, itemId },
+    gql(cfg.hashes.removeItem, cfg.hashes.removeOp || 'BasketRemoveItemMutation', {
+      removeItemInput: { basketId, itemId },
     }).catch(() => null);
   }
 
@@ -370,10 +372,12 @@ async (cfg) => {
       }
 
       if (cfg.cleanup) {
-        // Niet awaiten — volgende add mag meteen starten.
-        pendingRemove = gql(cfg.hashes.removeItem, 'RemoveItem', {
-          input: { basketId, itemId },
-        }).catch(() => null);
+        // Werkende remove (removeItemInput) — FF, cart blijft leeg → updates blijven snel.
+        pendingRemove = gql(
+          cfg.hashes.removeItem,
+          cfg.hashes.removeOp || 'BasketRemoveItemMutation',
+          { removeItemInput: { basketId, itemId } },
+        ).catch(() => null);
       }
 
       return {
@@ -650,10 +654,10 @@ class BolStockChecker:
         self.offer_cache: dict[str, str] = dict(offer_cache or {})
         self.offer_cache_path = offer_cache_path
         self.proxy = proxy
-        # Vernieuw basketId na N items zodat GraphQL niet traag wordt op volle carts.
-        self.basket_rotate_every = 25
-        # Turbo: grotere chunks, minimale pauze — FF-remove houdt cart licht.
-        self.turbo_chunk_size = 50
+        # Met werkende RemoveItem blijft cart leeg; weinig rotatie nodig.
+        self.basket_rotate_every = 40
+        # Turbo: één grote JS-loop waar mogelijk; fail-fast bij 403.
+        self.turbo_chunk_size = 100
         self.turbo_chunk_pause = 0.0
 
     def _import_camoufox(self):
@@ -907,6 +911,7 @@ class BolStockChecker:
                     "createBasket": GQL_CREATE_BASKET,
                     "updateQty": GQL_UPDATE_QTY,
                     "removeItem": GQL_REMOVE_ITEM,
+                    "removeOp": GQL_REMOVE_OP,
                 },
                 "cleanup": cleanup,
                 "clearFirst": False,
@@ -1266,6 +1271,7 @@ class BolStockChecker:
                             "createBasket": GQL_CREATE_BASKET,
                             "updateQty": GQL_UPDATE_QTY,
                             "removeItem": GQL_REMOVE_ITEM,
+                            "removeOp": GQL_REMOVE_OP,
                         },
                         "cleanup": cleanup,
                     },
