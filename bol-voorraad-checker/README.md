@@ -34,11 +34,11 @@ python bol_voorraad.py 9300000123456789 --offer-uid 41925260-65c5-4e37-be1e-7a4b
 # JSON-output
 python bol_voorraad.py 9300000123456789 --json
 
-# Batch snel (offer-cache + cart-only na 1e product)
+# Snelst zonder extra IP: turbo JS-loop + offer-cache (~0.5–0.9s/product)
 python bol_voorraad.py --batch products.txt --out results.jsonl --fast
 
-# Tweede run is sneller: offer_cache.json slaat HTML-stap over (~1s/product)
-python bol_voorraad.py --batch products.txt --out results.jsonl --fast --offer-cache offer_cache.json
+# Echt sneller wall-clock: meerdere proxies / exit-IP's
+python bol_voorraad.py --batch products.txt --out results.jsonl --fast --workers 4 --proxy http://user:pass@host:port
 ```
 
 ### Opties
@@ -56,8 +56,10 @@ python bol_voorraad.py --batch products.txt --out results.jsonl --fast --offer-c
 | `--batch-run` | Na `--collect` meteen voorraad checken |
 | `--out FILE` | JSONL-resultatenbestand |
 | `--delay SEC` | Pauze tussen batch-items (default 0) |
-| `--workers N` | Parallelle browsers (op 1 IP vaak trager) |
-| `--fast` | Preset: delay=0, geen cleanup, offer-cache |
+| `--workers N` | Parallelle browsers (het best met `--proxy`) |
+| `--fast` | Turbo JS-loop + offer-cache + delay=0 |
+| `--turbo` | Hele batch in één browser JS-loop |
+| `--proxy URL` | Proxy voor parallelle snelheid |
 | `--offer-cache FILE` | Cache productId→offerUid (cart-only) |
 | `--isolated` | Batch: verse browser-context per product |
 
@@ -78,16 +80,19 @@ Als bol.com `500` teruggeeft zonder voorraadmelding, is de voorraad **mogelijk 5
 
 | Pad | Tijd |
 | --- | --- |
-| Offer-cache (cart-only) | **~0.5–0.8s/product** |
+| `--fast` / turbo (offer-cache) | **~0.45–0.7s/product** in-chunk |
+| 100-product wall-clock (1 IP) | vaak **~50–90s** met chunk-retry |
 | Eerste keer / HTML nodig | ~2–4s |
+| `--workers N --proxy …` | wall-clock ≈ /N (aparte exit-IP’s) |
 
 Geen publieke stock-API voor willekeurige producten. Retailer API = alleen eigen offers. Losse HTTP/`curl` → **403** (Akamai).
 
 Optimalisaties:
-- `CreateBasket` ∥ REST-add parallel, daarna één `UpdateItemQuantity`
-- Quantity uit GraphQL (`itemId`-match), geen extra state-call
+- Chunked turbo JS-loop (minder Python-overhead) + basket-hergebruik
+- 403-backoff + mid-batch rewarm/retry (minder mislukte 100-runs)
+- `RemoveItem` fire-and-forget ∥ volgende add (als cleanup aan staat)
 - Offer-cache slaat HTML-stap over
-- Fail-fast op Akamai-blockpages
+- Echte parallelle snelheid alleen met proxies (zelfde cloud-IP → Akamai)
 
 ## Technische flow
 

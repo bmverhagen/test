@@ -193,6 +193,259 @@ async (cfg) => {
 }
 """
 
+CART_BATCH_JS = """
+async (cfg) => {
+  // Turbo-chunk: hergebruik basket, 403-retry, rotate zonder basket te verliezen.
+  // Optioneel: RemoveItem fire-and-forget overlap met volgende add (cleanup).
+  const xsrfMatch = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/);
+  const xsrf = xsrfMatch ? decodeURIComponent(xsrfMatch[1]) : '';
+  const rootPageId = crypto.randomUUID();
+  const restHeaders = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json;charset=UTF-8',
+    'X-Requested-With': 'XMLHttpRequest',
+  };
+  if (xsrf) restHeaders['X-XSRF-TOKEN'] = xsrf;
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const isBlocked = (status, text) =>
+    status === 403 || status === 429 || /<!DOCTYPE html>/i.test(text || '');
+
+  const gql = async (hash, operationName, variables = {}) => {
+    const response = await fetch('/api/graphql', {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'accept': 'application/graphql-response+json, application/graphql+json, application/json, text/event-stream, multipart/mixed',
+        'content-type': 'application/json',
+        'x-xsrf-token': xsrf,
+        'bol-app-country': cfg.country.toUpperCase(),
+        'bol-client-app-name': 'basket-web-fe',
+        'bol-app-operation-name': operationName,
+        'bol-client-page-id': crypto.randomUUID(),
+        'm2-page-id': rootPageId,
+      },
+      body: JSON.stringify({
+        operationName,
+        variables,
+        extensions: { persistedQuery: { version: 1, sha256Hash: hash } },
+      }),
+    });
+    const text = await response.text();
+    let json = null;
+    try { json = JSON.parse(text); } catch {}
+    return { status: response.status, json, text };
+  };
+
+  const addItem = (p) => fetch('/nl/rnwy/basket/v2/items', {
+    method: 'POST',
+    credentials: 'include',
+    headers: restHeaders,
+    body: JSON.stringify({
+      globalId: p.productId,
+      quantity: 1,
+      offerUid: p.offerUid,
+    }),
+  }).then(async (r) => ({ status: r.status, text: await r.text() }));
+
+  const readState = async () => {
+    const resp = await fetch('/nl/rnwy/basket/state', {
+      credentials: 'include', headers: restHeaders,
+    });
+    const text = await resp.text();
+    try { return JSON.parse(text); } catch { return { itemRows: [] }; }
+  };
+
+  const ensureBasket = async () => {
+    const created = await gql(cfg.hashes.createBasket, 'CreateBasket', {});
+    if (isBlocked(created.status, created.text)) {
+      return { basketId: null, blocked: true, created };
+    }
+    const id = created?.json?.data?.basket?.createBasketV2?.id || null;
+    return { basketId: id, blocked: false, created };
+  };
+
+  let basketId = cfg.basketId || null;
+  const rotateEvery = cfg.rotateEvery || 25;
+  const out = [];
+  const tAll = performance.now();
+  let pendingRemove = Promise.resolve(null);
+  let sinceRotate = 0;
+
+  if (!basketId) {
+    const ensured = await ensureBasket();
+    basketId = ensured.basketId;
+    if (!basketId) {
+      return {
+        ok: false,
+        blocked: !!ensured.blocked,
+        error: 'Geen basketId van bol.com ontvangen',
+        totalMs: Math.round(performance.now() - tAll),
+        results: cfg.products.map((p) => ({
+          productId: p.productId,
+          offerUid: p.offerUid,
+          ok: false,
+          error: ensured.blocked
+            ? 'Geblokkeerd bij CreateBasket (403/429)'
+            : 'Geen basketId van bol.com ontvangen',
+          ms: 0,
+        })),
+      };
+    }
+  }
+
+  for (let i = 0; i < cfg.products.length; i++) {
+    const p = cfg.products[i];
+    const t0 = performance.now();
+    sinceRotate += 1;
+    if (sinceRotate > rotateEvery) {
+      // Alleen wisselen als create lukt — oude basket behouden bij block.
+      const ensured = await ensureBasket();
+      if (ensured.basketId) {
+        basketId = ensured.basketId;
+        sinceRotate = 1;
+      }
+    }
+
+    const runOnce = async () => {
+      // Overlap vorige RemoveItem met deze add (als cleanup aan staat).
+      const addP = addItem(p);
+      await pendingRemove;
+      const add = await addP;
+
+      if (isBlocked(add.status, add.text)) {
+        return { blocked: true, error: `Toevoegen mislukt (${add.status})` };
+      }
+
+      let itemId = null;
+      try { itemId = JSON.parse(add.text).itemId; } catch {}
+      if (!itemId) {
+        // 409: item bestaat al → state raadplegen
+        const state = await readState();
+        itemId = (state.itemRows || []).find(
+          (row) => String(row.productId) === String(p.productId)
+        )?.id || null;
+      }
+      if (!itemId) {
+        return {
+          blocked: false,
+          error: `Toevoegen mislukt (${add.status}): ${add.text.slice(0, 160)}`,
+        };
+      }
+
+      const update = await gql(cfg.hashes.updateQty, 'UpdateItemQuantity', {
+        input: { basketId, itemId, quantity: cfg.maxQuantity },
+      });
+      if (isBlocked(update.status, update.text)) {
+        return { blocked: true, error: 'Aantal wijzigen geblokkeerd (403/429)', itemId };
+      }
+      if (update.status >= 400 || update.json?.errors) {
+        return {
+          blocked: false,
+          error: `Aantal wijzigen mislukt: ${update.text.slice(0, 160)}`,
+          itemId,
+        };
+      }
+
+      const items = update.json?.data?.basket?.updateItemQuantityV2?.items || [];
+      let item = items.find((x) => x?.id === itemId) || null;
+      if (!item) {
+        item = items.find(
+          (x) => String(x?.sellingOffer?.offerUid || '') === String(p.offerUid)
+        ) || null;
+      }
+      let available = item?.quantity ?? null;
+      let title = item?.sellingOffer?.product?.title || null;
+      if (available == null) {
+        const state = await readState();
+        const row = (state.itemRows || []).find(
+          (r) => String(r.productId) === String(p.productId)
+        );
+        available = row?.quantity ?? null;
+        title = row?.productTitle || title;
+      }
+      if (available == null) {
+        return { blocked: false, error: 'Geen voorraadaantal ontvangen', itemId };
+      }
+
+      if (cfg.cleanup) {
+        pendingRemove = gql(cfg.hashes.removeItem, 'RemoveItem', {
+          input: { basketId, itemId },
+        }).catch(() => null);
+      }
+
+      return {
+        blocked: false,
+        ok: true,
+        available,
+        title,
+        itemId,
+        stockAdjusted: Number(available) < Number(cfg.maxQuantity),
+      };
+    };
+
+    try {
+      let result = await runOnce();
+      if (result.blocked) {
+        await sleep(cfg.blockBackoffMs || 2000);
+        const ensured = await ensureBasket();
+        if (ensured.basketId) basketId = ensured.basketId;
+        result = await runOnce();
+      }
+      if (result.ok) {
+        out.push({
+          productId: p.productId,
+          offerUid: p.offerUid,
+          ok: true,
+          available: result.available,
+          title: result.title,
+          basketId,
+          itemId: result.itemId,
+          ms: Math.round(performance.now() - t0),
+          stockAdjusted: result.stockAdjusted,
+        });
+      } else {
+        out.push({
+          productId: p.productId,
+          offerUid: p.offerUid,
+          ok: false,
+          error: result.error || 'Onbekende fout',
+          ms: Math.round(performance.now() - t0),
+          basketId,
+          itemId: result.itemId || null,
+          blocked: !!result.blocked,
+        });
+      }
+    } catch (e) {
+      out.push({
+        productId: p.productId,
+        offerUid: p.offerUid,
+        ok: false,
+        error: String(e),
+        ms: Math.round(performance.now() - t0),
+        basketId,
+      });
+    }
+    if (cfg.delayMs > 0 && i + 1 < cfg.products.length) {
+      await sleep(cfg.delayMs);
+    }
+  }
+
+  try { await pendingRemove; } catch {}
+
+  const blockedN = out.filter((r) => r.blocked).length;
+  return {
+    ok: true,
+    basketId,
+    blocked: blockedN > 0,
+    totalMs: Math.round(performance.now() - tAll),
+    results: out,
+  };
+}
+"""
+
+
+
 @dataclass
 class StockResult:
     product_id: str
@@ -320,6 +573,8 @@ def save_offer_cache(path: Optional[Path], cache: dict[str, str]) -> None:
 
 def _batch_worker(payload: dict[str, Any]) -> list[dict[str, Any]]:
     """Subprocess-worker voor parallelle batch (eigen Camoufox-proces)."""
+    if payload.get("stagger_seconds"):
+        time.sleep(float(payload["stagger_seconds"]))
     cache_path = Path(payload["offer_cache"]) if payload.get("offer_cache") else None
     checker = BolStockChecker(
         max_quantity=payload["max_quantity"],
@@ -329,18 +584,28 @@ def _batch_worker(payload: dict[str, Any]) -> list[dict[str, Any]]:
         delay_seconds=payload["delay_seconds"],
         offer_cache=load_offer_cache(cache_path),
         offer_cache_path=cache_path,
+        proxy=payload.get("proxy"),
     )
-    results = checker.check_batch(
-        payload["products"],
-        cleanup=payload["cleanup"],
-        include_raw=payload["include_raw"],
-        out_path=None,
-        progress=payload.get("progress", False),
-        refresh_every=payload["refresh_every"],
-        max_block_streak=payload["max_block_streak"],
-        isolated=payload["isolated"],
-        workers=1,
-    )
+    if payload.get("turbo"):
+        results = checker.check_batch_turbo(
+            payload["products"],
+            cleanup=payload["cleanup"],
+            out_path=None,
+            progress=payload.get("progress", False),
+        )
+    else:
+        results = checker.check_batch(
+            payload["products"],
+            cleanup=payload["cleanup"],
+            include_raw=payload["include_raw"],
+            out_path=None,
+            progress=payload.get("progress", False),
+            refresh_every=payload["refresh_every"],
+            max_block_streak=payload["max_block_streak"],
+            isolated=payload["isolated"],
+            workers=1,
+            turbo=False,
+        )
     return [r.as_public_dict() for r in results]
 
 
@@ -356,6 +621,7 @@ class BolStockChecker:
         delay_seconds: float = 0.0,
         offer_cache: Optional[dict[str, str]] = None,
         offer_cache_path: Optional[Path] = None,
+        proxy: Optional[str] = None,
     ) -> None:
         self.max_quantity = max_quantity
         self.country = country.lower()
@@ -364,8 +630,11 @@ class BolStockChecker:
         self.delay_seconds = delay_seconds
         self.offer_cache: dict[str, str] = dict(offer_cache or {})
         self.offer_cache_path = offer_cache_path
+        self.proxy = proxy
         # Vernieuw basketId na N items zodat GraphQL niet traag wordt op volle carts.
-        self.basket_rotate_every = 12
+        self.basket_rotate_every = 25
+        # Turbo: kleine chunks + mid-batch rewarm → minder 403-streaks, snellere 100-runs.
+        self.turbo_chunk_size = 10
 
     def _import_camoufox(self):
         try:
@@ -376,6 +645,31 @@ class BolStockChecker:
                 "Installeer met: pip install -r requirements.txt && camoufox fetch"
             ) from exc
         return Camoufox
+
+    def _camoufox_kwargs(self) -> dict[str, Any]:
+        kwargs: dict[str, Any] = {
+            "headless": self.headless,
+            "os": "windows",
+            "locale": "nl-NL",
+            "humanize": False,
+        }
+        if self.proxy:
+            # Playwright/Camoufox: {"server": "http://host:port", ...}
+            server = self.proxy
+            proxy_opts: dict[str, str] = {"server": server}
+            if "@" in server and "://" in server:
+                # http://user:pass@host:port
+                scheme, rest = server.split("://", 1)
+                creds, host = rest.rsplit("@", 1)
+                if ":" in creds:
+                    user, pwd = creds.split(":", 1)
+                    proxy_opts = {
+                        "server": f"{scheme}://{host}",
+                        "username": user,
+                        "password": pwd,
+                    }
+            kwargs["proxy"] = proxy_opts
+        return kwargs
 
     def _product_url(self, product_id: str, source: str) -> str:
         parsed = urlparse(source)
@@ -635,12 +929,7 @@ class BolStockChecker:
         include_raw: bool = False,
     ) -> StockResult:
         Camoufox = self._import_camoufox()
-        with Camoufox(
-            headless=self.headless,
-            os="windows",
-            locale="nl-NL",
-            humanize=False,
-        ) as browser:
+        with Camoufox(**self._camoufox_kwargs()) as browser:
             page = browser.new_page()
             self._setup_page(page)
             result, _ = self._check_on_page(
@@ -716,11 +1005,12 @@ class BolStockChecker:
         max_block_streak: int = 2,
         isolated: bool = False,
         workers: int = 1,
+        turbo: bool = False,
     ) -> list[StockResult]:
         """Batch via directe basket-API's.
 
-        Tip: met een offer-cache (productId→offerUid) valt de HTML-stap weg (~1s/product).
-        workers>1 helpt zelden op één shared IP (Akamai); meestal is 1 worker sneller.
+        turbo=True: hele chunk in één JS-evaluate (snelst zonder extra IP's).
+        workers>1: parallelle browsers; op 1 IP liever 2 + stagger, of proxies.
         """
         products_list = list(products)
         if workers > 1 and len(products_list) > 1:
@@ -734,6 +1024,14 @@ class BolStockChecker:
                 max_block_streak=max_block_streak,
                 isolated=isolated,
                 workers=workers,
+                turbo=turbo,
+            )
+        if turbo:
+            return self.check_batch_turbo(
+                products_list,
+                cleanup=cleanup,
+                out_path=out_path,
+                progress=progress,
             )
         return self._check_batch_serial(
             products_list,
@@ -745,6 +1043,309 @@ class BolStockChecker:
             max_block_streak=max_block_streak,
             isolated=isolated,
         )
+
+    def _turbo_warm(self, page: Any, candidates: list[str]) -> bool:
+        """Warm Akamai-sessie; True bij succes."""
+        for warm_id in candidates:
+            try:
+                warm_url = f"{BASE_URL}/{self.country}/nl/p/product/{warm_id}/"
+                self._load_product_html(page, warm_url, warm_id, attempts=2)
+                return True
+            except Exception:  # noqa: BLE001
+                time.sleep(1.2)
+        try:
+            page.goto(
+                f"{BASE_URL}/{self.country}/nl/",
+                wait_until="domcontentloaded",
+                timeout=60000,
+            )
+            time.sleep(2.0)
+            page.goto(
+                f"{BASE_URL}/{self.country}/nl/s/?searchtext=voorraad",
+                wait_until="domcontentloaded",
+                timeout=60000,
+            )
+            time.sleep(1.5)
+            return self._page_ok(page) or True
+        except Exception:  # noqa: BLE001
+            return False
+
+    def _row_to_stock_result(self, row: dict[str, Any]) -> StockResult:
+        pid = str(row.get("productId") or "")
+        offer = str(row.get("offerUid") or self.offer_cache.get(pid) or "")
+        if row.get("ok") and row.get("available") is not None:
+            available = int(row["available"])
+            stock_adjusted = bool(row.get("stockAdjusted")) or available < self.max_quantity
+            self.offer_cache[pid] = offer
+            return StockResult(
+                product_id=pid,
+                offer_uid=offer,
+                available=available,
+                requested=self.max_quantity,
+                capped_at_max=available >= self.max_quantity and not stock_adjusted,
+                stock_adjusted=stock_adjusted,
+                product_title=row.get("title"),
+                elapsed_seconds=round((row.get("ms") or 0) / 1000.0, 2),
+                message=(
+                    f"Bol.com leverde {available} i.p.v. {self.max_quantity} stuks."
+                    if stock_adjusted
+                    else None
+                ),
+            )
+        return StockResult(
+            product_id=pid,
+            offer_uid=offer,
+            available=None,
+            requested=self.max_quantity,
+            capped_at_max=False,
+            stock_adjusted=False,
+            error=row.get("error") or "Onbekende fout",
+            elapsed_seconds=round((row.get("ms") or 0) / 1000.0, 2),
+        )
+
+    def check_batch_turbo(
+        self,
+        products: Iterable[str],
+        *,
+        cleanup: bool = False,
+        out_path: Optional[Path] = None,
+        progress: bool = True,
+    ) -> list[StockResult]:
+        """Snelste single-browser batch: warmup + chunked JS-loops met 403-herstel."""
+        Camoufox = self._import_camoufox()
+        products_list = list(products)
+        started_all = time.perf_counter()
+        prepared: list[dict[str, str]] = []
+        results_by_id: dict[str, StockResult] = {}
+
+        missing: list[str] = []
+        for product in products_list:
+            pid = extract_product_id(product)
+            offer = extract_offer_uid(product, None) or self.offer_cache.get(pid)
+            if offer:
+                prepared.append({"productId": pid, "offerUid": offer})
+            else:
+                missing.append(product)
+
+        with Camoufox(**self._camoufox_kwargs()) as browser:
+            page = browser.new_page()
+            self._setup_page(page)
+
+            warm_candidates = [p["productId"] for p in prepared] + [
+                extract_product_id(p) for p in missing
+            ]
+            # Deduplicate while preserving order
+            seen_warm: set[str] = set()
+            warm_list = []
+            for wid in warm_candidates:
+                if wid not in seen_warm:
+                    seen_warm.add(wid)
+                    warm_list.append(wid)
+
+            if not self._turbo_warm(page, warm_list[:16]):
+                err = "Turbo warmup mislukt (Akamai)"
+                results = [
+                    StockResult(
+                        product_id=extract_product_id(p),
+                        offer_uid=self.offer_cache.get(extract_product_id(p), ""),
+                        available=None,
+                        requested=self.max_quantity,
+                        capped_at_max=False,
+                        stock_adjusted=False,
+                        error=err,
+                        elapsed_seconds=0.0,
+                    )
+                    for p in products_list
+                ]
+                if progress:
+                    print(err, flush=True)
+                if out_path is not None:
+                    out_path.parent.mkdir(parents=True, exist_ok=True)
+                    with out_path.open("w", encoding="utf-8") as out_file:
+                        for result in results:
+                            out_file.write(
+                                json.dumps(result.as_public_dict(), ensure_ascii=False)
+                                + "\n"
+                            )
+                return results
+
+            for product in missing:
+                pid = extract_product_id(product)
+                try:
+                    html = self._load_product_html(
+                        page,
+                        self._product_url(pid, product),
+                        pid,
+                        attempts=2,
+                    )
+                    offer, _title = self._extract_offer_from_html(html, pid)
+                    self.offer_cache[pid] = offer
+                    prepared.append({"productId": pid, "offerUid": offer})
+                except Exception as exc:  # noqa: BLE001
+                    results_by_id[pid] = StockResult(
+                        product_id=pid,
+                        offer_uid="",
+                        available=None,
+                        requested=self.max_quantity,
+                        capped_at_max=False,
+                        stock_adjusted=False,
+                        error=f"OfferUid niet gevonden: {exc}",
+                        elapsed_seconds=0.0,
+                    )
+
+            by_id = {p["productId"]: p for p in prepared}
+            ordered = [
+                by_id[extract_product_id(p)]
+                for p in products_list
+                if extract_product_id(p) in by_id
+            ]
+
+            chunk_size = max(1, int(self.turbo_chunk_size))
+            if progress:
+                print(
+                    f"Turbo-batch: {len(ordered)} producten in chunks van {chunk_size} "
+                    f"(cache-hits={len(ordered) - len(missing)})",
+                    flush=True,
+                )
+
+            basket_id: Optional[str] = None
+            done = 0
+            chunks = [
+                ordered[i : i + chunk_size] for i in range(0, len(ordered), chunk_size)
+            ]
+
+            for chunk_idx, chunk in enumerate(chunks):
+                raw = page.evaluate(
+                    CART_BATCH_JS,
+                    {
+                        "products": chunk,
+                        "maxQuantity": self.max_quantity,
+                        "country": self.country,
+                        "basketId": basket_id,
+                        "rotateEvery": self.basket_rotate_every,
+                        "delayMs": int(self.delay_seconds * 1000),
+                        "blockBackoffMs": 2000,
+                        "hashes": {
+                            "createBasket": GQL_CREATE_BASKET,
+                            "updateQty": GQL_UPDATE_QTY,
+                            "removeItem": GQL_REMOVE_ITEM,
+                        },
+                        "cleanup": cleanup,
+                    },
+                )
+                basket_id = raw.get("basketId") or basket_id
+                rows = list(raw.get("results") or [])
+
+                # Retry mislukte items in deze chunk na korte rewarm.
+                failed = [
+                    r
+                    for r in rows
+                    if not r.get("ok")
+                    and (
+                        r.get("blocked")
+                        or "403" in str(r.get("error") or "")
+                        or "429" in str(r.get("error") or "")
+                        or "Geblokkeerd" in str(r.get("error") or "")
+                        or "basketId" in str(r.get("error") or "")
+                    )
+                ]
+                if failed:
+                    if progress:
+                        print(
+                            f"Chunk {chunk_idx + 1}/{len(chunks)}: "
+                            f"{len(failed)} geblokkeerd → rewarm + retry",
+                            flush=True,
+                        )
+                    time.sleep(2.5)
+                    retry_ids = [str(r["productId"]) for r in failed]
+                    self._turbo_warm(page, retry_ids + warm_list[:4])
+                    basket_id = None
+                    retry_products = [by_id[pid] for pid in retry_ids if pid in by_id]
+                    if retry_products:
+                        raw2 = page.evaluate(
+                            CART_BATCH_JS,
+                            {
+                                "products": retry_products,
+                                "maxQuantity": self.max_quantity,
+                                "country": self.country,
+                                "basketId": None,
+                                "rotateEvery": self.basket_rotate_every,
+                                "delayMs": int(self.delay_seconds * 1000),
+                                "blockBackoffMs": 2500,
+                                "hashes": {
+                                    "createBasket": GQL_CREATE_BASKET,
+                                    "updateQty": GQL_UPDATE_QTY,
+                                    "removeItem": GQL_REMOVE_ITEM,
+                                },
+                                "cleanup": cleanup,
+                            },
+                        )
+                        basket_id = raw2.get("basketId") or basket_id
+                        by_retry = {
+                            str(r.get("productId")): r for r in (raw2.get("results") or [])
+                        }
+                        rows = [by_retry.get(str(r.get("productId")), r) for r in rows]
+
+                for row in rows:
+                    result = self._row_to_stock_result(row)
+                    results_by_id[result.product_id] = result
+                    done += 1
+                    if progress:
+                        status = (
+                            f"voorraad={result.available}"
+                            if result.error is None
+                            else f"FOUT={str(result.error)[:80]}"
+                        )
+                        print(
+                            f"[{done}/{len(ordered)}] {result.product_id} "
+                            f"{status} ({result.elapsed_seconds}s)",
+                            flush=True,
+                        )
+
+                # Lichte pauze tussen chunks om Akamai te sparen (betaalt zich terug in minder retries).
+                if chunk_idx + 1 < len(chunks):
+                    time.sleep(0.8)
+
+        results = []
+        for product in products_list:
+            pid = extract_product_id(product)
+            if pid in results_by_id:
+                results.append(results_by_id[pid])
+            else:
+                results.append(
+                    StockResult(
+                        product_id=pid,
+                        offer_uid=self.offer_cache.get(pid, ""),
+                        available=None,
+                        requested=self.max_quantity,
+                        capped_at_max=False,
+                        stock_adjusted=False,
+                        error="Geen resultaat",
+                        elapsed_seconds=0.0,
+                    )
+                )
+
+        if self.offer_cache_path is not None:
+            save_offer_cache(self.offer_cache_path, self.offer_cache)
+
+        if out_path is not None:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            with out_path.open("w", encoding="utf-8") as out_file:
+                for result in results:
+                    out_file.write(
+                        json.dumps(result.as_public_dict(), ensure_ascii=False) + "\n"
+                    )
+
+        if progress:
+            ok = sum(1 for r in results if r.error is None and r.available is not None)
+            elapsed = round(time.perf_counter() - started_all, 2)
+            print(
+                f"Klaar: {ok}/{len(results)} ok in {elapsed}s "
+                f"(avg {elapsed / max(len(results), 1):.2f}s/product, "
+                f"throughput {len(results) / max(elapsed, 0.01):.2f}/s)",
+                flush=True,
+            )
+        return results
 
     def _check_batch_parallel(
         self,
@@ -758,6 +1359,7 @@ class BolStockChecker:
         max_block_streak: int,
         isolated: bool,
         workers: int,
+        turbo: bool = False,
     ) -> list[StockResult]:
         from concurrent.futures import ProcessPoolExecutor, as_completed
 
@@ -765,7 +1367,8 @@ class BolStockChecker:
         if progress:
             print(
                 f"Parallel batch: {len(products_list)} producten, "
-                f"{len(chunks)} workers",
+                f"{len(chunks)} workers"
+                + (" [turbo]" if turbo else ""),
                 flush=True,
             )
         started_all = time.perf_counter()
@@ -783,6 +1386,10 @@ class BolStockChecker:
                 "max_block_streak": max_block_streak,
                 "isolated": isolated,
                 "progress": False,
+                "turbo": turbo,
+                "proxy": self.proxy,
+                # Stagger starts to reduce same-IP Akamai collisions.
+                "stagger_seconds": idx * 8.0,
                 "offer_cache": str(self.offer_cache_path)
                 if self.offer_cache_path
                 else None,
@@ -876,12 +1483,7 @@ class BolStockChecker:
         page = None
 
         def open_browser() -> tuple[Any, Any, Any]:
-            cm = Camoufox(
-                headless=self.headless,
-                os="windows",
-                locale="nl-NL",
-                humanize=False,
-            )
+            cm = Camoufox(**self._camoufox_kwargs())
             b = cm.__enter__()
             p = b.new_page()
             self._setup_page(p)
@@ -1081,18 +1683,28 @@ def build_parser() -> argparse.ArgumentParser:
         "--workers",
         type=int,
         default=1,
-        help="Parallelle browser-workers (default: 1; op shared IP vaak trager)",
+        help="Parallelle browser-workers (met --proxy of stagger; default 1)",
     )
     parser.add_argument(
         "--fast",
         action="store_true",
-        help="Snelheidspreset: delay=0, geen cleanup, offer-cache aan",
+        help="Snelheidspreset: chunked turbo + offer-cache + delay=0 (workers>1 alleen met --proxy)",
+    )
+    parser.add_argument(
+        "--turbo",
+        action="store_true",
+        help="Hele batch in één browser JS-loop (minder overhead)",
     )
     parser.add_argument(
         "--offer-cache",
         type=Path,
         default=None,
         help="JSON-cache productId→offerUid (slaat HTML-stap over bij hits)",
+    )
+    parser.add_argument(
+        "--proxy",
+        default=None,
+        help="Proxy URL, bv. http://user:pass@host:port (nodig voor echte parallelle snelheid)",
     )
     return parser
 
@@ -1105,10 +1717,16 @@ def main(argv: Optional[list[str]] = None) -> int:
     delay = args.delay
     keep_in_cart = args.keep_in_cart
     offer_cache_path = args.offer_cache
+    turbo = args.turbo
     if args.fast:
         delay = 0.0
         keep_in_cart = True
-        workers = 1  # parallel op shared IP is meestal trager (Akamai)
+        turbo = True
+        # Zonder proxy: 1 turbo-worker is stabieler; met proxy mag workers>1.
+        if workers <= 1 and args.proxy:
+            workers = 2
+        elif workers <= 1:
+            workers = 1
         if offer_cache_path is None:
             offer_cache_path = Path("offer_cache.json")
 
@@ -1120,6 +1738,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         delay_seconds=delay,
         offer_cache=load_offer_cache(offer_cache_path),
         offer_cache_path=offer_cache_path,
+        proxy=args.proxy,
     )
 
     # Collect and/or batch mode.
@@ -1130,12 +1749,7 @@ def main(argv: Optional[list[str]] = None) -> int:
 
         if args.collect:
             Camoufox = checker._import_camoufox()
-            with Camoufox(
-                headless=not args.headed,
-                os="windows",
-                locale="nl-NL",
-                humanize=False,
-            ) as browser:
+            with Camoufox(**checker._camoufox_kwargs()) as browser:
                 page = browser.new_page()
                 checker._setup_page(page)
                 collected = checker.collect_product_ids(page, limit=args.collect)
@@ -1172,6 +1786,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                 progress=True,
                 isolated=args.isolated,
                 workers=max(1, workers),
+                turbo=turbo,
             )
             summary = {
                 "total": len(results),
