@@ -14,7 +14,10 @@ import argparse
 import json
 import re
 import sys
+import threading
 import time
+import uuid
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Iterable, Optional
@@ -664,6 +667,8 @@ class BolStockChecker:
         # Turbo: één grote JS-loop waar mogelijk; fail-fast bij 403.
         self.turbo_chunk_size = 100
         self.turbo_chunk_pause = 0.0
+        # Dual HTTP: 2 Camoufox-contexts → 2 cookie-jars → parallel requests (~2×).
+        self.http_sessions = 2
 
     def _import_camoufox(self):
         try:
@@ -1057,6 +1062,14 @@ class BolStockChecker:
                 turbo=turbo,
             )
         if turbo:
+            if self.http_sessions >= 2 and not self.proxy:
+                return self.check_batch_dual_http(
+                    products_list,
+                    cleanup=cleanup,
+                    out_path=out_path,
+                    progress=progress,
+                    sessions=self.http_sessions,
+                )
             return self.check_batch_turbo(
                 products_list,
                 cleanup=cleanup,
@@ -1133,6 +1146,454 @@ class BolStockChecker:
             error=row.get("error") or "Onbekende fout",
             elapsed_seconds=round((row.get("ms") or 0) / 1000.0, 2),
         )
+
+    @staticmethod
+    def _cookies_to_header(cookies: list[dict[str, Any]]) -> tuple[str, str]:
+        header = "; ".join(f"{c['name']}={c['value']}" for c in cookies)
+        xsrf = unquote(
+            next((c["value"] for c in cookies if c.get("name") == "XSRF-TOKEN"), "")
+            or ""
+        )
+        return header, xsrf
+
+    def _http_cart_loop(
+        self,
+        cookies: list[dict[str, Any]],
+        products: list[dict[str, str]],
+        *,
+        cleanup: bool = True,
+    ) -> list[dict[str, Any]]:
+        """Cart-loop via requests met Camoufox-cookies (eigen basket per cookie-jar)."""
+        import requests
+
+        cookie_header, xsrf = self._cookies_to_header(cookies)
+        session = requests.Session()
+        base_headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
+            "Accept": "application/json",
+            "Content-Type": "application/json;charset=UTF-8",
+            "X-Requested-With": "XMLHttpRequest",
+            "Cookie": cookie_header,
+            "Origin": BASE_URL,
+            "Referer": f"{BASE_URL}/{self.country}/nl/",
+            "X-XSRF-TOKEN": xsrf,
+        }
+
+        def gql(hash_: str, op: str, variables: Optional[dict[str, Any]] = None) -> tuple[int, Any]:
+            headers = dict(base_headers)
+            headers.update(
+                {
+                    "content-type": "application/json",
+                    "x-xsrf-token": xsrf,
+                    "bol-app-country": self.country.upper(),
+                    "bol-client-app-name": "basket-web-fe",
+                    "bol-app-operation-name": op,
+                    "bol-client-page-id": str(uuid.uuid4()),
+                    "m2-page-id": str(uuid.uuid4()),
+                }
+            )
+            resp = session.post(
+                f"{BASE_URL}/api/graphql",
+                headers=headers,
+                json={
+                    "operationName": op,
+                    "variables": variables or {},
+                    "extensions": {
+                        "persistedQuery": {"version": 1, "sha256Hash": hash_}
+                    },
+                },
+                timeout=30,
+            )
+            try:
+                return resp.status_code, resp.json()
+            except Exception:
+                return resp.status_code, None
+
+        status, created = gql(GQL_CREATE_BASKET, "CreateBasket", {})
+        basket_id = (
+            ((created or {}).get("data") or {})
+            .get("basket", {})
+            .get("createBasketV2", {})
+            .get("id")
+        )
+        if not basket_id:
+            err = f"Geblokkeerd bij CreateBasket ({status})"
+            return [
+                {
+                    "productId": p["productId"],
+                    "offerUid": p["offerUid"],
+                    "ok": False,
+                    "error": err,
+                    "blocked": status in (403, 429),
+                    "ms": 0,
+                }
+                for p in products
+            ]
+
+        out: list[dict[str, Any]] = []
+        pool = ThreadPoolExecutor(max_workers=2)
+        pending = None
+        for p in products:
+            t0 = time.perf_counter()
+            try:
+                add_resp = session.post(
+                    f"{BASE_URL}/nl/rnwy/basket/v2/items",
+                    headers=base_headers,
+                    json={
+                        "globalId": p["productId"],
+                        "quantity": 1,
+                        "offerUid": p["offerUid"],
+                    },
+                    timeout=30,
+                )
+                try:
+                    item_id = add_resp.json().get("itemId")
+                except Exception:
+                    item_id = None
+            except Exception as exc:  # noqa: BLE001
+                out.append(
+                    {
+                        "productId": p["productId"],
+                        "offerUid": p["offerUid"],
+                        "ok": False,
+                        "error": f"Toevoegen mislukt: {exc}",
+                        "ms": int((time.perf_counter() - t0) * 1000),
+                    }
+                )
+                continue
+
+            if not item_id:
+                blocked = add_resp.status_code in (403, 429)
+                out.append(
+                    {
+                        "productId": p["productId"],
+                        "offerUid": p["offerUid"],
+                        "ok": False,
+                        "error": f"Toevoegen mislukt ({add_resp.status_code})",
+                        "blocked": blocked,
+                        "ms": int((time.perf_counter() - t0) * 1000),
+                    }
+                )
+                continue
+
+            st, upd = gql(
+                GQL_UPDATE_QTY,
+                "UpdateItemQuantity",
+                {"input": {"basketId": basket_id, "itemId": item_id, "quantity": self.max_quantity}},
+            )
+            items = (
+                ((upd or {}).get("data") or {})
+                .get("basket", {})
+                .get("updateItemQuantityV2", {})
+                .get("items")
+                or []
+            )
+            item = next((x for x in items if x.get("id") == item_id), None)
+            if item is None:
+                item = next(
+                    (
+                        x
+                        for x in items
+                        if str((x.get("sellingOffer") or {}).get("offerUid") or "")
+                        == str(p["offerUid"])
+                    ),
+                    None,
+                )
+            available = item.get("quantity") if item else None
+            title = None
+            if item:
+                title = ((item.get("sellingOffer") or {}).get("product") or {}).get(
+                    "title"
+                )
+
+            if cleanup:
+                if pending is not None:
+                    try:
+                        pending.result(timeout=0.01)
+                    except Exception:
+                        pass
+                pending = pool.submit(
+                    gql,
+                    GQL_REMOVE_ITEM,
+                    GQL_REMOVE_OP,
+                    {"removeItemInput": {"basketId": basket_id, "itemId": item_id}},
+                )
+
+            if available is None:
+                out.append(
+                    {
+                        "productId": p["productId"],
+                        "offerUid": p["offerUid"],
+                        "ok": False,
+                        "error": f"Aantal wijzigen mislukt ({st})",
+                        "blocked": st in (403, 429),
+                        "ms": int((time.perf_counter() - t0) * 1000),
+                    }
+                )
+            else:
+                out.append(
+                    {
+                        "productId": p["productId"],
+                        "offerUid": p["offerUid"],
+                        "ok": True,
+                        "available": available,
+                        "title": title,
+                        "ms": int((time.perf_counter() - t0) * 1000),
+                        "stockAdjusted": int(available) < self.max_quantity,
+                    }
+                )
+
+        if pending is not None:
+            try:
+                pending.result(timeout=5)
+            except Exception:
+                pass
+        pool.shutdown(wait=False)
+        return out
+
+    def check_batch_dual_http(
+        self,
+        products: Iterable[str],
+        *,
+        cleanup: bool = True,
+        out_path: Optional[Path] = None,
+        progress: bool = True,
+        sessions: int = 2,
+    ) -> list[StockResult]:
+        """Snelste pad op 1 IP: N Camoufox-contexts → parallelle HTTP cart-loops."""
+        try:
+            import requests  # noqa: F401
+        except ImportError as exc:
+            raise RuntimeError(
+                "Ontbrekende dependency: requests (pip install requests)"
+            ) from exc
+
+        Camoufox = self._import_camoufox()
+        products_list = list(products)
+        started_all = time.perf_counter()
+        sessions = max(1, min(int(sessions), 4))
+
+        prepared: list[dict[str, str]] = []
+        missing: list[str] = []
+        for product in products_list:
+            pid = extract_product_id(product)
+            offer = extract_offer_uid(product, None) or self.offer_cache.get(pid)
+            if offer:
+                prepared.append({"productId": pid, "offerUid": offer})
+            else:
+                missing.append(product)
+
+        cookie_jars: list[list[dict[str, Any]]] = []
+        with Camoufox(**self._camoufox_kwargs()) as browser:
+            # Resolve missing offers on first warm context.
+            warm_candidates = [p["productId"] for p in prepared] + [
+                extract_product_id(p) for p in missing
+            ]
+            seen: set[str] = set()
+            warm_list = []
+            for wid in warm_candidates:
+                if wid not in seen:
+                    seen.add(wid)
+                    warm_list.append(wid)
+
+            for session_idx in range(sessions):
+                ctx = browser.new_context()
+                page = ctx.new_page()
+                self._setup_page(page)
+                # Stagger warms to reduce Akamai collisions.
+                if session_idx > 0:
+                    time.sleep(3.5)
+                offset = session_idx * max(1, len(warm_list) // sessions)
+                rotated = warm_list[offset:] + warm_list[:offset]
+                if not self._turbo_warm(page, rotated):
+                    try:
+                        page.close()
+                        ctx.close()
+                    except Exception:
+                        pass
+                    continue
+                if session_idx == 0 and missing:
+                    for product in list(missing):
+                        pid = extract_product_id(product)
+                        try:
+                            html = self._load_product_html(
+                                page,
+                                self._product_url(pid, product),
+                                pid,
+                                attempts=2,
+                            )
+                            offer, _title = self._extract_offer_from_html(html, pid)
+                            self.offer_cache[pid] = offer
+                            prepared.append({"productId": pid, "offerUid": offer})
+                            missing.remove(product)
+                        except Exception as exc:  # noqa: BLE001
+                            if progress:
+                                print(f"OfferUid mist voor {pid}: {exc}", flush=True)
+                cookie_jars.append(ctx.cookies())
+                try:
+                    page.close()
+                except Exception:
+                    pass
+
+            if not cookie_jars:
+                if progress:
+                    print("Dual-HTTP warmup mislukt → fallback turbo JS", flush=True)
+                return self.check_batch_turbo(
+                    products_list,
+                    cleanup=cleanup,
+                    out_path=out_path,
+                    progress=progress,
+                )
+
+            by_id = {p["productId"]: p for p in prepared}
+            ordered = [
+                by_id[extract_product_id(p)]
+                for p in products_list
+                if extract_product_id(p) in by_id
+            ]
+            if progress:
+                print(
+                    f"Dual-HTTP: {len(ordered)} producten, {len(cookie_jars)} sessies "
+                    f"(cache-hits={len(ordered) - len(missing)})",
+                    flush=True,
+                )
+
+            chunks = _chunked(ordered, len(cookie_jars))
+            # Pad chunks to jar count
+            while len(chunks) < len(cookie_jars):
+                chunks.append([])
+            chunk_rows: list[list[dict[str, Any]]] = [[] for _ in chunks]
+            lock = threading.Lock()
+
+            def _run(idx: int) -> None:
+                rows = self._http_cart_loop(
+                    cookie_jars[idx], chunks[idx], cleanup=cleanup
+                )
+                with lock:
+                    chunk_rows[idx] = rows
+                    if progress:
+                        ok_n = sum(1 for r in rows if r.get("ok"))
+                        print(
+                            f"Sessie {idx + 1}/{len(cookie_jars)}: "
+                            f"{ok_n}/{len(rows)} ok",
+                            flush=True,
+                        )
+
+            threads = [
+                threading.Thread(target=_run, args=(i,), daemon=True)
+                for i in range(len(cookie_jars))
+                if chunks[i]
+            ]
+            for t in threads:
+                t.start()
+            for t in threads:
+                t.join()
+
+            # Keep browser alive until HTTP loops finish (Akamai cookies).
+            flat_rows: list[dict[str, Any]] = []
+            for rows in chunk_rows:
+                flat_rows.extend(rows)
+
+            failed = [
+                by_id[str(r["productId"])]
+                for r in flat_rows
+                if not r.get("ok")
+                and str(r.get("productId")) in by_id
+                and (
+                    r.get("blocked")
+                    or "403" in str(r.get("error") or "")
+                    or "429" in str(r.get("error") or "")
+                    or "CreateBasket" in str(r.get("error") or "")
+                )
+            ]
+            if failed and cookie_jars:
+                if progress:
+                    print(
+                        f"Dual-HTTP retry: {len(failed)} items op sessie 1 "
+                        f"(cooldown 8s)",
+                        flush=True,
+                    )
+                time.sleep(8)
+                # Re-warm first context briefly
+                ctx = browser.new_context()
+                page = ctx.new_page()
+                self._setup_page(page)
+                self._turbo_warm(page, [p["productId"] for p in failed[:8]] + warm_list[:4])
+                retry_cookies = ctx.cookies()
+                try:
+                    page.close()
+                except Exception:
+                    pass
+                retry_rows = self._http_cart_loop(
+                    retry_cookies, failed, cleanup=cleanup
+                )
+                by_retry = {str(r.get("productId")): r for r in retry_rows}
+                flat_rows = [
+                    by_retry.get(str(r.get("productId")), r) for r in flat_rows
+                ]
+                if progress:
+                    ok_n = sum(1 for r in retry_rows if r.get("ok"))
+                    print(f"Retry klaar: {ok_n}/{len(retry_rows)} ok", flush=True)
+
+        results_by_id = {
+            str(r.get("productId")): self._row_to_stock_result(r) for r in flat_rows
+        }
+        results: list[StockResult] = []
+        for product in products_list:
+            pid = extract_product_id(product)
+            if pid in results_by_id:
+                results.append(results_by_id[pid])
+            else:
+                results.append(
+                    StockResult(
+                        product_id=pid,
+                        offer_uid=self.offer_cache.get(pid, ""),
+                        available=None,
+                        requested=self.max_quantity,
+                        capped_at_max=False,
+                        stock_adjusted=False,
+                        error="Geen resultaat",
+                        elapsed_seconds=0.0,
+                    )
+                )
+
+        if progress:
+            for i, result in enumerate(results, 1):
+                status = (
+                    f"voorraad={result.available}"
+                    if result.error is None
+                    else f"FOUT={str(result.error)[:80]}"
+                )
+                print(
+                    f"[{i}/{len(results)}] {result.product_id} "
+                    f"{status} ({result.elapsed_seconds}s)",
+                    flush=True,
+                )
+
+        if self.offer_cache_path is not None:
+            save_offer_cache(self.offer_cache_path, self.offer_cache)
+        if out_path is not None:
+            out_path.parent.mkdir(parents=True, exist_ok=True)
+            with out_path.open("w", encoding="utf-8") as out_file:
+                for result in results:
+                    out_file.write(
+                        json.dumps(result.as_public_dict(), ensure_ascii=False) + "\n"
+                    )
+
+        if progress:
+            ok = sum(1 for r in results if r.error is None and r.available is not None)
+            elapsed = round(time.perf_counter() - started_all, 2)
+            print(
+                f"Klaar: {ok}/{len(results)} ok in {elapsed}s "
+                f"(avg {elapsed / max(len(results), 1):.2f}s/product, "
+                f"throughput {len(results) / max(elapsed, 0.01):.2f}/s)",
+                flush=True,
+            )
+        return results
 
     def check_batch_turbo(
         self,
@@ -1827,7 +2288,13 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--fast",
         action="store_true",
-        help="Snelheidspreset: chunked turbo + offer-cache + delay=0 (workers>1 alleen met --proxy)",
+        help="Snelst: dual HTTP-sessies + offer-cache (of turbo JS fallback)",
+    )
+    parser.add_argument(
+        "--sessions",
+        type=int,
+        default=None,
+        help="Parallelle cookie-sessies voor --fast/--turbo (default 2 zonder proxy)",
     )
     parser.add_argument(
         "--turbo",
@@ -1857,19 +2324,26 @@ def main(argv: Optional[list[str]] = None) -> int:
     keep_in_cart = args.keep_in_cart
     offer_cache_path = args.offer_cache
     turbo = args.turbo
+    http_sessions = 1
     if args.fast:
         delay = 0.0
         # Cleanup aan: RemoveItem fire-and-forget (kritieke pad = add+update).
         keep_in_cart = False
         turbo = True
-        # Zelfde IP + workers>1 → slechtere succesrate/wall-clock. Alleen met proxy opvoeren.
+        # Zelfde IP + process-workers>1 → slechte succesrate. Dual HTTP-sessies wel OK.
         if args.proxy:
             if workers <= 1:
                 workers = 2
+            http_sessions = 1
         else:
             workers = 1
+            http_sessions = 2
         if offer_cache_path is None:
             offer_cache_path = Path("offer_cache.json")
+    if args.sessions is not None:
+        http_sessions = max(1, args.sessions)
+    if args.turbo and not args.fast and args.sessions is None and not args.proxy:
+        http_sessions = 2
 
     checker = BolStockChecker(
         max_quantity=args.max_quantity,
@@ -1881,6 +2355,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         offer_cache_path=offer_cache_path,
         proxy=args.proxy,
     )
+    checker.http_sessions = http_sessions
 
     # Collect and/or batch mode.
     if args.collect or args.batch:
