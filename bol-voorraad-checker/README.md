@@ -78,19 +78,21 @@ Als bol.com `500` teruggeeft zonder voorraadmelding, is de voorraad **mogelijk 5
 
 ## Snelheid
 
-| Pad | Tijd |
-| --- | --- |
-| `--fast` / turbo (offer-cache) | **~0.45–0.65s/product** |
-| 100 producten, 1 IP | **~60s** (100/100, gemeten) |
-| Eerste keer / HTML nodig | ~2–4s |
-| `--workers N --proxy …` | wall-clock ≈ /N (aparte exit-IP’s) |
+| Pad | Tijd | Succes |
+| --- | --- | --- |
+| `--fast` (1 IP, offer-cache) | **~0.45–0.65s/product**, ~60s/100 | hoog (gemeten 100/100) |
+| `--workers 2` zonder proxy | trager wall-clock | slechter (gedeeld IP / Akamai) |
+| `--workers N --proxy …` | wall-clock ≈ /N | hoog als elke worker eigen exit-IP heeft |
+| Eerste keer / HTML nodig | ~2–4s | — |
+
+Methode-vloer op 1 sessie: **add + UpdateItemQuantity** (~2 RTT). Parallel op hetzelfde IP verlaagt de succesrate.
 
 Geen publieke stock-API voor willekeurige producten. Retailer API = alleen eigen offers. Losse HTTP/`curl` → **403** (Akamai).
 
 Optimalisaties:
-- Chunked turbo JS-loop (minder Python-overhead) + basket-hergebruik
-- 403-backoff + mid-batch rewarm/retry (minder mislukte 100-runs)
-- `RemoveItem` fire-and-forget ∥ volgende add (als cleanup aan staat)
+- Chunked turbo JS-loop + basket-hergebruik
+- Werkende `BasketRemoveItemMutation` (fire-and-forget) houdt cart leeg → updates blijven ~0.5s
+- 403 fail-fast + cooldown end-pass
 - Offer-cache slaat HTML-stap over
 - Echte parallelle snelheid alleen met proxies (zelfde cloud-IP → Akamai)
 
