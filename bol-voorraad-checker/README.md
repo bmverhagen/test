@@ -56,6 +56,7 @@ python bol_voorraad.py --batch products.txt --out results.jsonl --delay 0.6
 | `--batch-run` | Na `--collect` meteen voorraad checken |
 | `--out FILE` | JSONL-resultatenbestand |
 | `--delay SEC` | Pauze tussen batch-items (default 0.15) |
+| `--isolated` | Batch: verse browser-context per product |
 
 ## Voorbeelduitvoer
 
@@ -72,25 +73,29 @@ Als bol.com `500` teruggeeft zonder voorraadmelding, is de voorraad **mogelijk 5
 
 ## Snelheid
 
-Typische runtime: **~5.5 seconden** per product (was ~22s).
+Typische runtime: **~2.5–5.5s** per product in batch (directe basket-API’s, één browsersessie).
+Losse HTTP/`curl` vanaf een cloud-IP krijgt **HTTP 403** (Akamai); daarom blijven calls in de Camoufox-context (`fetch`).
 
 Optimalisaties:
-- Geen category-warmup / vaste sleeps
 - Images/fonts/trackers geblokkeerd
-- API-calls direct vanaf de productpagina
-- `CreateBasket` + add parallel
-- Voorraad uit GraphQL-response (state alleen als fallback)
+- Basket via REST + GraphQL persisted queries (geen winkelwagen-UI)
+- Batch hergebruikt één page; matcht `productId` in de cart (RemoveItem is onbetrouwbaar)
+- `--isolated` voor verse context per product indien nodig
+- Sessie-refresh + backoff bij Akamai-blokkades
 
 ## Technische flow
 
-1. Camoufox opent de productpagina (2e poging bij bot-blokkade)
-2. `offerUid` wordt uit de productpagina gehaald
-3. REST: `POST /nl/rnwy/basket/v2/items` met `{globalId, quantity:1, offerUid}`
-4. GraphQL: `UpdateItemQuantity` naar 500
-5. REST: `/messages` voor limiet-/voorraadmeldingen
+1. Camoufox opent de productpagina (Akamai; nodig voor `offerUid` + cookies)
+2. Directe backend-calls in die browser-context:
+   - GraphQL `CreateBasket`
+   - REST `POST /nl/rnwy/basket/v2/items` `{globalId, quantity:1, offerUid}`
+   - GraphQL `UpdateItemQuantity` → 500
+3. Voorraad = quantity van de rij met het gevraagde `productId` (niet blind `items[0]`)
+
+Pure `requests`/`curl_cffi` met gekopieerde cookies werkt **niet** (403). Officiële Retailer API vereist retailer-credentials en toont alleen **jouw** offers.
 
 ## Let op
 
-- Dit gebruikt de publieke website-API van bol.com, geen officiële Retailer API
-- Gebruik spaarzaam; veel requests kunnen tot tijdelijke blokkades leiden
-- Alleen bedoeld voor eigen productresearch / educatief gebruik
+- Publieke website-API van bol.com, geen officiële Retailer API
+- Gebruik spaarzaam; veel requests → tijdelijke blokkades
+- Alleen voor eigen productresearch / educatief gebruik

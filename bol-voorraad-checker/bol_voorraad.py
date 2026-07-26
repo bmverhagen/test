@@ -48,6 +48,8 @@ BLOCKED_URL_SNIPPETS = (
 
 CART_JS = """
 async (cfg) => {
+  // Directe backend-calls vanuit de browser-context (Akamai vereist browser-TLS).
+  // Productpagina levert offerUid; daarna alleen REST/GraphQL basket-API's.
   const xsrfMatch = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/);
   const xsrf = xsrfMatch ? decodeURIComponent(xsrfMatch[1]) : '';
   const pageId = crypto.randomUUID();
@@ -85,15 +87,6 @@ async (cfg) => {
     return { status: response.status, json, text };
   };
 
-  let basketId = cfg.basketId || null;
-  if (!basketId) {
-    const created = await gql(cfg.hashes.createBasket, 'CreateBasket', {});
-    basketId = created.json?.data?.basket?.createBasketV2?.id;
-    if (!basketId) {
-      return { ok: false, error: 'Geen basketId van bol.com ontvangen', created };
-    }
-  }
-
   const readState = async () => {
     const resp = await fetch('/nl/rnwy/basket/state', {
       credentials: 'include', headers: restHeaders,
@@ -104,10 +97,18 @@ async (cfg) => {
     }
   };
 
+  let basketId = cfg.basketId || null;
+  if (!basketId) {
+    const created = await gql(cfg.hashes.createBasket, 'CreateBasket', {});
+    basketId = created.json?.data?.basket?.createBasketV2?.id;
+    if (!basketId) {
+      return { ok: false, error: 'Geen basketId van bol.com ontvangen', created };
+    }
+  }
+
   const clearBasket = async () => {
     const state = await readState();
     for (const row of (state.itemRows || [])) {
-      // Probeer beide bekende variable-shapes; RemoveItem is niet altijd stabiel.
       await gql(cfg.hashes.removeItem, 'RemoveItem', {
         removeItemInput: { basketId, itemId: row.id },
       });
@@ -135,7 +136,6 @@ async (cfg) => {
   let addResp = await addOnce();
   let addText = await addResp.text();
   if (addResp.status === 409 || addResp.status === 400) {
-    // Oud item botst: leegmaken en opnieuw toevoegen.
     await clearBasket();
     addResp = await addOnce();
     addText = await addResp.text();
@@ -146,48 +146,24 @@ async (cfg) => {
 
   let itemId = null;
   try { itemId = JSON.parse(addText).itemId; } catch {}
-  let state = await readState();
-  if (!itemId) {
-    itemId = (state.itemRows || [])[0]?.id;
-  }
-  // Als er meerdere rijen zijn, kies de gevraagde; anders fout.
+
+  const state = await readState();
   const matching = (state.itemRows || []).find(
     (row) => String(row.productId) === String(cfg.productId)
   );
   if (matching) {
     itemId = matching.id;
-  } else {
-    const stateProductId = (state.itemRows || [])[0]?.productId;
-    if (stateProductId && String(stateProductId) !== String(cfg.productId)) {
-      await clearBasket();
-      addResp = await addOnce();
-      addText = await addResp.text();
-      if (addResp.status >= 400) {
-        return {
-          ok: false,
-          error: `Winkelwagen bevat ander product (${stateProductId}) dan gevraagd (${cfg.productId})`,
-          basketId,
-        };
-      }
-      try { itemId = JSON.parse(addText).itemId; } catch { itemId = null; }
-      state = await readState();
-      const again = (state.itemRows || []).find(
-        (row) => String(row.productId) === String(cfg.productId)
-      );
-      if (again) {
-        itemId = again.id;
-      } else {
-        const still = (state.itemRows || [])[0]?.productId;
-        return {
-          ok: false,
-          error: `Winkelwagen bevat ander product (${still}) dan gevraagd (${cfg.productId})`,
-          basketId,
-        };
-      }
-    }
   }
   if (!itemId) {
-    return { ok: false, error: 'Geen itemId na toevoegen aan winkelwagen', addText, basketId };
+    return {
+      ok: false,
+      error: 'Geen itemId na toevoegen aan winkelwagen',
+      addText,
+      basketId,
+      rows: (state.itemRows || []).map((r) => ({
+        id: r.id, productId: r.productId, qty: r.quantity,
+      })),
+    };
   }
 
   const update = await gql(cfg.hashes.updateQty, 'UpdateItemQuantity', {
@@ -203,19 +179,24 @@ async (cfg) => {
   }
 
   const updatedBasket = update.json?.data?.basket?.updateItemQuantityV2;
-  let available =
-    updatedBasket?.items?.[0]?.quantity ??
-    updatedBasket?.quantity ??
+  const items = updatedBasket?.items || [];
+  const item =
+    items.find((i) => i?.id === itemId) ||
+    items.find((i) => String(i?.sellingOffer?.product?.id || i?.productId || '') === String(cfg.productId)) ||
     null;
-  let title = updatedBasket?.items?.[0]?.sellingOffer?.product?.title || null;
+
+  let available = item?.quantity ?? null;
+  let title = item?.sellingOffer?.product?.title || null;
   let outState = updatedBasket || null;
 
+  // Fallback: basket/state voor dit productId (niet items[0] — winkelwagen kan meer rijen hebben).
   if (available == null) {
-    outState = await (await fetch('/nl/rnwy/basket/state', {
-      credentials: 'include', headers: restHeaders,
-    })).json();
-    available = (outState.itemRows || [])[0]?.quantity ?? null;
-    title = (outState.itemRows || [])[0]?.productTitle || title;
+    outState = await readState();
+    const row = (outState.itemRows || []).find(
+      (r) => String(r.productId) === String(cfg.productId)
+    );
+    available = row?.quantity ?? null;
+    title = row?.productTitle || title;
   }
 
   if (available == null) {
@@ -223,6 +204,9 @@ async (cfg) => {
   }
 
   if (cfg.cleanup) {
+    await gql(cfg.hashes.removeItem, 'RemoveItem', {
+      input: { basketId, itemId },
+    });
     await gql(cfg.hashes.removeItem, 'RemoveItem', {
       removeItemInput: { basketId, itemId },
     });
@@ -534,8 +518,8 @@ class BolStockChecker:
                     "removeItem": GQL_REMOVE_ITEM,
                 },
                 "cleanup": cleanup,
-                # Bij hergebruikte sessie eerst proberen leeg te maken.
-                "clearFirst": bool(basket_id),
+                # RemoveItem is onbetrouwbaar; we matchen op productId i.p.v. leegmaken.
+                "clearFirst": False,
             }
             raw = page.evaluate(CART_JS, payload)
             result = self._result_from_raw(
@@ -648,16 +632,24 @@ class BolStockChecker:
         include_raw: bool = False,
         out_path: Optional[Path] = None,
         progress: bool = True,
-        refresh_every: int = 10,
+        refresh_every: int = 15,
         max_block_streak: int = 2,
+        isolated: bool = False,
     ) -> list[StockResult]:
-        """Batch-check. Gebruikt een verse browser-context per product zodat de
-        winkelwagen niet blijft hangen (RemoveItem is onbetrouwbaar)."""
+        """Batch via directe basket REST/GraphQL in één browsersessie.
+
+        Standaard: zelfde page hergebruiken; per product HTML voor offerUid +
+        daarna backend basket-API's. Match op productId voorkomt foute voorraden
+        als de winkelwagen meerdere rijen heeft.
+
+        isolated=True: verse browser-context per product (langzamer).
+        """
         Camoufox = self._import_camoufox()
         products_list = list(products)
         results: list[StockResult] = []
         started_all = time.perf_counter()
         block_streak = 0
+        basket_id: Optional[str] = None
 
         out_file = None
         if out_path is not None:
@@ -666,8 +658,9 @@ class BolStockChecker:
 
         browser_cm = None
         browser = None
+        page = None
 
-        def open_browser() -> tuple[Any, Any]:
+        def open_browser() -> tuple[Any, Any, Any]:
             cm = Camoufox(
                 headless=self.headless,
                 os="windows",
@@ -675,10 +668,12 @@ class BolStockChecker:
                 humanize=False,
             )
             b = cm.__enter__()
-            return cm, b
+            p = b.new_page()
+            self._setup_page(p)
+            return cm, b, p
 
         def close_browser() -> None:
-            nonlocal browser_cm, browser
+            nonlocal browser_cm, browser, page, basket_id
             if browser_cm is not None:
                 try:
                     browser_cm.__exit__(None, None, None)
@@ -686,26 +681,40 @@ class BolStockChecker:
                     pass
             browser_cm = None
             browser = None
+            page = None
+            basket_id = None
 
         def check_one(product: str) -> StockResult:
+            nonlocal basket_id
             assert browser is not None
-            context = browser.new_context()
-            page = context.new_page()
-            self._setup_page(page)
-            try:
-                result, _ = self._check_on_page(
-                    page,
-                    product,
-                    cleanup=cleanup,
-                    include_raw=include_raw,
-                    basket_id=None,
-                )
-                return result
-            finally:
+            if isolated:
+                context = browser.new_context()
+                p = context.new_page()
+                self._setup_page(p)
                 try:
-                    context.close()
-                except Exception:
-                    pass
+                    result, _ = self._check_on_page(
+                        p,
+                        product,
+                        cleanup=cleanup,
+                        include_raw=include_raw,
+                        basket_id=None,
+                    )
+                    return result
+                finally:
+                    try:
+                        context.close()
+                    except Exception:
+                        pass
+
+            assert page is not None
+            result, basket_id = self._check_on_page(
+                page,
+                product,
+                cleanup=cleanup,
+                include_raw=include_raw,
+                basket_id=basket_id,
+            )
+            return result
 
         def is_blocked(result: StockResult) -> bool:
             if not result.error:
@@ -716,10 +725,11 @@ class BolStockChecker:
                 or "403" in result.error
                 or "xsrf" in err
                 or "onbruikbaar" in err
+                or "aantal wijzigen mislukt" in err
             )
 
         try:
-            browser_cm, browser = open_browser()
+            browser_cm, browser, page = open_browser()
 
             for idx, product in enumerate(products_list, start=1):
                 if idx > 1 and (idx - 1) % refresh_every == 0:
@@ -727,13 +737,12 @@ class BolStockChecker:
                         print(f"Sessie-refresh na {idx - 1} producten...", flush=True)
                     close_browser()
                     time.sleep(2.5)
-                    browser_cm, browser = open_browser()
+                    browser_cm, browser, page = open_browser()
 
                 result = check_one(product)
 
                 if is_blocked(result):
                     block_streak += 1
-                    # Bij aanhoudende Akamai-blokkades langer afkoelen.
                     backoff = min(45.0, 3.0 * block_streak)
                     if progress:
                         print(
@@ -744,11 +753,10 @@ class BolStockChecker:
                     if block_streak >= max_block_streak:
                         close_browser()
                         time.sleep(3.0)
-                        browser_cm, browser = open_browser()
+                        browser_cm, browser, page = open_browser()
                     result = check_one(product)
                     if is_blocked(result):
                         block_streak += 1
-                        # Extra afkoelpauze als retry ook faalt.
                         time.sleep(min(30.0, 2.0 * block_streak))
                     else:
                         block_streak = 0
@@ -791,6 +799,7 @@ class BolStockChecker:
                 flush=True,
             )
         return results
+
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -840,6 +849,11 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         default=0.15,
         help="Pauze tussen batch-items in seconden (default: 0.15)",
+    )
+    parser.add_argument(
+        "--isolated",
+        action="store_true",
+        help="Batch: verse browser-context per product (langzamer, meer isolatie)",
     )
     return parser
 
@@ -904,6 +918,7 @@ def main(argv: Optional[list[str]] = None) -> int:
                 include_raw=args.include_raw,
                 out_path=out,
                 progress=True,
+                isolated=args.isolated,
             )
             summary = {
                 "total": len(results),
