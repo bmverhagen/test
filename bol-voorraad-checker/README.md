@@ -80,8 +80,8 @@ Als bol.com `500` teruggeeft zonder voorraadmelding, is de voorraad **mogelijk 5
 
 | Pad | Tijd |
 | --- | --- |
-| `--fast` / turbo (offer-cache) | **~0.45–0.7s/product** in-chunk |
-| 100-product wall-clock (1 IP) | vaak **~50–90s** met chunk-retry |
+| `--fast` / turbo (offer-cache) | **~0.5–0.9s/product** |
+| 100 producten, 1 IP | **~110s** (100/100, gemeten) |
 | Eerste keer / HTML nodig | ~2–4s |
 | `--workers N --proxy …` | wall-clock ≈ /N (aparte exit-IP’s) |
 
