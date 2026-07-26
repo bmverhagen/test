@@ -176,6 +176,8 @@ class BolStockChecker:
             url = request.url.lower()
             if request.resource_type in BLOCKED_RESOURCE_TYPES:
                 return route.abort()
+            if "media.s-bol.com" in url:
+                return route.abort()
             if any(snippet in url for snippet in BLOCKED_URL_SNIPPETS):
                 return route.abort()
             return route.continue_()
@@ -187,6 +189,9 @@ class BolStockChecker:
         for _ in range(attempts):
             page.goto(url, wait_until="domcontentloaded", timeout=60000)
             last_len = len(page.content())
+            # Blok-pagina's zijn klein (~9KB); meteen door naar retry.
+            if last_len < 20000:
+                continue
             if self._page_ok(page):
                 self._dismiss_consent(page)
                 return
@@ -319,22 +324,26 @@ class BolStockChecker:
                     return { status: response.status, json, text };
                   };
 
-                  const created = await gql(cfg.hashes.createBasket, 'CreateBasket', {});
+                  // CreateBasket + add parallel: scheelt een RTT.
+                  const [created, addResp] = await Promise.all([
+                    gql(cfg.hashes.createBasket, 'CreateBasket', {}),
+                    fetch('/nl/rnwy/basket/v2/items', {
+                      method: 'POST',
+                      credentials: 'include',
+                      headers: restHeaders,
+                      body: JSON.stringify({
+                        globalId: cfg.productId,
+                        quantity: 1,
+                        offerUid: cfg.offerUid,
+                      }),
+                    }),
+                  ]);
+
                   const basketId = created.json?.data?.basket?.createBasketV2?.id;
                   if (!basketId) {
                     return { ok: false, error: 'Geen basketId van bol.com ontvangen', created };
                   }
 
-                  const addResp = await fetch('/nl/rnwy/basket/v2/items', {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: restHeaders,
-                    body: JSON.stringify({
-                      globalId: cfg.productId,
-                      quantity: 1,
-                      offerUid: cfg.offerUid,
-                    }),
-                  });
                   const addText = await addResp.text();
                   if (addResp.status >= 400 && addResp.status !== 409) {
                     return { ok: false, error: `Toevoegen mislukt (${addResp.status}): ${addText}` };
@@ -369,11 +378,23 @@ class BolStockChecker:
                     updatedBasket?.items?.[0]?.quantity ??
                     updatedBasket?.quantity ??
                     null;
-                  const title = updatedBasket?.items?.[0]?.sellingOffer?.product?.title || null;
+                  let title = updatedBasket?.items?.[0]?.sellingOffer?.product?.title || null;
+                  let state = updatedBasket || null;
 
-                  const messages = await (await fetch('/nl/rnwy/basket/messages', {
-                    credentials: 'include', headers: restHeaders,
-                  })).json();
+                  // Fallback als GraphQL geen quantity teruggeeft (race/flaky response).
+                  if (available == null) {
+                    state = await (await fetch('/nl/rnwy/basket/state', {
+                      credentials: 'include', headers: restHeaders,
+                    })).json();
+                    available = (state.itemRows || [])[0]?.quantity ?? null;
+                    title = (state.itemRows || [])[0]?.productTitle || title;
+                  }
+
+                  if (available == null) {
+                    return { ok: false, error: 'Geen voorraadaantal ontvangen', update, state };
+                  }
+
+                  const stockAdjusted = Number(available) < Number(cfg.maxQuantity);
 
                   if (cfg.cleanup) {
                     gql(cfg.hashes.removeItem, 'RemoveItem', {
@@ -387,8 +408,8 @@ class BolStockChecker:
                     itemId,
                     available,
                     title,
-                    messages,
-                    state: updatedBasket || null,
+                    stockAdjusted,
+                    state,
                   };
                 }""",
                 payload,
@@ -398,22 +419,9 @@ class BolStockChecker:
             raise RuntimeError(raw.get("error") or "Onbekende fout tijdens voorraadcheck")
 
         available = raw.get("available")
-        messages = (raw.get("messages") or {}).get("messages") or []
-        stock_adjusted = any(
-            msg.get("messageKey")
-            in {
-                "ITEM_STOCK_NOT_ENOUGH",
-                "ITEM_QUANTITY_LIMIT_REACHED",
-                "ITEM_QUANTITY_LIMIT_REACHED_GPC",
-                "RestrictedItemQuantityChanged",
-            }
-            for msg in messages
-        )
-        message = None
-        for msg in messages:
-            if msg.get("messageBody"):
-                message = msg["messageBody"]
-                break
+        stock_adjusted = bool(raw.get("stockAdjusted"))
+        if available is not None and int(available) < self.max_quantity:
+            stock_adjusted = True
 
         return StockResult(
             product_id=product_id,
@@ -427,7 +435,11 @@ class BolStockChecker:
             ),
             stock_adjusted=stock_adjusted,
             product_title=raw.get("title") or title,
-            message=message,
+            message=(
+                f"Bol.com leverde {available} i.p.v. {self.max_quantity} stuks."
+                if stock_adjusted and available is not None
+                else None
+            ),
             elapsed_seconds=round(time.perf_counter() - started, 2),
             raw_basket=raw.get("state") if include_raw else None,
         )
