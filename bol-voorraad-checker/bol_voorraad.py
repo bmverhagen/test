@@ -1304,41 +1304,52 @@ class BolStockChecker:
                     break
                 elif failed:
                     block_streak = 0
-                    if progress:
-                        print(
-                            f"Chunk {chunk_idx + 1}/{len(chunks)}: "
-                            f"{len(failed)} geblokkeerd → korte retry",
-                            flush=True,
+                    # Bij veel blocks: geen korte retry (kost seconden×N) → eind-pass.
+                    if len(failed) > 3:
+                        pending_retry.extend(
+                            by_id[str(r["productId"])]
+                            for r in failed
+                            if str(r["productId"]) in by_id
                         )
-                    time.sleep(3.0)
-                    self._turbo_warm(
-                        page,
-                        [str(r["productId"]) for r in failed] + warm_list[:3],
-                    )
-                    retry_products = [
-                        by_id[str(r["productId"])]
-                        for r in failed
-                        if str(r["productId"]) in by_id
-                    ]
-                    # Hergebruik basket als die nog bestaat; forceer geen create.
-                    rows2, basket_id = _eval_chunk(
-                        retry_products, use_basket=basket_id, backoff_ms=2500
-                    )
-                    by_retry = {str(r.get("productId")): r for r in rows2}
-                    new_rows = []
-                    for r in rows:
-                        pid = str(r.get("productId"))
-                        if pid in by_retry:
-                            new_rows.append(by_retry[pid])
-                        else:
-                            new_rows.append(r)
-                    rows = new_rows
-                    still = [r for r in rows if not r.get("ok") and _is_block_row(r)]
-                    pending_retry.extend(
-                        by_id[str(r["productId"])]
-                        for r in still
-                        if str(r["productId"]) in by_id
-                    )
+                        if progress:
+                            print(
+                                f"Chunk {chunk_idx + 1}/{len(chunks)}: "
+                                f"{len(failed)} geblokkeerd → eind-pass "
+                                f"(skip korte retry)",
+                                flush=True,
+                            )
+                    else:
+                        if progress:
+                            print(
+                                f"Chunk {chunk_idx + 1}/{len(chunks)}: "
+                                f"{len(failed)} geblokkeerd → korte retry",
+                                flush=True,
+                            )
+                        time.sleep(2.0)
+                        self._turbo_warm(
+                            page,
+                            [str(r["productId"]) for r in failed] + warm_list[:3],
+                        )
+                        retry_products = [
+                            by_id[str(r["productId"])]
+                            for r in failed
+                            if str(r["productId"]) in by_id
+                        ]
+                        rows2, basket_id = _eval_chunk(
+                            retry_products, use_basket=basket_id, backoff_ms=1500
+                        )
+                        by_retry = {str(r.get("productId")): r for r in rows2}
+                        rows = [
+                            by_retry.get(str(r.get("productId")), r) for r in rows
+                        ]
+                        still = [
+                            r for r in rows if not r.get("ok") and _is_block_row(r)
+                        ]
+                        pending_retry.extend(
+                            by_id[str(r["productId"])]
+                            for r in still
+                            if str(r["productId"]) in by_id
+                        )
                 else:
                     block_streak = 0
 
