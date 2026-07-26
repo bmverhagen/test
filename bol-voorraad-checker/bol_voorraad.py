@@ -1398,13 +1398,14 @@ class BolStockChecker:
                 missing.append(product)
 
         cookie_jars: list[list[dict[str, Any]]] = []
+        flat_rows: list[dict[str, Any]] = []
+        warm_list: list[str] = []
         with Camoufox(**self._camoufox_kwargs()) as browser:
             # Resolve missing offers on first warm context.
             warm_candidates = [p["productId"] for p in prepared] + [
                 extract_product_id(p) for p in missing
             ]
             seen: set[str] = set()
-            warm_list = []
             for wid in warm_candidates:
                 if wid not in seen:
                     seen.add(wid)
@@ -1461,105 +1462,109 @@ class BolStockChecker:
                 except Exception:
                     pass
 
-            if not cookie_jars:
-                if progress:
-                    print("Dual-HTTP warmup mislukt → fallback turbo JS", flush=True)
-                return self.check_batch_turbo(
-                    products_list,
-                    cleanup=cleanup,
-                    out_path=out_path,
-                    progress=progress,
-                )
-
-            by_id = {p["productId"]: p for p in prepared}
-            ordered = [
-                by_id[extract_product_id(p)]
-                for p in products_list
-                if extract_product_id(p) in by_id
-            ]
-            if progress:
-                print(
-                    f"Dual-HTTP: {len(ordered)} producten, {len(cookie_jars)} sessies "
-                    f"(cache-hits={len(ordered) - len(missing)})",
-                    flush=True,
-                )
-
-            chunks = _chunked(ordered, len(cookie_jars))
-            # Pad chunks to jar count
-            while len(chunks) < len(cookie_jars):
-                chunks.append([])
-            chunk_rows: list[list[dict[str, Any]]] = [[] for _ in chunks]
-            lock = threading.Lock()
-
-            def _run(idx: int) -> None:
-                rows = self._http_cart_loop(
-                    cookie_jars[idx], chunks[idx], cleanup=cleanup
-                )
-                with lock:
-                    chunk_rows[idx] = rows
-                    if progress:
-                        ok_n = sum(1 for r in rows if r.get("ok"))
-                        print(
-                            f"Sessie {idx + 1}/{len(cookie_jars)}: "
-                            f"{ok_n}/{len(rows)} ok",
-                            flush=True,
-                        )
-
-            threads = [
-                threading.Thread(target=_run, args=(i,), daemon=True)
-                for i in range(len(cookie_jars))
-                if chunks[i]
-            ]
-            for t in threads:
-                t.start()
-            for t in threads:
-                t.join()
-
-            # Keep browser alive until HTTP loops finish (Akamai cookies).
-            flat_rows: list[dict[str, Any]] = []
-            for rows in chunk_rows:
-                flat_rows.extend(rows)
-
-            failed = [
-                by_id[str(r["productId"])]
-                for r in flat_rows
-                if not r.get("ok")
-                and str(r.get("productId")) in by_id
-                and (
-                    r.get("blocked")
-                    or "403" in str(r.get("error") or "")
-                    or "429" in str(r.get("error") or "")
-                    or "CreateBasket" in str(r.get("error") or "")
-                )
-            ]
-            if failed and cookie_jars:
-                if progress:
-                    print(
-                        f"Dual-HTTP retry: {len(failed)} items op sessie 1 "
-                        f"(cooldown 8s)",
-                        flush=True,
-                    )
-                time.sleep(8)
-                # Re-warm first context briefly
-                ctx = browser.new_context()
-                page = ctx.new_page()
-                self._setup_page(page)
-                self._turbo_warm(page, [p["productId"] for p in failed[:8]] + warm_list[:4])
-                retry_cookies = ctx.cookies()
-                try:
-                    page.close()
-                except Exception:
-                    pass
-                retry_rows = self._http_cart_loop(
-                    retry_cookies, failed, cleanup=cleanup
-                )
-                by_retry = {str(r.get("productId")): r for r in retry_rows}
-                flat_rows = [
-                    by_retry.get(str(r.get("productId")), r) for r in flat_rows
+            if cookie_jars:
+                by_id = {p["productId"]: p for p in prepared}
+                ordered = [
+                    by_id[extract_product_id(p)]
+                    for p in products_list
+                    if extract_product_id(p) in by_id
                 ]
                 if progress:
-                    ok_n = sum(1 for r in retry_rows if r.get("ok"))
-                    print(f"Retry klaar: {ok_n}/{len(retry_rows)} ok", flush=True)
+                    print(
+                        f"Dual-HTTP: {len(ordered)} producten, {len(cookie_jars)} sessies "
+                        f"(cache-hits={len(ordered) - len(missing)})",
+                        flush=True,
+                    )
+
+                chunks = _chunked(ordered, len(cookie_jars))
+                while len(chunks) < len(cookie_jars):
+                    chunks.append([])
+                chunk_rows: list[list[dict[str, Any]]] = [[] for _ in chunks]
+                lock = threading.Lock()
+
+                def _run(idx: int) -> None:
+                    rows = self._http_cart_loop(
+                        cookie_jars[idx], chunks[idx], cleanup=cleanup
+                    )
+                    with lock:
+                        chunk_rows[idx] = rows
+                        if progress:
+                            ok_n = sum(1 for r in rows if r.get("ok"))
+                            print(
+                                f"Sessie {idx + 1}/{len(cookie_jars)}: "
+                                f"{ok_n}/{len(rows)} ok",
+                                flush=True,
+                            )
+
+                threads = [
+                    threading.Thread(target=_run, args=(i,), daemon=True)
+                    for i in range(len(cookie_jars))
+                    if chunks[i]
+                ]
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join()
+
+                # Keep browser alive until HTTP loops finish (Akamai cookies).
+                for rows in chunk_rows:
+                    flat_rows.extend(rows)
+
+                failed = [
+                    by_id[str(r["productId"])]
+                    for r in flat_rows
+                    if not r.get("ok")
+                    and str(r.get("productId")) in by_id
+                    and (
+                        r.get("blocked")
+                        or "403" in str(r.get("error") or "")
+                        or "429" in str(r.get("error") or "")
+                        or "CreateBasket" in str(r.get("error") or "")
+                    )
+                ]
+                if failed:
+                    if progress:
+                        print(
+                            f"Dual-HTTP retry: {len(failed)} items "
+                            f"(cooldown 8s)",
+                            flush=True,
+                        )
+                    time.sleep(8)
+                    ctx = browser.new_context()
+                    page = ctx.new_page()
+                    self._setup_page(page)
+                    self._turbo_warm(
+                        page,
+                        [p["productId"] for p in failed[:8]] + warm_list[:4],
+                        max_attempts=6,
+                        deep=True,
+                    )
+                    retry_cookies = ctx.cookies()
+                    try:
+                        page.close()
+                    except Exception:
+                        pass
+                    retry_rows = self._http_cart_loop(
+                        retry_cookies, failed, cleanup=cleanup
+                    )
+                    by_retry = {str(r.get("productId")): r for r in retry_rows}
+                    flat_rows = [
+                        by_retry.get(str(r.get("productId")), r) for r in flat_rows
+                    ]
+                    if progress:
+                        ok_n = sum(1 for r in retry_rows if r.get("ok"))
+                        print(f"Retry klaar: {ok_n}/{len(retry_rows)} ok", flush=True)
+
+        if not cookie_jars:
+            if progress:
+                print("Dual-HTTP warmup mislukt → fallback turbo JS", flush=True)
+            # Belangrijk: buiten de Camoufox-context hierboven (geen nested sync API).
+            return self.check_batch_turbo(
+                products_list,
+                cleanup=cleanup,
+                out_path=out_path,
+                progress=progress,
+            )
 
         results_by_id = {
             str(r.get("productId")): self._row_to_stock_result(r) for r in flat_rows
