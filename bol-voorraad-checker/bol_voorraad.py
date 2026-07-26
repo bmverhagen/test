@@ -48,7 +48,8 @@ BLOCKED_URL_SNIPPETS = (
 
 CART_JS = """
 async (cfg) => {
-  // Snelle basket-flow: parallel create/state, hergebruik bestaande regel, geen cleanup.
+  // Minimale backend-flow (~0.5–0.9s met offer-cache):
+  // CreateBasket || add(qty=1) parallel → UpdateItemQuantity(500) → quantity uit GraphQL.
   const xsrfMatch = document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]+)/);
   const xsrf = xsrfMatch ? decodeURIComponent(xsrfMatch[1]) : '';
   const pageId = crypto.randomUUID();
@@ -99,8 +100,18 @@ async (cfg) => {
   const createP = basketId
     ? Promise.resolve(null)
     : gql(cfg.hashes.createBasket, 'CreateBasket', {});
-  const stateP = readState();
-  const [created, state0] = await Promise.all([createP, stateP]);
+  const addP = fetch('/nl/rnwy/basket/v2/items', {
+    method: 'POST',
+    credentials: 'include',
+    headers: restHeaders,
+    body: JSON.stringify({
+      globalId: cfg.productId,
+      quantity: 1,
+      offerUid: cfg.offerUid,
+    }),
+  }).then(async (r) => ({ status: r.status, text: await r.text() }));
+
+  const [created, add] = await Promise.all([createP, addP]);
   if (!basketId) {
     basketId = created?.json?.data?.basket?.createBasketV2?.id;
     if (!basketId) {
@@ -108,48 +119,20 @@ async (cfg) => {
     }
   }
 
-  let itemId = (state0.itemRows || []).find(
-    (row) => String(row.productId) === String(cfg.productId)
-  )?.id || null;
-
+  let itemId = null;
+  try { itemId = JSON.parse(add.text).itemId; } catch {}
   if (!itemId) {
-    const addResp = await fetch('/nl/rnwy/basket/v2/items', {
-      method: 'POST',
-      credentials: 'include',
-      headers: restHeaders,
-      body: JSON.stringify({
-        globalId: cfg.productId,
-        quantity: 1,
-        offerUid: cfg.offerUid,
-      }),
-    });
-    const addText = await addResp.text();
-    if (addResp.status >= 400) {
-      // Mogelijk al aanwezig / conflict: state opnieuw lezen.
-      const state = await readState();
-      itemId = (state.itemRows || []).find(
-        (row) => String(row.productId) === String(cfg.productId)
-      )?.id || null;
-      if (!itemId) {
-        return {
-          ok: false,
-          error: `Toevoegen mislukt (${addResp.status}): ${addText}`,
-          basketId,
-        };
-      }
-    } else {
-      try { itemId = JSON.parse(addText).itemId; } catch {}
-      if (!itemId) {
-        const state = await readState();
-        itemId = (state.itemRows || []).find(
-          (row) => String(row.productId) === String(cfg.productId)
-        )?.id || null;
-      }
-    }
+    const state = await readState();
+    itemId = (state.itemRows || []).find(
+      (row) => String(row.productId) === String(cfg.productId)
+    )?.id || null;
   }
-
   if (!itemId) {
-    return { ok: false, error: 'Geen itemId na toevoegen aan winkelwagen', basketId };
+    return {
+      ok: false,
+      error: `Toevoegen mislukt (${add.status}): ${add.text}`,
+      basketId,
+    };
   }
 
   const update = await gql(cfg.hashes.updateQty, 'UpdateItemQuantity', {
@@ -166,32 +149,25 @@ async (cfg) => {
 
   const updatedBasket = update.json?.data?.basket?.updateItemQuantityV2;
   const items = updatedBasket?.items || [];
-  const item =
-    items.find((i) => i?.id === itemId) ||
-    items.find((i) => String(i?.sellingOffer?.product?.id || i?.productId || '') === String(cfg.productId)) ||
-    null;
+  // Match op itemId (betrouwbaar); productId in GraphQL is vaak anders gevormd.
+  let item = items.find((i) => i?.id === itemId) || null;
+  if (!item) {
+    item = items.find(
+      (i) => String(i?.sellingOffer?.offerUid || '') === String(cfg.offerUid)
+    ) || null;
+  }
 
-  // State is bron van waarheid voor dit productId (GraphQL items-shape wisselt).
-  let outState = await readState();
-  let row = (outState.itemRows || []).find(
-    (r) => String(r.productId) === String(cfg.productId)
-  );
-  let available = row?.quantity ?? item?.quantity ?? null;
-  let title = row?.productTitle || item?.sellingOffer?.product?.title || null;
+  let available = item?.quantity ?? null;
+  let title = item?.sellingOffer?.product?.title || null;
+  let outState = updatedBasket || null;
 
-  // Soms blijft qty op 1 na een flaky update — één retry.
-  if (available === 1 && Number(cfg.maxQuantity) > 1) {
-    const retry = await gql(cfg.hashes.updateQty, 'UpdateItemQuantity', {
-      input: { basketId, itemId, quantity: cfg.maxQuantity },
-    });
-    if (!(retry.status >= 400 || retry.json?.errors)) {
-      outState = await readState();
-      row = (outState.itemRows || []).find(
-        (r) => String(r.productId) === String(cfg.productId)
-      );
-      available = row?.quantity ?? available;
-      title = row?.productTitle || title;
-    }
+  if (available == null) {
+    outState = await readState();
+    const row = (outState.itemRows || []).find(
+      (r) => String(r.productId) === String(cfg.productId)
+    );
+    available = row?.quantity ?? null;
+    title = row?.productTitle || title;
   }
 
   if (available == null) {
@@ -210,6 +186,7 @@ async (cfg) => {
     itemId,
     available,
     title,
+    path: 'parallel-create-add-update',
     stockAdjusted: Number(available) < Number(cfg.maxQuantity),
     state: outState,
   };
