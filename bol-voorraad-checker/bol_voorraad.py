@@ -668,8 +668,9 @@ class BolStockChecker:
         self.turbo_chunk_size = 100
         self.turbo_chunk_pause = 0.0
         # Dual HTTP: N Camoufox-contexts → N cookie-jars → parallel requests.
-        # 2 is de sweet spot (3 helpt soms, maar warmup-fails kosten wall-clock).
-        self.http_sessions = 2
+        # 3 sessies is vaak sneller; parallelle baskets per jar geven extra throughput.
+        self.http_sessions = 3
+        self.http_baskets = 1
 
     def _import_camoufox(self):
         try:
@@ -1070,6 +1071,7 @@ class BolStockChecker:
                     out_path=out_path,
                     progress=progress,
                     sessions=self.http_sessions,
+                    baskets=self.http_baskets,
                 )
             return self.check_batch_turbo(
                 products_list,
@@ -1372,9 +1374,14 @@ class BolStockChecker:
         cleanup: bool = True,
         out_path: Optional[Path] = None,
         progress: bool = True,
-        sessions: int = 2,
+        sessions: int = 3,
+        baskets: int = 1,
     ) -> list[StockResult]:
-        """Snelste pad op 1 IP: N Camoufox-contexts → parallelle HTTP cart-loops."""
+        """Snelste pad op 1 IP: N Camoufox-contexts → parallelle HTTP cart-loops.
+
+        ``baskets`` > 1 start meerdere CreateBasket-loops per cookie-jar
+        (meer throughput, iets meer kans op add-fails → retry vangt dat op).
+        """
         try:
             import requests  # noqa: F401
         except ImportError as exc:
@@ -1386,6 +1393,7 @@ class BolStockChecker:
         products_list = list(products)
         started_all = time.perf_counter()
         sessions = max(1, min(int(sessions), 4))
+        baskets = max(1, min(int(baskets), 4))
 
         prepared: list[dict[str, str]] = []
         missing: list[str] = []
@@ -1472,6 +1480,7 @@ class BolStockChecker:
                 if progress:
                     print(
                         f"Dual-HTTP: {len(ordered)} producten, {len(cookie_jars)} sessies "
+                        f"× {baskets} basket(s) "
                         f"(cache-hits={len(ordered) - len(missing)})",
                         flush=True,
                     )
@@ -1483,9 +1492,31 @@ class BolStockChecker:
                 lock = threading.Lock()
 
                 def _run(idx: int) -> None:
-                    rows = self._http_cart_loop(
-                        cookie_jars[idx], chunks[idx], cleanup=cleanup
-                    )
+                    items = chunks[idx]
+                    if baskets <= 1 or len(items) <= 1:
+                        rows = self._http_cart_loop(
+                            cookie_jars[idx], items, cleanup=cleanup
+                        )
+                    else:
+                        # Meerdere baskets op dezelfde cookie-jar = parallelle cart-RTT's.
+                        sub = [items[i::baskets] for i in range(baskets)]
+                        sub_rows: list[list[dict[str, Any]]] = [[] for _ in sub]
+                        sub_threads = []
+                        for bi, sub_items in enumerate(sub):
+                            if not sub_items:
+                                continue
+
+                            def _basket(b: int = bi, prod: list = sub_items) -> None:
+                                sub_rows[b] = self._http_cart_loop(
+                                    cookie_jars[idx], prod, cleanup=cleanup
+                                )
+
+                            t = threading.Thread(target=_basket, daemon=True)
+                            sub_threads.append(t)
+                            t.start()
+                        for t in sub_threads:
+                            t.join()
+                        rows = [r for part in sub_rows for r in part]
                     with lock:
                         chunk_rows[idx] = rows
                         if progress:
@@ -1510,26 +1541,20 @@ class BolStockChecker:
                 for rows in chunk_rows:
                     flat_rows.extend(rows)
 
+                # Retry alle fails (niet alleen 403): parallelle baskets geven soms add-fails.
                 failed = [
                     by_id[str(r["productId"])]
                     for r in flat_rows
-                    if not r.get("ok")
-                    and str(r.get("productId")) in by_id
-                    and (
-                        r.get("blocked")
-                        or "403" in str(r.get("error") or "")
-                        or "429" in str(r.get("error") or "")
-                        or "CreateBasket" in str(r.get("error") or "")
-                    )
+                    if not r.get("ok") and str(r.get("productId")) in by_id
                 ]
                 if failed:
                     if progress:
                         print(
                             f"Dual-HTTP retry: {len(failed)} items "
-                            f"(cooldown 8s)",
+                            f"(cooldown 5s)",
                             flush=True,
                         )
-                    time.sleep(8)
+                    time.sleep(5)
                     ctx = browser.new_context()
                     page = ctx.new_page()
                     self._setup_page(page)
@@ -1544,6 +1569,7 @@ class BolStockChecker:
                         page.close()
                     except Exception:
                         pass
+                    # Serieel retry (stabieler dan opnieuw parallel).
                     retry_rows = self._http_cart_loop(
                         retry_cookies, failed, cleanup=cleanup
                     )
@@ -2315,13 +2341,19 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--fast",
         action="store_true",
-        help="Snelst: dual HTTP-sessies + offer-cache (of turbo JS fallback)",
+        help="Snelst stabiel: 3 HTTP-sessies + offer-cache (optioneel --baskets 2)",
     )
     parser.add_argument(
         "--sessions",
         type=int,
         default=None,
-        help="Parallelle cookie-sessies voor --fast/--turbo (default 2 zonder proxy)",
+        help="Parallelle cookie-sessies voor --fast/--turbo (default 3 zonder proxy)",
+    )
+    parser.add_argument(
+        "--baskets",
+        type=int,
+        default=None,
+        help="Parallelle baskets per cookie-sessie (default 1; 2 is sneller maar fragieler)",
     )
     parser.add_argument(
         "--turbo",
@@ -2352,6 +2384,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     offer_cache_path = args.offer_cache
     turbo = args.turbo
     http_sessions = 1
+    http_baskets = 1
     if args.fast:
         delay = 0.0
         # Cleanup aan: RemoveItem fire-and-forget (kritieke pad = add+update).
@@ -2362,15 +2395,21 @@ def main(argv: Optional[list[str]] = None) -> int:
             if workers <= 1:
                 workers = 2
             http_sessions = 1
+            http_baskets = 1
         else:
             workers = 1
-            http_sessions = 2
+            # Stabielst/snelst op 1 IP: 3 sessies × 1 basket (~32s/100).
+            # --baskets 2 kan ~15–20s/100, maar faalt sneller bij Akamai-druk.
+            http_sessions = 3
+            http_baskets = 1
         if offer_cache_path is None:
             offer_cache_path = Path("offer_cache.json")
     if args.sessions is not None:
         http_sessions = max(1, min(args.sessions, 4))
+    if args.baskets is not None:
+        http_baskets = max(1, min(args.baskets, 4))
     if args.turbo and not args.fast and args.sessions is None and not args.proxy:
-        http_sessions = 2
+        http_sessions = 3
 
     checker = BolStockChecker(
         max_quantity=args.max_quantity,
@@ -2383,6 +2422,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         proxy=args.proxy,
     )
     checker.http_sessions = http_sessions
+    checker.http_baskets = http_baskets
 
     # Collect and/or batch mode.
     if args.collect or args.batch:

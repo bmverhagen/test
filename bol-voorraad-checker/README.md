@@ -34,8 +34,11 @@ python bol_voorraad.py 9300000123456789 --offer-uid 41925260-65c5-4e37-be1e-7a4b
 # JSON-output
 python bol_voorraad.py 9300000123456789 --json
 
-# Snelst zonder extra IP: turbo JS-loop + offer-cache (~0.5–0.9s/product)
+# Snelst stabiel zonder extra IP: 3 HTTP-sessies + offer-cache
 python bol_voorraad.py --batch products.txt --out results.jsonl --fast
+
+# Aggressiever (sneller, fragieler bij Akamai-druk)
+python bol_voorraad.py --batch products.txt --fast --baskets 2
 
 # Echt sneller wall-clock: meerdere proxies / exit-IP's
 python bol_voorraad.py --batch products.txt --out results.jsonl --fast --workers 4 --proxy http://user:pass@host:port
@@ -57,7 +60,9 @@ python bol_voorraad.py --batch products.txt --out results.jsonl --fast --workers
 | `--out FILE` | JSONL-resultatenbestand |
 | `--delay SEC` | Pauze tussen batch-items (default 0) |
 | `--workers N` | Parallelle browsers (het best met `--proxy`) |
-| `--fast` | Turbo JS-loop + offer-cache + delay=0 |
+| `--fast` | 3 HTTP-sessies + offer-cache + delay=0 |
+| `--sessions N` | Parallelle cookie-sessies (1–4; default 3 bij --fast) |
+| `--baskets N` | Parallelle baskets per sessie (1–4; 2 = sneller/fragieler) |
 | `--turbo` | Hele batch in één browser JS-loop |
 | `--proxy URL` | Proxy voor parallelle snelheid |
 | `--offer-cache FILE` | Cache productId→offerUid (cart-only) |
@@ -80,18 +85,19 @@ Als bol.com `500` teruggeeft zonder voorraadmelding, is de voorraad **mogelijk 5
 
 | Pad | Tijd | Succes |
 | --- | --- | --- |
-| `--fast` (2 HTTP-sessies, 1 IP) | **~38s/100** (~2.7/s) | hoog (gemeten 100/100) |
-| `--fast --sessions 3` | soms **~34s/100** | hoog als alle warms lukken |
+| `--fast` (3 sessies × 1 basket) | **~32s/100** (~3.2/s) | zeer hoog |
+| `--fast --baskets 2` | **~15–22s/100** (piek ~5–7/s) | hoog bij schone IP; anders retry |
+| `--fast --sessions 2` | ~40s/100 (~2.5/s) | hoog |
 | 1 sessie turbo JS | ~60s/100 | hoog |
 | `--workers N` zonder proxy | vaak trager | slechter |
 | `--workers N --proxy …` | wall-clock ≈ /N | hoog met aparte exit-IP’s |
 
-`--fast` warmed **meerdere Camoufox-contexts** (aparte cookie-jars) en runt parallelle `requests` cart-loops. Per sessie blijft de vloer add+update (~0.5s); wall-clock schaalt met `#sessies`.
+`--fast` warmed **meerdere Camoufox-contexts** (aparte cookie-jars) en runt parallelle `requests` cart-loops, optioneel met meerdere baskets per jar. Per basket blijft de vloer add+update (~0.5s); wall-clock schaalt met `#sessies × #baskets` tot Akamai remt.
 
 Geen publieke stock-API voor willekeurige producten. Retailer API = alleen eigen offers. Losse HTTP/`curl` → **403** (Akamai).
 
 Optimalisaties:
-- Chunked turbo JS-loop + basket-hergebruik
+- Parallelle baskets per cookie-jar + fail-retry
 - Werkende `BasketRemoveItemMutation` (fire-and-forget) houdt cart leeg → updates blijven ~0.5s
 - 403 fail-fast + cooldown end-pass
 - Offer-cache slaat HTML-stap over
