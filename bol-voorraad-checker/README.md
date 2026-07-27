@@ -1,0 +1,119 @@
+# Bol.com voorraadchecker (winkelwagenmethode)
+
+Python-script dat de beschikbare voorraad van een bol.com-product bepaalt met de **winkelwagenmethode**:
+
+1. Productpagina openen
+2. Product in de winkelwagen zetten
+3. Aantal verhogen naar **500** (GraphQL `UpdateItemQuantity`)
+4. Werkelijke beschikbare hoeveelheid uitlezen
+
+Gebruikt [Camoufox](https://github.com/daijro/camoufox) om bol.com’s botbescherming te passeren.
+
+## Installatie
+
+```bash
+cd bol-voorraad-checker
+python3 -m venv .venv
+source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+camoufox fetch
+```
+
+## Gebruik
+
+```bash
+# Via product-URL
+python bol_voorraad.py "https://www.bol.com/nl/nl/p/voorbeeld/9300000123456789/"
+
+# Via product-id
+python bol_voorraad.py 9300000123456789
+
+# Specifieke offer
+python bol_voorraad.py 9300000123456789 --offer-uid 41925260-65c5-4e37-be1e-7a4b47ba40d1
+
+# JSON-output
+python bol_voorraad.py 9300000123456789 --json
+
+# Snelst stabiel zonder extra IP: 3 HTTP-sessies + offer-cache
+python bol_voorraad.py --batch products.txt --out results.jsonl --fast
+
+# Aggressiever (sneller, fragieler bij Akamai-druk)
+python bol_voorraad.py --batch products.txt --fast --baskets 2
+
+# Echt sneller wall-clock: meerdere proxies / exit-IP's
+python bol_voorraad.py --batch products.txt --out results.jsonl --fast --workers 4 --proxy http://user:pass@host:port
+```
+
+### Opties
+
+| Optie | Betekenis |
+| --- | --- |
+| `--max-quantity 500` | Aantal dat in de winkelwagen gezet wordt |
+| `--offer-uid` | UUID van een specifieke verkoper-offer |
+| `--country nl\|be` | Nederlandse of Belgische shop |
+| `--json` | Machineleesbare output |
+| `--keep-in-cart` | Product niet opruimen na de check |
+| `--headed` | Browser zichtbaar maken |
+| `--batch FILE` | Product-ids/URLs (één per regel) |
+| `--collect N` | Verzamel N product-ids van bol.com |
+| `--batch-run` | Na `--collect` meteen voorraad checken |
+| `--out FILE` | JSONL-resultatenbestand |
+| `--delay SEC` | Pauze tussen batch-items (default 0) |
+| `--workers N` | Parallelle browsers (het best met `--proxy`) |
+| `--fast` | 3 HTTP-sessies + offer-cache + delay=0 |
+| `--sessions N` | Parallelle cookie-sessies (1–4; default 3 bij --fast) |
+| `--baskets N` | Parallelle baskets per sessie (1–4; 2 = sneller/fragieler) |
+| `--turbo` | Hele batch in één browser JS-loop |
+| `--proxy URL` | Proxy voor parallelle snelheid |
+| `--offer-cache FILE` | Cache productId→offerUid (cart-only) |
+| `--isolated` | Batch: verse browser-context per product |
+
+## Voorbeelduitvoer
+
+```text
+Product   : Wonact Muggenlamp - 4000V - ...
+Product-id: 9300000183271157
+Offer-uid : a538d4f8-dd41-4cfd-a46a-0092e2c871c2
+Voorraad  : 490 (aangepast door bol.com na limiet/voorraadcheck)
+Opgevraagd : 500
+Melding   : Het artikel ... is niet leverbaar in de gewenste hoeveelheid...
+```
+
+Als bol.com `500` teruggeeft zonder voorraadmelding, is de voorraad **mogelijk 500 of hoger**.
+
+## Snelheid
+
+| Pad | Tijd | Succes |
+| --- | --- | --- |
+| `--fast` (3 sessies × 1 basket) | **~32s/100** (~3.2/s) | zeer hoog |
+| `--fast --baskets 2` | **~15–22s/100** (piek ~5–7/s) | hoog bij schone IP; anders retry |
+| `--fast --sessions 2` | ~40s/100 (~2.5/s) | hoog |
+| 1 sessie turbo JS | ~60s/100 | hoog |
+| `--workers N` zonder proxy | vaak trager | slechter |
+| `--workers N --proxy …` | wall-clock ≈ /N | hoog met aparte exit-IP’s |
+
+`--fast` warmed **meerdere Camoufox-contexts** (aparte cookie-jars) en runt parallelle `requests` cart-loops, optioneel met meerdere baskets per jar. Per basket blijft de vloer add+update (~0.5s); wall-clock schaalt met `#sessies × #baskets` tot Akamai remt.
+
+Geen publieke stock-API voor willekeurige producten. Retailer API = alleen eigen offers. Losse HTTP/`curl` → **403** (Akamai).
+
+Optimalisaties:
+- Parallelle baskets per cookie-jar + fail-retry
+- Werkende `BasketRemoveItemMutation` (fire-and-forget) houdt cart leeg → updates blijven ~0.5s
+- 403 fail-fast + cooldown end-pass
+- Offer-cache slaat HTML-stap over
+- Echte parallelle snelheid alleen met proxies (zelfde cloud-IP → Akamai)
+
+## Technische flow
+
+1. Camoufox voor Akamai-TLS + cookies (+ HTML alleen voor `offerUid` indien onbekend)
+2. Parallel: GraphQL `CreateBasket` + REST `POST /nl/rnwy/basket/v2/items` (qty 1)
+3. GraphQL `UpdateItemQuantity` → 500
+4. Voorraad = `items[].quantity` gematcht op `itemId`
+
+Direct `POST` met `quantity:500` is sneller maar onbetrouwbaar (vaak qty=1 zonder echte stock-cap).
+
+## Let op
+
+- Publieke website-API van bol.com, geen officiële Retailer API
+- Gebruik spaarzaam; veel requests → tijdelijke blokkades
+- Alleen voor eigen productresearch / educatief gebruik
