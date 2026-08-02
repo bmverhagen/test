@@ -151,7 +151,27 @@ def _room_mentions_balcony(room_name: str | None, card_text: str) -> bool:
 
 
 def parse_search_results(html: str) -> tuple[list[PropertyResult], str | None]:
-    """Parse property cards from a Booking.com searchresults HTML document."""
+    """Parse Booking searchresults HTML.
+
+    Prefers the Capla Apollo store (``data-capla-store-data``) — the same JSON
+    tree as ``POST /dml/graphql`` — and falls back to DOM property cards.
+    """
+    from .capla import parse_capla_html
+
+    capla = parse_capla_html(html)
+    if capla is not None and capla[0]:
+        properties, header = capla
+        soup = BeautifulSoup(html, "lxml")
+        header_el = soup.select_one('[data-testid="header-title"], h1')
+        if header_el:
+            header = header_el.get_text(" ", strip=True) or header
+        return properties, header
+
+    return parse_dom_cards(html)
+
+
+def parse_dom_cards(html: str) -> tuple[list[PropertyResult], str | None]:
+    """Parse visible ``property-card`` DOM nodes (fallback)."""
     soup = BeautifulSoup(html, "lxml")
     header_el = soup.select_one('[data-testid="header-title"], h1')
     header = header_el.get_text(" ", strip=True) if header_el else None

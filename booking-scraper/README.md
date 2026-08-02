@@ -51,6 +51,16 @@ Of als module:
 python -m booking_scraper --max-price 450 --adults 2
 ```
 
+## Backend
+
+Booking levert resultaten niet via de DOM, maar via:
+
+1. **Capla Apollo store** in `script[data-capla-store-data]` (SSR JSON = GraphQL-cache) — dit is wat de scraper primair parset
+2. **`POST /dml/graphql`** (persisted queries, WAF + CSRF vereist)
+3. Officiële **Demand API** (alleen partners)
+
+Details: [BACKEND.md](./BACKEND.md).
+
 ## Filters (techniek)
 
 De scraper bouwt een `searchresults.nl.html`-URL met `nflt`-chips:
