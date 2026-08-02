@@ -28,7 +28,8 @@ class SearchQuery:
     balcony: bool = True
     terrace: bool = False
     balcony_or_terrace: bool = False
-    free_cancellation: bool = False
+    free_cancellation: bool = True
+    available_only: bool = True
     parking: bool = False
     spa: bool = False
     sauna: bool = False
@@ -72,6 +73,9 @@ class PropertyResult:
     balcony_source: str | None = None
     latitude: float | None = None
     longitude: float | None = None
+    free_cancellation: bool = False
+    free_cancellation_until: str | None = None
+    is_available: bool = True
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

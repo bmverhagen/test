@@ -34,6 +34,10 @@ def matches_query(prop: PropertyResult, query: SearchQuery) -> bool:
             return False
     if query.breakfast and not prop.breakfast_included:
         return False
+    if query.available_only and not prop.is_available:
+        return False
+    if query.free_cancellation and not prop.free_cancellation:
+        return False
     return True
 
 

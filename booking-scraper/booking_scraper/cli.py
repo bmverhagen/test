@@ -42,7 +42,8 @@ def build_parser() -> argparse.ArgumentParser:
         epilog=(
             "Voorbeelden:\n"
             "  python scrape.py\n"
-            "  python scrape.py --filter spa,sauna,parking --free-cancellation\n"
+            "  python scrape.py --filter spa,sauna,parking\n"
+            "  python scrape.py --format bookmarks -o bookmarks.html\n"
             "  python scrape.py --stars 3,4 --property-type hotels,bnb --city freiburg\n"
             "  python scrape.py --nflt 'hotelfacility=433;roomfacility=17'\n"
             "  python scrape.py --list-filters\n"
@@ -97,7 +98,16 @@ def build_parser() -> argparse.ArgumentParser:
     fac.add_argument("--spa", action="store_true")
     fac.add_argument("--sauna", action="store_true")
     fac.add_argument("--pets", action="store_true", help="Huisdieren toegestaan")
-    fac.add_argument("--free-cancellation", action="store_true")
+    fac.add_argument(
+        "--no-free-cancellation",
+        action="store_true",
+        help="Gratis annuleren (fc=2) uitzetten — standaard aan",
+    )
+    fac.add_argument(
+        "--no-available-only",
+        action="store_true",
+        help="Alleen beschikbare kamers (oos=1) uitzetten — standaard aan",
+    )
     fac.add_argument(
         "--filter",
         dest="extra_filters",
@@ -152,7 +162,12 @@ def build_parser() -> argparse.ArgumentParser:
     advanced.add_argument("--pages", type=int, default=DEFAULT_MAX_PAGES)
     advanced.add_argument("--delay", type=float, default=DEFAULT_DELAY)
     advanced.add_argument("--from-file", type=Path)
-    advanced.add_argument("--format", choices=("table", "json", "csv"), default="table")
+    advanced.add_argument(
+        "--format",
+        choices=("table", "json", "csv", "bookmarks", "bookmarks-md"),
+        default="table",
+        help="bookmarks = Netscape HTML (importeerbaar in browser)",
+    )
     advanced.add_argument("-o", "--output", type=Path)
     advanced.add_argument("--print-url", action="store_true")
     advanced.add_argument("--print-nflt", action="store_true", help="Print alleen nflt-string")
@@ -203,7 +218,8 @@ def main(argv: list[str] | None = None) -> int:
         balcony=not args.no_balcony and not args.balcony_or_terrace,
         terrace=args.terrace and not args.balcony_or_terrace,
         balcony_or_terrace=args.balcony_or_terrace,
-        free_cancellation=args.free_cancellation,
+        free_cancellation=not args.no_free_cancellation,
+        available_only=not args.no_available_only,
         parking=args.parking,
         spa=args.spa,
         sauna=args.sauna,

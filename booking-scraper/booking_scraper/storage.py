@@ -1,4 +1,4 @@
-"""Serialize scrape reports to JSON or CSV."""
+"""Serialize scrape reports to JSON, CSV, table or bookmarks."""
 
 from __future__ import annotations
 
@@ -8,9 +8,10 @@ import sys
 from pathlib import Path
 from typing import TextIO, Literal
 
+from .bookmarks import write_bookmarks, write_bookmarks_markdown
 from .models import SearchReport
 
-FormatName = Literal["json", "csv", "table"]
+FormatName = Literal["json", "csv", "table", "bookmarks", "bookmarks-md"]
 
 
 def write_json(report: SearchReport, stream: TextIO) -> None:
@@ -31,6 +32,9 @@ def write_csv(report: SearchReport, stream: TextIO) -> None:
         "breakfast_included",
         "room_mentions_balcony",
         "balcony_source",
+        "free_cancellation",
+        "free_cancellation_until",
+        "is_available",
         "room_name",
         "unit_id",
         "url",
@@ -54,7 +58,9 @@ def write_table(report: SearchReport, stream: TextIO) -> None:
         f"# Filters: score>={report.query.min_review_score}, "
         f"totaal<={max_price} {report.query.currency}, "
         f"ontbijt={report.query.breakfast}, zwembad={report.query.swimming_pool}, "
-        f"balkon={report.query.balcony}, terras={report.query.terrace}\n"
+        f"balkon={report.query.balcony}, terras={report.query.terrace}, "
+        f"gratis_annuleren={report.query.free_cancellation}, "
+        f"alleen_beschikbaar={report.query.available_only}\n"
         f"# nflt: {report.nflt or '(geen)'}\n"
         f"# Matches: {len(report.properties)} / {report.cards_seen} kaarten "
         f"({report.pages_scraped} pagina's)\n\n"
@@ -84,7 +90,9 @@ def write_table(report: SearchReport, stream: TextIO) -> None:
             f"{f' ({prop.review_count} reviews)' if prop.review_count else ''}"
             f" | {total} totaal {night}\n"
             f"     {prop.room_name or 'kamer onbekend'} | ontbijt="
-            f"{'ja' if prop.breakfast_included else 'nee'} | {balcony}\n"
+            f"{'ja' if prop.breakfast_included else 'nee'} | {balcony} | "
+            f"annuleerbaar={'ja' if prop.free_cancellation else 'nee'} | "
+            f"beschikbaar={'ja' if prop.is_available else 'nee'}\n"
             f"     {prop.url}\n\n"
         )
 
@@ -112,5 +120,9 @@ def _dispatch(report: SearchReport, stream: TextIO, fmt: FormatName) -> None:
         write_csv(report, stream)
     elif fmt == "table":
         write_table(report, stream)
+    elif fmt == "bookmarks":
+        write_bookmarks(report, stream)
+    elif fmt == "bookmarks-md":
+        write_bookmarks_markdown(report, stream)
     else:  # pragma: no cover
         raise ValueError(f"Unsupported format: {fmt}")

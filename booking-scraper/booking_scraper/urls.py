@@ -47,6 +47,8 @@ def build_nflt_chips(query: SearchQuery) -> list[str]:
             named.append("terrace")
     if query.free_cancellation:
         named.append("free_cancellation")
+    if query.available_only:
+        named.append("available_only")
     if query.parking:
         named.append("parking")
     if query.spa:

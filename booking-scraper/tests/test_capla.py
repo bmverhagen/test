@@ -49,6 +49,9 @@ def test_parse_capla_properties():
     assert first.unit_id == 1654248501
     assert first.latitude == 47.648835
     assert first.longitude == 7.439321
+    assert first.free_cancellation is True
+    assert first.is_available is True
+    assert first.free_cancellation_until is not None
 
 
 def test_parse_search_results_prefers_capla():

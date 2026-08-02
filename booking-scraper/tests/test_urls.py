@@ -8,6 +8,8 @@ def test_default_nflt_uses_corrected_capla_codes():
     assert "mealplan=1" in chips
     assert "hotelfacility=433" in chips  # zwembad
     assert "roomfacility=17" in chips  # balkon
+    assert "fc=2" in chips  # gratis annuleren
+    assert "oos=1" in chips  # alleen beschikbaar
     assert "popular_activities=2" not in chips  # oude foutieve pool-code
     assert "roomfacility=32" not in chips  # oude foutieve balkon-code
     assert "price=0-167-1" in chips
@@ -56,5 +58,16 @@ def test_offset_appended():
 
 
 def test_raw_nflt_preserved():
-    nflt = build_nflt(SearchQuery(raw_nflt=("oos=1",), swimming_pool=False, balcony=False, breakfast=False, min_review_score=0, apply_price_chip=False))
+    nflt = build_nflt(
+        SearchQuery(
+            raw_nflt=("oos=1",),
+            swimming_pool=False,
+            balcony=False,
+            breakfast=False,
+            free_cancellation=False,
+            available_only=False,
+            min_review_score=0,
+            apply_price_chip=False,
+        )
+    )
     assert nflt == "oos=1"

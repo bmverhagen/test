@@ -44,6 +44,10 @@ python scrape.py --enrich-rooms
 # Strenger: alleen kamers mét balkon/terras (na enrichment)
 python scrape.py --require-room-balcony-text
 
+# Bookmarks (Netscape HTML — importeerbaar in Chrome/Firefox)
+python scrape.py --format bookmarks -o bookmarks.html
+python scrape.py --format bookmarks-md -o bookmarks.md
+
 # Offline parse van opgeslagen HTML
 python scrape.py --from-file tests/fixtures/search_results.html --format table
 ```
@@ -66,6 +70,8 @@ Standaard-`nflt` (gecorrigeerd vanuit Capla):
 | Ontbijt | `mealplan=1` |
 | Zwembad | `hotelfacility=433` |
 | Balkon | `roomfacility=17` |
+| Gratis annuleren | `fc=2` |
+| Alleen beschikbaar | `oos=1` |
 | Budget | `price=0-<per-nacht>-1` |
 
 ```bash

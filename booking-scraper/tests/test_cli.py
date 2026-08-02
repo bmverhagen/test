@@ -37,6 +37,8 @@ def test_cli_print_nflt(capsys):
     nflt = capsys.readouterr().out.strip()
     assert "hotelfacility=433" in nflt
     assert "roomfacility=17" in nflt
+    assert "fc=2" in nflt
+    assert "oos=1" in nflt
 
 
 def test_cli_list_filters(capsys):

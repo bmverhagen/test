@@ -209,6 +209,22 @@ def parse_capla_store(store: dict[str, Any]) -> tuple[list[PropertyResult], str 
             cc = (country or "de").lower()
             url = f"https://www.booking.com/hotel/{cc}/{page_name}.html"
 
+        policies = capla.resolve(item.get("policies")) or {}
+        sold_out = capla.resolve(item.get("soldOutInfo")) or {}
+        is_sold_out = bool(
+            isinstance(sold_out, dict) and sold_out.get("isSoldOut")
+        )
+        free_until = None
+        for block_ref in item.get("blocks") or []:
+            block = capla.resolve(block_ref) or {}
+            if isinstance(block, dict) and block.get("freeCancellationUntil"):
+                free_until = str(block["freeCancellationUntil"])
+                break
+        free_cancellation = bool(
+            (isinstance(policies, dict) and policies.get("showFreeCancellation"))
+            or free_until
+        )
+
         evidence = balcony_from_room(name=room_name)
         properties.append(
             PropertyResult(
@@ -228,6 +244,9 @@ def parse_capla_store(store: dict[str, Any]) -> tuple[list[PropertyResult], str 
                 balcony_source=evidence.source if evidence.has_balcony else None,
                 latitude=latitude,
                 longitude=longitude,
+                free_cancellation=free_cancellation,
+                free_cancellation_until=free_until,
+                is_available=not is_sold_out and price_total is not None,
             )
         )
 

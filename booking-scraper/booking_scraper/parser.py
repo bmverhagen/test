@@ -209,6 +209,14 @@ def parse_dom_cards(html: str) -> tuple[list[PropertyResult], str | None]:
 
         per_night, total = _extract_prices(card_text, href)
         breakfast = bool(re.search(r"inclusief ontbijt|breakfast included", card_text, re.I))
+        free_cancellation = bool(
+            re.search(
+                r"gratis annuleren|free cancellation|kostenloos annuleren",
+                card_text,
+                re.I,
+            )
+        )
+        sold_out = bool(re.search(r"uitverkocht|sold out", card_text, re.I))
 
         properties.append(
             PropertyResult(
@@ -224,6 +232,8 @@ def parse_dom_cards(html: str) -> tuple[list[PropertyResult], str | None]:
                 breakfast_included=breakfast,
                 room_mentions_balcony=_room_mentions_balcony(room_name, card_text),
                 rank=index,
+                free_cancellation=free_cancellation,
+                is_available=not sold_out and total is not None,
             )
         )
 

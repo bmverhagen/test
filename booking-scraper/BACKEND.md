@@ -30,7 +30,8 @@ Chips komen uit `search.filters` in de Capla-store. Catalogus:
 | Sauna | `popular_activities=10` | Sauna |
 | Parkeren | `hotelfacility=2` | Parkeren |
 | Spa | `hotelfacility=54` | Spa- en wellnesscentrum |
-| Gratis annuleren | `fc=2` | Gratis annuleren |
+| **Gratis annuleren** | `fc=2` | Gratis annuleren *(standaard aan)* |
+| **Alleen beschikbaar** | `oos=1` | Toon alleen beschikbare *(standaard aan)* |
 | Erg goed ontbijt | `rated_high=1` | Erg goed ontbijt |
 
 ### Andere nuttige families
