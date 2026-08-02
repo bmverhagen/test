@@ -11,6 +11,7 @@ from .balcony import balcony_from_room, text_mentions_balcony
 from .capla import CaplaStore, extract_capla_store
 from .fetcher import FetchError, PlaywrightFetcher
 from .models import PropertyResult
+from .urls import localize_hotel_url
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,8 @@ def hotel_url_with_dates(
         else:
             query.pop("age", None)
     flat = [(k, v) for k, values in query.items() for v in values]
-    return urlunparse(parts._replace(query=urlencode(flat)))
+    rebuilt = urlunparse(parts._replace(query=urlencode(flat)))
+    return localize_hotel_url(rebuilt, lang="nl")
 
 
 @dataclass(frozen=True)

@@ -44,7 +44,7 @@ def test_parse_capla_properties():
     assert first.review_count == 6
     assert first.breakfast_included is True
     assert first.location == "Uffheim"
-    assert "la-uffheimoise" in first.url
+    assert first.url.endswith("/hotel/fr/la-uffheimoise.nl.html")
     assert first.room_name == "Standaard Tweepersoonskamer met Ventilator"
     assert first.unit_id == 1654248501
     assert first.latitude == 47.648835

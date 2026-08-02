@@ -36,11 +36,13 @@ def _report() -> SearchReport:
 def test_stay_url_includes_dates():
     report = _report()
     url = stay_url(report.properties[0], report.query)
+    assert "/hotel/de/house-of-happiness.nl.html?" in url
     assert "checkin=2026-08-26" in url
     assert "checkout=2026-08-29" in url
     assert "group_adults=2" in url
     assert "group_children=1" in url
     assert "age=2" in url
+    assert "lang=nl" in url
 
 
 def test_write_netscape_bookmarks():

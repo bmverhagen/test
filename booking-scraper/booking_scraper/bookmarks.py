@@ -5,33 +5,14 @@ from __future__ import annotations
 import html
 import time
 from typing import TextIO
-from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from .models import PropertyResult, SearchQuery, SearchReport
+from .urls import build_stay_url
 
 
 def stay_url(prop: PropertyResult, query: SearchQuery) -> str:
     """Hotel URL with check-in/out and party size for a bookable deep link."""
-    if not prop.url:
-        return ""
-    parts = urlparse(prop.url)
-    params = parse_qs(parts.query, keep_blank_values=True)
-    ages = query.children_ages or tuple(0 for _ in range(query.children))
-    child_count = len(ages) if ages else query.children
-    params["checkin"] = [query.checkin]
-    params["checkout"] = [query.checkout]
-    params["group_adults"] = [str(query.adults)]
-    params["req_adults"] = [str(query.adults)]
-    params["no_rooms"] = [str(query.rooms)]
-    params["group_children"] = [str(child_count)]
-    params["req_children"] = [str(child_count)]
-    params["selected_currency"] = [query.currency]
-    if ages:
-        params["age"] = [str(age) for age in ages]
-    else:
-        params.pop("age", None)
-    flat = [(k, v) for k, values in params.items() for v in values]
-    return urlunparse(parts._replace(query=urlencode(flat)))
+    return build_stay_url(prop.url, query)
 
 
 def write_bookmarks(report: SearchReport, stream: TextIO) -> None:

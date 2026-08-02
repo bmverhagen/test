@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import re
+from dataclasses import replace
 from urllib.parse import parse_qs, urlparse, urlunparse
 
 from bs4 import BeautifulSoup, Tag
 
 from .models import PropertyResult
+from .urls import hotel_path_slug, localize_hotel_url
 
 _PRICE_RE = re.compile(r"€\s*([\d.,]+)")
 _SCORE_RE = re.compile(r"(\d+[.,]\d+)")
@@ -150,22 +152,51 @@ def _room_mentions_balcony(room_name: str | None, card_text: str) -> bool:
     return bool(_BALCONY_RE.search(haystack))
 
 
+def _dom_hotel_hrefs(html: str) -> dict[str, str]:
+    """Map ``country/pageName`` → localized hotel base URL from DOM cards."""
+    soup = BeautifulSoup(html, "lxml")
+    out: dict[str, str] = {}
+    for link in soup.select('a[data-testid="title-link"], a[href*="/hotel/"]'):
+        href = link.get("href")
+        if not href:
+            continue
+        if href.startswith("/"):
+            href = "https://www.booking.com" + href
+        cleaned = _clean_url(href)
+        slug = hotel_path_slug(cleaned)
+        if slug and slug not in out:
+            out[slug] = localize_hotel_url(cleaned, lang="nl")
+    return out
+
+
 def parse_search_results(html: str) -> tuple[list[PropertyResult], str | None]:
     """Parse Booking searchresults HTML.
 
     Prefers the Capla Apollo store (``data-capla-store-data``) — the same JSON
     tree as ``POST /dml/graphql`` — and falls back to DOM property cards.
+    Capla URLs are localized and, when possible, replaced with the DOM href
+    (Booking's canonical ``.nl.html`` link).
     """
     from .capla import parse_capla_html
 
-    capla = parse_capla_html(html)
+    capla = parse_capla_html(html, lang="nl")
     if capla is not None and capla[0]:
         properties, header = capla
         soup = BeautifulSoup(html, "lxml")
         header_el = soup.select_one('[data-testid="header-title"], h1')
         if header_el:
             header = header_el.get_text(" ", strip=True) or header
-        return properties, header
+        dom_hrefs = _dom_hotel_hrefs(html)
+        merged: list[PropertyResult] = []
+        for prop in properties:
+            slug = hotel_path_slug(prop.url)
+            url = prop.url
+            if slug and slug in dom_hrefs:
+                url = dom_hrefs[slug]
+            else:
+                url = localize_hotel_url(url, lang="nl")
+            merged.append(replace(prop, url=url))
+        return merged, header
 
     return parse_dom_cards(html)
 
@@ -221,7 +252,7 @@ def parse_dom_cards(html: str) -> tuple[list[PropertyResult], str | None]:
         properties.append(
             PropertyResult(
                 name=name,
-                url=_clean_url(href),
+                url=localize_hotel_url(_clean_url(href), lang="nl"),
                 location=location,
                 review_score=review_score,
                 review_count=review_count,

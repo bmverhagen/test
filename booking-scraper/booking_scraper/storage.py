@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import TextIO, Literal
 
-from .bookmarks import write_bookmarks, write_bookmarks_markdown
+from .bookmarks import stay_url, write_bookmarks, write_bookmarks_markdown
 from .models import SearchReport
 
 FormatName = Literal["json", "csv", "table", "bookmarks", "bookmarks-md"]
@@ -93,7 +93,7 @@ def write_table(report: SearchReport, stream: TextIO) -> None:
             f"{'ja' if prop.breakfast_included else 'nee'} | {balcony} | "
             f"annuleerbaar={'ja' if prop.free_cancellation else 'nee'} | "
             f"beschikbaar={'ja' if prop.is_available else 'nee'}\n"
-            f"     {prop.url}\n\n"
+            f"     {stay_url(prop, report.query)}\n\n"
         )
 
 

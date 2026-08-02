@@ -19,6 +19,7 @@ from bs4 import BeautifulSoup
 
 from .balcony import balcony_from_room
 from .models import PropertyResult
+from .urls import build_hotel_url
 
 CAPLA_STORE_SELECTOR = 'script[data-capla-store-data]'
 CAPLA_CONTEXT_SELECTOR = "script[data-capla-application-context]"
@@ -123,7 +124,9 @@ def _matching_unit(capla: CaplaStore, item: dict[str, Any]) -> dict[str, Any] | 
     return common if isinstance(common, dict) else None
 
 
-def parse_capla_store(store: dict[str, Any]) -> tuple[list[PropertyResult], str | None]:
+def parse_capla_store(
+    store: dict[str, Any], *, lang: str = "nl"
+) -> tuple[list[PropertyResult], str | None]:
     """Parse properties from a Capla Apollo store dict."""
     capla = CaplaStore(store)
     search = capla.search_node()
@@ -206,8 +209,7 @@ def parse_capla_store(store: dict[str, Any]) -> tuple[list[PropertyResult], str 
                 longitude = float(bpd_loc["longitude"])
         url = ""
         if isinstance(page_name, str) and page_name:
-            cc = (country or "de").lower()
-            url = f"https://www.booking.com/hotel/{cc}/{page_name}.html"
+            url = build_hotel_url(page_name, country_code=country or "de", lang=lang)
 
         policies = capla.resolve(item.get("policies")) or {}
         sold_out = capla.resolve(item.get("soldOutInfo")) or {}
@@ -253,9 +255,11 @@ def parse_capla_store(store: dict[str, Any]) -> tuple[list[PropertyResult], str 
     return properties, header
 
 
-def parse_capla_html(html: str) -> tuple[list[PropertyResult], str | None] | None:
+def parse_capla_html(
+    html: str, *, lang: str = "nl"
+) -> tuple[list[PropertyResult], str | None] | None:
     """Parse Capla store from HTML, or return ``None`` when store is missing."""
     store = extract_capla_store(html)
     if store is None:
         return None
-    return parse_capla_store(store)
+    return parse_capla_store(store, lang=lang)

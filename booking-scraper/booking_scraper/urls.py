@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from urllib.parse import urlencode
+import re
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from .filters import (
     REVIEW_SCORE_CHIPS,
@@ -14,6 +15,10 @@ from .filters import (
 from .models import SearchQuery
 
 SEARCH_BASE = "https://www.booking.com/searchresults.nl.html"
+_HOTEL_PATH_RE = re.compile(
+    r"^(/hotel/[a-z]{2}/[^/]+?)(?:\.[a-z]{2})?\.html$",
+    re.I,
+)
 
 
 def build_nflt_chips(query: SearchQuery) -> list[str]:
@@ -95,6 +100,84 @@ def _children_ages(query: SearchQuery) -> tuple[int, ...]:
     if query.children > 0:
         return tuple(0 for _ in range(query.children))
     return ()
+
+
+def build_hotel_url(
+    page_name: str,
+    *,
+    country_code: str = "de",
+    lang: str = "nl",
+) -> str:
+    """Build a locale hotel URL (``/hotel/de/name.nl.html``)."""
+    cc = (country_code or "de").lower()
+    slug = page_name.strip().removesuffix(".html")
+    # pageName never includes the language infix; strip if present.
+    slug = re.sub(r"\.[a-z]{2}$", "", slug, flags=re.I)
+    lang = (lang or "nl").lower()
+    return f"https://www.booking.com/hotel/{cc}/{slug}.{lang}.html"
+
+
+def localize_hotel_url(url: str, *, lang: str = "nl") -> str:
+    """Ensure a hotel URL uses the ``.{lang}.html`` path Booking expects."""
+    if not url:
+        return url
+    parts = urlparse(url)
+    match = _HOTEL_PATH_RE.match(parts.path or "")
+    if not match:
+        return url
+    lang = (lang or "nl").lower()
+    path = f"{match.group(1)}.{lang}.html"
+    return urlunparse(parts._replace(path=path))
+
+
+def hotel_path_slug(url: str) -> str | None:
+    """Return ``country/pageName`` slug from a hotel URL, if parseable."""
+    if not url:
+        return None
+    parts = urlparse(url)
+    match = _HOTEL_PATH_RE.match(parts.path or "")
+    if not match:
+        return None
+    # group1 = /hotel/de/pageName
+    return match.group(1).removeprefix("/hotel/").lower()
+
+
+def stay_query_params(query: SearchQuery) -> list[tuple[str, str]]:
+    """Canonical query params for a bookable hotel deep link."""
+    ages = _children_ages(query)
+    child_count = len(ages) if ages else query.children
+    params: list[tuple[str, str]] = [
+        ("checkin", query.checkin),
+        ("checkout", query.checkout),
+        ("group_adults", str(query.adults)),
+        ("req_adults", str(query.adults)),
+        ("no_rooms", str(query.rooms)),
+        ("group_children", str(child_count)),
+        ("req_children", str(child_count)),
+        ("selected_currency", query.currency),
+        ("lang", query.lang),
+    ]
+    for age in ages:
+        params.append(("age", str(age)))
+    return params
+
+
+def build_stay_url(hotel_url: str, query: SearchQuery) -> str:
+    """Hotel deep link with dates, occupancy and locale path."""
+    if not hotel_url:
+        return ""
+    localized = localize_hotel_url(hotel_url, lang=query.lang)
+    parts = urlparse(localized)
+    # Keep affiliate bits from DOM hrefs when present; overwrite stay params.
+    existing = parse_qs(parts.query, keep_blank_values=True)
+    keep_keys = ("aid", "label", "sid", "dist")
+    merged: list[tuple[str, str]] = []
+    for key in keep_keys:
+        for value in existing.get(key) or ():
+            merged.append((key, value))
+    # Drop stale age/occupancy from source URL, then apply query.
+    merged.extend(stay_query_params(query))
+    return urlunparse(parts._replace(query=urlencode(merged)))
 
 
 def build_search_url(query: SearchQuery, *, offset: int = 0) -> str:
