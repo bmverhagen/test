@@ -19,6 +19,21 @@ _LOCATION_RE = re.compile(
 _BALCONY_RE = re.compile(r"\b(balkon|balcony|terras|terrace)\b", re.I)
 _NO_BALCONY_RE = re.compile(r"\b(ohne balkon|zonder balkon|no balcony|without balcony)\b", re.I)
 _PRI_CENTS_RE = re.compile(r"sr_pri_blocks=[^&]*?_(\d+)(?:&|$)")
+_RESULT_COUNT_RE = re.compile(
+    r"([\d.\s]+)\s*(?:accommodaties|properties|stays|resultaten|results)\b",
+    re.I,
+)
+
+
+def parse_result_count(header: str | None) -> int | None:
+    """Extract the total result count from a search header title."""
+    if not header:
+        return None
+    match = _RESULT_COUNT_RE.search(header.replace("\xa0", " "))
+    if not match:
+        return None
+    digits = re.sub(r"\D", "", match.group(1))
+    return int(digits) if digits else None
 
 
 def _parse_euro(text: str | None) -> float | None:
@@ -55,26 +70,34 @@ def _price_total_from_link(href: str | None) -> float | None:
 
 
 def _extract_prices(card_text: str, href: str | None) -> tuple[float | None, float | None]:
-    total = _price_total_from_link(href)
     amounts = [_parse_euro(m.group(1)) for m in _PRICE_RE.finditer(card_text)]
     amounts = [a for a in amounts if a is not None]
 
     per_night: float | None = None
-    if "Per nacht" in card_text or "per nacht" in card_text.lower():
-        # First euro amount after "Per nacht" is usually the nightly rate.
-        night_chunk = re.split(r"Per nacht", card_text, maxsplit=1, flags=re.I)[-1]
+    if re.search(r"per\s*nacht", card_text, re.I):
+        night_chunk = re.split(r"Per\s*nacht", card_text, maxsplit=1, flags=re.I)[-1]
         night_match = _PRICE_RE.search(night_chunk)
         if night_match:
             per_night = _parse_euro(night_match.group(1))
 
-    if total is None:
-        # Prefer explicit "Prijs € X" / largest stay total among amounts.
-        price_match = re.search(r"Prijs\s*€\s*([\d.,]+)", card_text, re.I)
+    # Prefer the visible stay total Booking shows to guests.
+    total: float | None = None
+    for pattern in (
+        r"Huidige prijs\s*€\s*([\d.,]+)",
+        r"Prijs\s*€\s*([\d.,]+)",
+        r"Current price\s*€\s*([\d.,]+)",
+        r"Price\s*€\s*([\d.,]+)",
+    ):
+        price_match = re.search(pattern, card_text, re.I)
         if price_match:
             total = _parse_euro(price_match.group(1))
-        elif amounts:
-            # Nightly first, total later — take the max as stay total.
-            total = max(amounts)
+            break
+
+    if total is None:
+        total = _price_total_from_link(href)
+    if total is None and amounts:
+        # Nightly first, stay total later — take the max as stay total.
+        total = max(amounts)
 
     if per_night is None and amounts:
         per_night = min(amounts)

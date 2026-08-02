@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 
 from .fetcher import FetchError, PlaywrightFetcher
 from .models import PropertyResult, SearchQuery, SearchReport
-from .parser import parse_search_results
+from .parser import parse_result_count, parse_search_results
 from .urls import build_search_url
 
 logger = logging.getLogger(__name__)
@@ -26,11 +26,25 @@ def matches_query(prop: PropertyResult, query: SearchQuery) -> bool:
         return False
     if prop.price_total > query.max_total_price:
         return False
-    if prop.review_score is not None and prop.review_score < query.min_review_score:
-        return False
+    if query.min_review_score > 0:
+        if prop.review_score is None or prop.review_score < query.min_review_score:
+            return False
     if query.breakfast and not prop.breakfast_included:
         return False
     return True
+
+
+def dedupe_properties(properties: list[PropertyResult]) -> list[PropertyResult]:
+    """Keep the first occurrence of each property URL."""
+    seen: set[str] = set()
+    unique: list[PropertyResult] = []
+    for prop in properties:
+        key = prop.url or f"{prop.name}|{prop.rank}"
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(prop)
+    return unique
 
 
 class BookingScraper:
@@ -58,7 +72,11 @@ class BookingScraper:
             time.sleep(self.delay + random.uniform(0, self.delay / 2))
 
     def _filter(self, properties: list[PropertyResult]) -> list[PropertyResult]:
-        matched = [prop for prop in properties if matches_query(prop, self.query)]
+        matched = [
+            prop
+            for prop in dedupe_properties(properties)
+            if matches_query(prop, self.query)
+        ]
         if self.require_room_balcony_text:
             matched = [prop for prop in matched if prop.room_mentions_balcony]
         matched.sort(
@@ -68,7 +86,8 @@ class BookingScraper:
                 prop.name.casefold(),
             )
         )
-        return matched
+        # Re-number ranks after sort for readable output.
+        return [replace(prop, rank=index) for index, prop in enumerate(matched, start=1)]
 
     def scrape_html(self, html: str, *, search_url: str | None = None) -> SearchReport:
         """Parse already-fetched HTML (useful for tests / offline runs)."""
@@ -90,7 +109,9 @@ class BookingScraper:
         fetcher = self.fetcher or PlaywrightFetcher(locale="nl-NL")
         errors: list[str] = []
         all_cards: list[PropertyResult] = []
+        seen_urls: set[str] = set()
         header: str | None = None
+        total_results: int | None = None
         pages = 0
         first_url = build_search_url(self.query)
 
@@ -99,6 +120,9 @@ class BookingScraper:
             with context_mgr as active:
                 for page_index in range(self.max_pages):
                     offset = page_index * PAGE_SIZE
+                    if total_results is not None and offset >= total_results:
+                        break
+
                     url = build_search_url(self.query, offset=offset)
                     try:
                         html = active.fetch_html(url)
@@ -111,15 +135,33 @@ class BookingScraper:
                     pages += 1
                     if page_header:
                         header = page_header
+                        total_results = parse_result_count(page_header) or total_results
+                        logger.info(
+                            "Page %s: %s card(s); header=%s",
+                            page_index + 1,
+                            len(properties),
+                            page_header,
+                        )
                     if not properties:
                         break
 
-                    # Keep absolute rank across pages.
+                    new_on_page = 0
                     for prop in properties:
+                        if prop.url and prop.url in seen_urls:
+                            continue
+                        if prop.url:
+                            seen_urls.add(prop.url)
+                        new_on_page += 1
                         all_cards.append(
                             replace(prop, rank=offset + (prop.rank or 0))
                         )
 
+                    # Booking sometimes re-serves page 1 for out-of-range offsets.
+                    if new_on_page == 0:
+                        logger.info("No new properties at offset %s; stopping", offset)
+                        break
+                    if total_results is not None and len(seen_urls) >= total_results:
+                        break
                     if len(properties) < PAGE_SIZE:
                         break
                     if page_index + 1 < self.max_pages:

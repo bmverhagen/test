@@ -87,35 +87,63 @@ class PlaywrightFetcher:
             except Exception:
                 continue
 
-    def fetch_html(self, url: str) -> str:
+    def _looks_like_waf(self, html: str) -> bool:
+        markers = (
+            "awsWafCookieDomainList",
+            "captcha-container",
+            "challenge-container",
+            "Human Verification",
+        )
+        has_marker = any(marker in html for marker in markers)
+        has_cards = 'data-testid="property-card"' in html
+        return has_marker and not has_cards
+
+    def fetch_html(self, url: str, *, retries: int = 1) -> str:
         """Load ``url`` and return the rendered HTML."""
         if self._context is None:
             raise FetchError("Fetcher is not started; use as a context manager")
 
-        page = self._context.new_page()
-        try:
-            logger.info("Fetching %s", url)
-            page.goto(url, wait_until="domcontentloaded", timeout=self.timeout_ms)
-            self._accept_cookies(page)
+        last_error: Exception | None = None
+        for attempt in range(retries + 1):
+            page = self._context.new_page()
             try:
-                page.wait_for_selector(
-                    '[data-testid="property-card"], [data-testid="header-title"]',
-                    timeout=self.timeout_ms,
-                )
-            except Exception as exc:
-                html = page.content()
-                if "awsWafCookieDomainList" in html and "property-card" not in html:
-                    raise FetchError(
-                        "Blocked by Booking.com AWS WAF challenge; try again later"
-                    ) from exc
-                raise FetchError("Timed out waiting for search results") from exc
+                logger.info("Fetching %s (attempt %s)", url, attempt + 1)
+                page.goto(url, wait_until="domcontentloaded", timeout=self.timeout_ms)
+                self._accept_cookies(page)
+                try:
+                    page.wait_for_selector(
+                        '[data-testid="property-card"], [data-testid="header-title"]',
+                        timeout=self.timeout_ms,
+                    )
+                except Exception as exc:
+                    html = page.content()
+                    if self._looks_like_waf(html):
+                        last_error = FetchError(
+                            "Blocked by Booking.com AWS WAF challenge; try again later"
+                        )
+                        last_error.__cause__ = exc
+                        time.sleep(2 + attempt * 2)
+                        continue
+                    raise FetchError("Timed out waiting for search results") from exc
 
-            # Let lazy price blocks settle.
-            time.sleep(1.5)
-            html = page.content()
-            if 'data-testid="property-card"' not in html:
-                header = page.title()
-                raise FetchError(f"No property cards found (title={header!r})")
-            return html
-        finally:
-            page.close()
+                # Let lazy price blocks settle.
+                time.sleep(1.5)
+                html = page.content()
+                if self._looks_like_waf(html):
+                    last_error = FetchError(
+                        "Blocked by Booking.com AWS WAF challenge; try again later"
+                    )
+                    time.sleep(2 + attempt * 2)
+                    continue
+                if 'data-testid="property-card"' not in html:
+                    # Zero results is valid when header confirms the empty set.
+                    if 'data-testid="header-title"' in html or "<h1" in html:
+                        return html
+                    header = page.title()
+                    raise FetchError(f"No property cards found (title={header!r})")
+                return html
+            finally:
+                page.close()
+
+        assert last_error is not None
+        raise last_error
