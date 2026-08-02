@@ -38,7 +38,10 @@ python scrape.py --format csv -o resultaten.csv
 # Alleen de Booking-URL tonen (handig om in de browser te openen)
 python scrape.py --print-url
 
-# Strenger: alleen kaarten waarvan de getoonde kamer balkon/terras noemt
+# Hotelpagina's: balkon via kamernaam + omschrijving + kenmerken (id 17/123)
+python scrape.py --enrich-rooms
+
+# Strenger: alleen kamers mét balkon/terras (na enrichment)
 python scrape.py --require-room-balcony-text
 
 # Offline parse van opgeslagen HTML
@@ -72,7 +75,7 @@ python scrape.py --stars 3,4 --property-type hotels --city freiburg
 python scrape.py --balcony-or-terrace --print-nflt
 ```
 
-Daarna filtert de scraper **client-side** op totale prijs en score. Booking’s balkonfilter is accommodatieniveau — gebruik `--require-room-balcony-text` voor strengere kamernamen.
+Daarna filtert de scraper **client-side** op totale prijs en score. Booking’s balkonfilter is accommodatieniveau — de goedkoopste getoonde kamer heeft vaak géén balkon in de naam. Met `--enrich-rooms` / `--require-room-balcony-text` checkt de scraper ook de **kameromschrijving** en **kamerkenmerken** op de hotelpagina.
 
 ## Tests
 

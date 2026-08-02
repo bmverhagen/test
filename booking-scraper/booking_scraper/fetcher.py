@@ -99,7 +99,7 @@ class PlaywrightFetcher:
         return has_marker and not has_cards
 
     def fetch_html(self, url: str, *, retries: int = 1) -> str:
-        """Load ``url`` and return the rendered HTML."""
+        """Load a search-results ``url`` and return the rendered HTML."""
         if self._context is None:
             raise FetchError("Fetcher is not started; use as a context manager")
 
@@ -141,6 +141,47 @@ class PlaywrightFetcher:
                         return html
                     header = page.title()
                     raise FetchError(f"No property cards found (title={header!r})")
+                return html
+            finally:
+                page.close()
+
+        assert last_error is not None
+        raise last_error
+
+    def fetch_hotel_html(self, url: str, *, retries: int = 1) -> str:
+        """Load a hotel page and wait for the Capla Apollo store (often hidden)."""
+        if self._context is None:
+            raise FetchError("Fetcher is not started; use as a context manager")
+
+        last_error: Exception | None = None
+        for attempt in range(retries + 1):
+            page = self._context.new_page()
+            try:
+                logger.info("Fetching hotel %s (attempt %s)", url, attempt + 1)
+                page.goto(url, wait_until="domcontentloaded", timeout=self.timeout_ms)
+                self._accept_cookies(page)
+                try:
+                    # Capla store scripts are type=application/json and not visible.
+                    page.wait_for_selector(
+                        'script[data-capla-store-data]',
+                        state="attached",
+                        timeout=self.timeout_ms,
+                    )
+                except Exception as exc:
+                    html = page.content()
+                    if self._looks_like_waf(html):
+                        last_error = FetchError(
+                            "Blocked by Booking.com AWS WAF challenge; try again later"
+                        )
+                        last_error.__cause__ = exc
+                        time.sleep(2 + attempt * 2)
+                        continue
+                    raise FetchError("Timed out waiting for hotel Capla store") from exc
+
+                time.sleep(0.5)
+                html = page.content()
+                if "data-capla-store-data" not in html:
+                    raise FetchError("Hotel page missing Capla store")
                 return html
             finally:
                 page.close()

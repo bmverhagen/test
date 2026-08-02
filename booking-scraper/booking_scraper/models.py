@@ -68,6 +68,10 @@ class PropertyResult:
     breakfast_included: bool
     room_mentions_balcony: bool
     rank: int | None = None
+    unit_id: int | None = None
+    balcony_source: str | None = None
+    latitude: float | None = None
+    longitude: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

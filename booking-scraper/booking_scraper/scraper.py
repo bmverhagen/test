@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from .fetcher import FetchError, PlaywrightFetcher
 from .models import PropertyResult, SearchQuery, SearchReport
 from .parser import parse_result_count, parse_search_results
+from .rooms import enrich_properties_with_hotel_pages
 from .urls import build_nflt, build_search_url
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,7 @@ class BookingScraper:
         delay: float = DEFAULT_DELAY,
         max_pages: int = DEFAULT_MAX_PAGES,
         require_room_balcony_text: bool = False,
+        enrich_rooms: bool = False,
     ) -> None:
         if max_pages < 1:
             raise ValueError("max_pages must be >= 1")
@@ -68,10 +70,23 @@ class BookingScraper:
         self.delay = delay
         self.max_pages = max_pages
         self.require_room_balcony_text = require_room_balcony_text
+        # Hotel-page Capla: room description + amenity ids (17/123).
+        self.enrich_rooms = enrich_rooms or require_room_balcony_text
 
     def _sleep(self) -> None:
         if self.delay > 0:
             time.sleep(self.delay + random.uniform(0, self.delay / 2))
+
+    def _sort_rank(self, properties: list[PropertyResult]) -> list[PropertyResult]:
+        ordered = sorted(
+            properties,
+            key=lambda prop: (
+                prop.price_total if prop.price_total is not None else 1e12,
+                -(prop.review_score or 0),
+                prop.name.casefold(),
+            ),
+        )
+        return [replace(prop, rank=index) for index, prop in enumerate(ordered, start=1)]
 
     def _filter(self, properties: list[PropertyResult]) -> list[PropertyResult]:
         matched = [
@@ -79,19 +94,10 @@ class BookingScraper:
             for prop in dedupe_properties(properties)
             if matches_query(prop, self.query)
         ]
-        # Only enforce room-text balcony when explicitly requested; Booking's
-        # roomfacility chip is property-level and the listed room may differ.
+        # Booking's roomfacility chip is property-level; listed room may differ.
         if self.require_room_balcony_text:
             matched = [prop for prop in matched if prop.room_mentions_balcony]
-        matched.sort(
-            key=lambda prop: (
-                prop.price_total if prop.price_total is not None else 1e12,
-                -(prop.review_score or 0),
-                prop.name.casefold(),
-            )
-        )
-        # Re-number ranks after sort for readable output.
-        return [replace(prop, rank=index) for index, prop in enumerate(matched, start=1)]
+        return self._sort_rank(matched)
 
     def scrape_html(self, html: str, *, search_url: str | None = None) -> SearchReport:
         """Parse already-fetched HTML (useful for tests / offline runs)."""
@@ -171,10 +177,30 @@ class BookingScraper:
                         break
                     if page_index + 1 < self.max_pages:
                         self._sleep()
+
+                # Price/score first, then optional hotel-page balcony enrichment.
+                candidates = [
+                    prop
+                    for prop in dedupe_properties(all_cards)
+                    if matches_query(prop, self.query)
+                ]
+                if self.enrich_rooms and candidates:
+                    logger.info(
+                        "Enriching balcony via hotel Capla for up to %s stays",
+                        len(candidates),
+                    )
+                    candidates = enrich_properties_with_hotel_pages(
+                        candidates, active, only_missing=True
+                    )
+                if self.require_room_balcony_text:
+                    candidates = [
+                        prop for prop in candidates if prop.room_mentions_balcony
+                    ]
+                matched = self._sort_rank(candidates)
         except FetchError as exc:
             errors.append(str(exc))
+            matched = self._filter(all_cards)
 
-        matched = self._filter(all_cards)
         return SearchReport(
             query=self.query,
             search_url=first_url,

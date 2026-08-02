@@ -30,7 +30,9 @@ def write_csv(report: SearchReport, stream: TextIO) -> None:
         "currency",
         "breakfast_included",
         "room_mentions_balcony",
+        "balcony_source",
         "room_name",
+        "unit_id",
         "url",
     ]
     writer = csv.DictWriter(stream, fieldnames=fieldnames, extrasaction="ignore")
@@ -70,7 +72,12 @@ def write_table(report: SearchReport, stream: TextIO) -> None:
             else ""
         )
         location = prop.location or "?"
-        balcony = "balkon in kamertekst" if prop.room_mentions_balcony else "balkon via filter"
+        if prop.room_mentions_balcony:
+            balcony = f"balkon ja ({prop.balcony_source or 'kamernaam'})"
+        elif prop.balcony_source:
+            balcony = f"balkon nee ({prop.balcony_source})"
+        else:
+            balcony = "balkon via filter"
         stream.write(
             f"{prop.rank or '-':>3}. {prop.name}\n"
             f"     {location} | score {score}"

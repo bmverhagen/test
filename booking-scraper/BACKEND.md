@@ -45,6 +45,19 @@ Chips komen uit `search.filters` in de Capla-store. Catalogus:
 
 Named aliases: `python scrape.py --list-filters`.
 
+## Balkon op kamerniveau
+
+Zoekresultaten geven alleen de kamernaam (`matchingUnitConfigurations.unitConfigurations[].name` + `unitId`).
+Hotelpagina-Capla heeft rijker kamerdata:
+
+| Bron | Capla-pad | Voorbeeld |
+| --- | --- | --- |
+| Kamernaam | `RoomTranslation:{unitId}.name` | "Deluxe met balkon" |
+| Omschrijving | `RoomTranslation:{unitId}.description` | "… en een balkon" |
+| Kenmerken | `RoomData:{unitId}.amenities` → `BaseFacility` | `id=17` balkon, `id=123` terras |
+
+`--enrich-rooms` haalt hotelpagina’s op (`wait_for_selector(..., state="attached")` — Capla-scripts zijn hidden) en zet `balcony_source` op `kamernaam` / `omschrijving` / `kenmerk:<slug>`.
+
 ## Zoek-input (Capla)
 
 ```json

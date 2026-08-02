@@ -17,8 +17,8 @@ from typing import Any
 
 from bs4 import BeautifulSoup
 
+from .balcony import balcony_from_room
 from .models import PropertyResult
-from .parser import _BALCONY_RE, _NO_BALCONY_RE
 
 CAPLA_STORE_SELECTOR = 'script[data-capla-store-data]'
 CAPLA_CONTEXT_SELECTOR = "script[data-capla-application-context]"
@@ -106,12 +106,21 @@ def _text(node: Any) -> str | None:
     return None
 
 
-def _room_mentions_balcony(room_name: str | None) -> bool:
-    if not room_name:
-        return False
-    if _NO_BALCONY_RE.search(room_name):
-        return False
-    return bool(_BALCONY_RE.search(room_name))
+def _matching_unit(capla: CaplaStore, item: dict[str, Any]) -> dict[str, Any] | None:
+    """Return the cheapest/matching unit configuration (with name + unitId)."""
+    units = capla.resolve(item.get("matchingUnitConfigurations")) or {}
+    if not isinstance(units, dict):
+        return None
+    configs = units.get("unitConfigurations") or []
+    if isinstance(configs, list):
+        for conf in configs:
+            resolved = capla.resolve(conf)
+            if isinstance(resolved, dict) and (
+                resolved.get("name") or resolved.get("unitId")
+            ):
+                return resolved
+    common = capla.resolve(units.get("commonConfiguration"))
+    return common if isinstance(common, dict) else None
 
 
 def parse_capla_store(store: dict[str, Any]) -> tuple[list[PropertyResult], str | None]:
@@ -174,20 +183,33 @@ def parse_capla_store(store: dict[str, Any]) -> tuple[list[PropertyResult], str 
             or re.search(r"breakfast", meal_type, re.I)
         )
 
-        units = capla.resolve(item.get("matchingUnitConfigurations")) or {}
-        common = capla.resolve(units.get("commonConfiguration")) or {}
-        room_name = _text(common) if isinstance(common, dict) else None
+        unit = _matching_unit(capla, item) or {}
+        room_name = _text(unit) if unit else None
+        if not room_name and isinstance(unit.get("name"), str):
+            room_name = unit["name"] or None
+        unit_id = unit.get("unitId")
+        try:
+            unit_id_int = int(unit_id) if unit_id not in (None, 0, "0") else None
+        except (TypeError, ValueError):
+            unit_id_int = None
 
         page_name = bpd.get("pageName")
         country = None
+        latitude = None
+        longitude = None
         bpd_loc = capla.resolve(bpd.get("location")) or {}
         if isinstance(bpd_loc, dict):
             country = bpd_loc.get("countryCode")
+            if isinstance(bpd_loc.get("latitude"), (int, float)):
+                latitude = float(bpd_loc["latitude"])
+            if isinstance(bpd_loc.get("longitude"), (int, float)):
+                longitude = float(bpd_loc["longitude"])
         url = ""
         if isinstance(page_name, str) and page_name:
             cc = (country or "de").lower()
             url = f"https://www.booking.com/hotel/{cc}/{page_name}.html"
 
+        evidence = balcony_from_room(name=room_name)
         properties.append(
             PropertyResult(
                 name=name,
@@ -200,8 +222,12 @@ def parse_capla_store(store: dict[str, Any]) -> tuple[list[PropertyResult], str 
                 price_total=price_total,
                 currency=currency,
                 breakfast_included=breakfast,
-                room_mentions_balcony=_room_mentions_balcony(room_name),
+                room_mentions_balcony=evidence.has_balcony,
                 rank=index,
+                unit_id=unit_id_int,
+                balcony_source=evidence.source if evidence.has_balcony else None,
+                latitude=latitude,
+                longitude=longitude,
             )
         )
 

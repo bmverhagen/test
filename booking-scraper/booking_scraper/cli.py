@@ -107,7 +107,18 @@ def build_parser() -> argparse.ArgumentParser:
     fac.add_argument(
         "--require-room-balcony-text",
         action="store_true",
-        help="Client-side: getoonde kamer moet balkon/terras noemen",
+        help=(
+            "Client-side: getoonde kamer moet balkon/terras hebben "
+            "(kamernaam, omschrijving of kenmerk via hotelpagina)"
+        ),
+    )
+    fac.add_argument(
+        "--enrich-rooms",
+        action="store_true",
+        help=(
+            "Haal hotelpagina's op om balkon te checken in omschrijving + kenmerken "
+            "(niet alleen kamernaam)"
+        ),
     )
 
     prop = parser.add_argument_group("Type & locatie")
@@ -229,6 +240,7 @@ def main(argv: list[str] | None = None) -> int:
         delay=args.delay,
         max_pages=args.pages,
         require_room_balcony_text=args.require_room_balcony_text,
+        enrich_rooms=args.enrich_rooms,
     )
 
     if args.from_file:
