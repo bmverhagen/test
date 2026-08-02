@@ -74,9 +74,14 @@ def test_hotel_url_with_dates():
         "https://www.booking.com/hotel/de/x.html",
         checkin="2026-08-26",
         checkout="2026-08-29",
+        adults=2,
+        children_ages=(2,),
     )
     assert "checkin=2026-08-26" in url
     assert "checkout=2026-08-29" in url
+    assert "group_adults=2" in url
+    assert "group_children=1" in url
+    assert "age=2" in url
 
 
 def test_parse_room_details_from_hotel_store():

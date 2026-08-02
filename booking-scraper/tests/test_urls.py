@@ -50,6 +50,16 @@ def test_search_url_contains_core_params():
     assert "selected_currency=EUR" in url
     assert "order=price" in url
     assert "roomfacility%3D17" in url or "roomfacility=17" in url
+    assert "group_adults=2" in url
+    assert "group_children=1" in url
+    assert "age=2" in url
+
+
+def test_search_url_multiple_child_ages():
+    url = build_search_url(SearchQuery(children=2, children_ages=(2, 5)))
+    assert "group_children=2" in url
+    assert url.count("age=") == 2
+    assert "age=2" in url and "age=5" in url
 
 
 def test_offset_appended():

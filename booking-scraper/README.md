@@ -44,6 +44,9 @@ python scrape.py --enrich-rooms
 # Strenger: alleen kamers mét balkon/terras (na enrichment)
 python scrape.py --require-room-balcony-text
 
+# Gezelschap: 2 volwassenen + kind van 2 (standaard)
+python scrape.py --adults 2 --child-ages 2
+
 # Bookmarks (Netscape HTML — importeerbaar in Chrome/Firefox)
 python scrape.py --format bookmarks -o bookmarks.html
 python scrape.py --format bookmarks-md -o bookmarks.md

@@ -16,14 +16,20 @@ def stay_url(prop: PropertyResult, query: SearchQuery) -> str:
         return ""
     parts = urlparse(prop.url)
     params = parse_qs(parts.query, keep_blank_values=True)
+    ages = query.children_ages or tuple(0 for _ in range(query.children))
+    child_count = len(ages) if ages else query.children
     params["checkin"] = [query.checkin]
     params["checkout"] = [query.checkout]
     params["group_adults"] = [str(query.adults)]
     params["req_adults"] = [str(query.adults)]
     params["no_rooms"] = [str(query.rooms)]
-    params["group_children"] = [str(query.children)]
-    params["req_children"] = [str(query.children)]
+    params["group_children"] = [str(child_count)]
+    params["req_children"] = [str(child_count)]
     params["selected_currency"] = [query.currency]
+    if ages:
+        params["age"] = [str(age) for age in ages]
+    else:
+        params.pop("age", None)
     flat = [(k, v) for k, values in params.items() for v in values]
     return urlunparse(parts._replace(query=urlencode(flat)))
 
@@ -31,9 +37,11 @@ def stay_url(prop: PropertyResult, query: SearchQuery) -> str:
 def write_bookmarks(report: SearchReport, stream: TextIO) -> None:
     """Write a Netscape-bookmark file importable by Chrome/Firefox/Safari."""
     now = int(time.time())
+    ages = ",".join(str(a) for a in report.query.children_ages) or "—"
     folder = (
         f"Zwarte Woud {report.query.checkin}–{report.query.checkout} "
-        f"(beschikbaar + gratis annuleren)"
+        f"({report.query.adults} volw. + {report.query.children} kind "
+        f"leeftijd {ages}; beschikbaar + gratis annuleren)"
     )
     stream.write(
         "<!DOCTYPE NETSCAPE-Bookmark-file-1>\n"
@@ -72,9 +80,12 @@ def write_bookmarks(report: SearchReport, stream: TextIO) -> None:
 
 def write_bookmarks_markdown(report: SearchReport, stream: TextIO) -> None:
     """Human-readable bookmark list (markdown links)."""
+    ages = ", ".join(str(a) for a in report.query.children_ages) or "—"
     stream.write(
         f"# Bookmarks — {report.query.destination} "
         f"{report.query.checkin} → {report.query.checkout}\n\n"
+        f"**Gezelschap:** {report.query.adults} volwassenen + "
+        f"{report.query.children} kind (leeftijd {ages}).\n\n"
         "Alleen **beschikbaar** (`oos=1`) en **gratis annuleerbaar** (`fc=2`).\n\n"
     )
     if not report.properties:

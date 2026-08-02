@@ -35,8 +35,9 @@ def build_parser() -> argparse.ArgumentParser:
         prog="booking-scraper",
         description=(
             "Zoek overnachtingen op Booking.com in het Zwarte Woud "
-            "(standaard: 26–29 augustus 2026, totaal ≤ €500, score 9+, "
-            "ontbijt, zwembad, balkon)."
+            "(standaard: 26–29 augustus 2026, 2 volwassenen + 1 kind van 2, "
+            "totaal ≤ €500, score 9+, ontbijt, zwembad, balkon, "
+            "beschikbaar, gratis annuleren)."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
@@ -57,7 +58,17 @@ def build_parser() -> argparse.ArgumentParser:
     dest.add_argument("--checkin", default="2026-08-26")
     dest.add_argument("--checkout", default="2026-08-29")
     dest.add_argument("--adults", type=int, default=2)
-    dest.add_argument("--children", type=int, default=0)
+    dest.add_argument(
+        "--children",
+        type=int,
+        default=None,
+        help="Aantal kinderen (standaard: lengte van --child-ages, anders 1)",
+    )
+    dest.add_argument(
+        "--child-ages",
+        default="2",
+        help="Leeftijden kinderen, komma-gescheiden (standaard: 2 → age=2)",
+    )
     dest.add_argument("--rooms", type=int, default=1)
     dest.add_argument("--currency", default="EUR")
     dest.add_argument("--lang", default="nl")
@@ -189,6 +200,18 @@ def main(argv: list[str] | None = None) -> int:
         property_types = tuple(_csv_strs(args.property_type)) if args.property_type else ()
         cities = tuple(_csv_strs(args.city)) if args.city else ()
         extra = tuple(_csv_strs(args.extra_filters)) if args.extra_filters else ()
+        child_ages = tuple(_csv_ints(args.child_ages)) if args.child_ages.strip() else ()
+        if args.children is None:
+            children = len(child_ages)
+        else:
+            children = args.children
+            if child_ages and len(child_ages) != children:
+                raise ValueError(
+                    f"--children ({children}) komt niet overeen met "
+                    f"--child-ages ({len(child_ages)} leeftijden)"
+                )
+            if children and not child_ages:
+                child_ages = tuple(0 for _ in range(children))
         raw = tuple(
             part.strip()
             for part in args.nflt.replace(",", ";").split(";")
@@ -205,7 +228,8 @@ def main(argv: list[str] | None = None) -> int:
         checkin=args.checkin,
         checkout=args.checkout,
         adults=args.adults,
-        children=args.children,
+        children=children,
+        children_ages=child_ages,
         rooms=args.rooms,
         currency=args.currency,
         lang=args.lang,

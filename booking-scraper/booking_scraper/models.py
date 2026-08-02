@@ -16,7 +16,9 @@ class SearchQuery:
     checkin: str = "2026-08-26"
     checkout: str = "2026-08-29"
     adults: int = 2
-    children: int = 0
+    children: int = 1
+    # One age per child; Booking uses repeated ``age=`` query params.
+    children_ages: tuple[int, ...] = (2,)
     rooms: int = 1
     currency: str = "EUR"
     lang: str = "nl"

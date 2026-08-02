@@ -199,6 +199,8 @@ class BookingScraper:
                         only_missing=True,
                         checkin=self.query.checkin,
                         checkout=self.query.checkout,
+                        adults=self.query.adults,
+                        children_ages=self.query.children_ages,
                     )
                 if self.require_room_balcony_text:
                     candidates = [

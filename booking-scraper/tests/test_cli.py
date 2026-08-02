@@ -29,6 +29,8 @@ def test_cli_print_url(capsys):
     url = capsys.readouterr().out.strip()
     assert "booking.com/searchresults" in url
     assert "dest_id=1477" in url
+    assert "group_children=1" in url
+    assert "age=2" in url
 
 
 def test_cli_print_nflt(capsys):

@@ -39,6 +39,8 @@ def test_stay_url_includes_dates():
     assert "checkin=2026-08-26" in url
     assert "checkout=2026-08-29" in url
     assert "group_adults=2" in url
+    assert "group_children=1" in url
+    assert "age=2" in url
 
 
 def test_write_netscape_bookmarks():

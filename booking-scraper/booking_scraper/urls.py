@@ -88,9 +88,20 @@ def build_nflt(query: SearchQuery) -> str:
     return ";".join(build_nflt_chips(query))
 
 
+def _children_ages(query: SearchQuery) -> tuple[int, ...]:
+    """Return child ages; fall back to repeating 0 when only a count is set."""
+    if query.children_ages:
+        return query.children_ages
+    if query.children > 0:
+        return tuple(0 for _ in range(query.children))
+    return ()
+
+
 def build_search_url(query: SearchQuery, *, offset: int = 0) -> str:
     """Return a Booking.com searchresults URL for ``query``."""
-    params: dict[str, str | int] = {
+    ages = _children_ages(query)
+    child_count = len(ages) if ages else query.children
+    params: dict[str, str | int | list[int]] = {
         "ss": query.destination,
         "ssne": query.destination,
         "ssne_untouched": query.destination,
@@ -101,15 +112,17 @@ def build_search_url(query: SearchQuery, *, offset: int = 0) -> str:
         "group_adults": query.adults,
         "req_adults": query.adults,
         "no_rooms": query.rooms,
-        "group_children": query.children,
-        "req_children": query.children,
+        "group_children": child_count,
+        "req_children": child_count,
         "selected_currency": query.currency,
         "lang": query.lang,
         "order": query.order,
     }
+    if ages:
+        params["age"] = list(ages)
     nflt = build_nflt(query)
     if nflt:
         params["nflt"] = nflt
     if offset:
         params["offset"] = offset
-    return f"{SEARCH_BASE}?{urlencode(params)}"
+    return f"{SEARCH_BASE}?{urlencode(params, doseq=True)}"

@@ -16,10 +16,17 @@ logger = logging.getLogger(__name__)
 
 
 def hotel_url_with_dates(
-    url: str, *, checkin: str | None = None, checkout: str | None = None
+    url: str,
+    *,
+    checkin: str | None = None,
+    checkout: str | None = None,
+    adults: int | None = None,
+    children_ages: tuple[int, ...] | None = None,
 ) -> str:
-    """Ensure hotel URLs carry stay dates so Capla exposes matching rooms."""
-    if not url or (not checkin and not checkout):
+    """Ensure hotel URLs carry stay dates/occupancy so Capla exposes matching rooms."""
+    if not url or (
+        not checkin and not checkout and adults is None and not children_ages
+    ):
         return url
     parts = urlparse(url)
     query = parse_qs(parts.query, keep_blank_values=True)
@@ -27,7 +34,16 @@ def hotel_url_with_dates(
         query["checkin"] = [checkin]
     if checkout:
         query["checkout"] = [checkout]
-    # flatten for urlencode
+    if adults is not None:
+        query["group_adults"] = [str(adults)]
+        query["req_adults"] = [str(adults)]
+    if children_ages is not None:
+        query["group_children"] = [str(len(children_ages))]
+        query["req_children"] = [str(len(children_ages))]
+        if children_ages:
+            query["age"] = [str(age) for age in children_ages]
+        else:
+            query.pop("age", None)
     flat = [(k, v) for k, values in query.items() for v in values]
     return urlunparse(parts._replace(query=urlencode(flat)))
 
@@ -155,6 +171,8 @@ def enrich_properties_with_hotel_pages(
     only_missing: bool = True,
     checkin: str | None = None,
     checkout: str | None = None,
+    adults: int | None = None,
+    children_ages: tuple[int, ...] | None = None,
 ) -> list[PropertyResult]:
     """Fetch hotel pages for properties lacking name-level balcony evidence."""
     cache: dict[str, dict[int, RoomDetails]] = {}
@@ -173,7 +191,11 @@ def enrich_properties_with_hotel_pages(
             continue
 
         fetch_url = hotel_url_with_dates(
-            prop.url, checkin=checkin, checkout=checkout
+            prop.url,
+            checkin=checkin,
+            checkout=checkout,
+            adults=adults,
+            children_ages=children_ages,
         )
         if fetch_url not in cache:
             try:
