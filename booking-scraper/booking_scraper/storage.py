@@ -40,14 +40,20 @@ def write_csv(report: SearchReport, stream: TextIO) -> None:
 
 
 def write_table(report: SearchReport, stream: TextIO) -> None:
+    max_price = (
+        f"{report.query.max_total_price:g}"
+        if report.query.max_total_price is not None
+        else "∞"
+    )
     stream.write(
         f"# {report.result_header or 'Booking.com resultaten'}\n"
         f"# Check-in {report.query.checkin} → check-out {report.query.checkout} "
         f"({report.query.nights} nachten)\n"
         f"# Filters: score>={report.query.min_review_score}, "
-        f"totaal<={report.query.max_total_price:g} {report.query.currency}, "
+        f"totaal<={max_price} {report.query.currency}, "
         f"ontbijt={report.query.breakfast}, zwembad={report.query.swimming_pool}, "
-        f"balkon={report.query.balcony}\n"
+        f"balkon={report.query.balcony}, terras={report.query.terrace}\n"
+        f"# nflt: {report.nflt or '(geen)'}\n"
         f"# Matches: {len(report.properties)} / {report.cards_seen} kaarten "
         f"({report.pages_scraped} pagina's)\n\n"
     )

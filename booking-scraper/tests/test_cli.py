@@ -29,3 +29,20 @@ def test_cli_print_url(capsys):
     url = capsys.readouterr().out.strip()
     assert "booking.com/searchresults" in url
     assert "dest_id=1477" in url
+
+
+def test_cli_print_nflt(capsys):
+    code = main(["--print-nflt"])
+    assert code == 0
+    nflt = capsys.readouterr().out.strip()
+    assert "hotelfacility=433" in nflt
+    assert "roomfacility=17" in nflt
+
+
+def test_cli_list_filters(capsys):
+    code = main(["--list-filters"])
+    assert code == 0
+    out = capsys.readouterr().out
+    assert "balcony" in out
+    assert "roomfacility=17" in out
+    assert "Zwembad" in out

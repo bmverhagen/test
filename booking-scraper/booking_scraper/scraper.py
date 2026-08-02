@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from .fetcher import FetchError, PlaywrightFetcher
 from .models import PropertyResult, SearchQuery, SearchReport
 from .parser import parse_result_count, parse_search_results
-from .urls import build_search_url
+from .urls import build_nflt, build_search_url
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,9 @@ def matches_query(prop: PropertyResult, query: SearchQuery) -> bool:
     """Apply client-side filters on top of Booking's nflt chips."""
     if prop.price_total is None:
         return False
-    if prop.price_total > query.max_total_price:
+    if query.max_total_price is not None and prop.price_total > query.max_total_price:
+        return False
+    if query.min_total_price is not None and prop.price_total < query.min_total_price:
         return False
     if query.min_review_score > 0:
         if prop.review_score is None or prop.review_score < query.min_review_score:
@@ -77,6 +79,8 @@ class BookingScraper:
             for prop in dedupe_properties(properties)
             if matches_query(prop, self.query)
         ]
+        # Only enforce room-text balcony when explicitly requested; Booking's
+        # roomfacility chip is property-level and the listed room may differ.
         if self.require_room_balcony_text:
             matched = [prop for prop in matched if prop.room_mentions_balcony]
         matched.sort(
@@ -101,6 +105,7 @@ class BookingScraper:
             cards_seen=len(properties),
             scraped_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
             result_header=header,
+            nflt=build_nflt(self.query),
         )
 
     def scrape(self) -> SearchReport:
@@ -178,6 +183,7 @@ class BookingScraper:
             cards_seen=len(all_cards),
             scraped_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
             result_header=header,
+            nflt=build_nflt(self.query),
             errors=errors,
         )
 

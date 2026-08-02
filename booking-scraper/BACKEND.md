@@ -1,101 +1,60 @@
-# Booking.com — directe backend-ingangen
+# Booking.com — backend & filters
 
-De HTML-kaarten zijn niet de bron. Booking levert zoekresultaten via Capla/GraphQL.
+## Backend-ingangen
 
-## 1. Capla Apollo store (SSR, aanbevolen)
+| Pad | Bron | Gebruik |
+| --- | --- | --- |
+| **Capla Apollo store** | `script[data-capla-store-data]` → `ROOT_QUERY.searchQueries.search(...)` | Primair in scraper |
+| **GraphQL** | `POST https://www.booking.com/dml/graphql` | WAF + CSRF + persistedQuery-hash |
+| **Demand API** | `POST /accommodations/search` | Alleen partners |
+| **Autocomplete** | `accommodations.booking.com/autocomplete.json` | `dest_id` lookup |
 
-Elke `searchresults`‑pagina bevat:
-
-```html
-<script type="application/json" data-capla-store-data>
-  { "ROOT_QUERY": { "searchQueries": { "search({...})": { "results": [...], "pagination": {...} } } } }
-</script>
-```
-
-Dit is de genormaliseerde Apollo-cache van dezelfde GraphQL-query die de frontend gebruikt.
-
-| Veld | Pad |
-| --- | --- |
-| Resultaten | `ROOT_QUERY.searchQueries["search({input})"].results[]` |
-| Totaal | `...pagination.nbResultsTotal` |
-| Naam | `displayName.text` |
-| Score | `basicPropertyData.reviews.totalScore` |
-| Totaalprijs | `priceDisplayInfoIrene.displayPrice.amountPerStay.amountUnformatted` |
-| Per nacht | `priceDisplayInfoIrene.averagePricePerNight.amountUnformatted` |
-| Ontbijt | `mealPlanIncluded.text` / `mealPlanType` |
-| Kamer | `matchingUnitConfigurations.commonConfiguration.name` |
-
-Auth-context zit in:
-
-```html
-<script type="application/json" data-capla-application-context>
-  { "csrfToken": "eyJ...", "affiliate": { "id": 304142 }, "pageviewId": "..." }
-</script>
-```
-
-De scraper leest dit via `booking_scraper.capla` (primaire parser).
-
-## 2. GraphQL API
-
-```
-POST https://www.booking.com/dml/graphql?lang=nl
-Content-Type: application/json
-Cookie: aws-waf-token=...
-X-Booking-CSRF-Token: <csrfToken uit application-context>
-```
-
-Body (persisted query):
-
-```json
-{
-  "operationName": "FullSearch",
-  "variables": { "input": { "...zelfde input als in de Capla search-key..." } },
-  "extensions": {
-    "persistedQuery": {
-      "version": 1,
-      "sha256Hash": "<hash uit frontend bundle>"
-    }
-  }
-}
-```
-
-Vereisten:
-
-- Geldige **AWS WAF**-cookie (`aws-waf-token`) — zonder browser-sessie → 403
-- Geldige **CSRF**-JWT uit Capla context
-- Correcte **persistedQuery sha256Hash** (wijzigt met frontend-deploys)
-- GET op dit endpoint → `405`; onbekende hash → `PersistedQueryNotFound`
-
-Omdat de hash breekbaar is, gebruikt deze scraper Capla-SSR i.p.v. losse GraphQL-POSTs.
-
-## 3. Officiële Demand API (partners)
-
-```
-POST https://demandapi.booking.com/3.2/accommodations/search
-Authorization: Bearer <partner-token>
-```
-
-Alleen voor goedgekeurde affiliates/OTA’s — niet publiek.
-
-## 4. Autocomplete (bestemming → dest_id)
-
-```
-GET https://accommodations.booking.com/autocomplete.json?query=Schwarzwald&lang=nl&size=10
-```
+CSRF: `script[data-capla-application-context].csrfToken`.
 
 Zwarte Woud / Black Forest = `dest_id=1477`, `dest_type=region`.
 
-## Zoek-input (uit Capla)
+## `nflt` filtertaxonomie (Capla, Zwarte Woud)
+
+Chips komen uit `search.filters` in de Capla-store. Catalogus:  
+`booking_scraper/data/filter_catalog.json` (187 chips).
+
+### Gecorrigeerde kernfilters
+
+| Filter | Chip | Label |
+| --- | --- | --- |
+| Score 9+ | `review_score=90` | Fantastisch: 9+ |
+| Ontbijt | `mealplan=1` | Ontbijt inbegrepen |
+| **Zwembad** | `hotelfacility=433` | Zwembad *(niet `popular_activities=2`)* |
+| **Balkon** | `roomfacility=17` | Balkon *(niet `roomfacility=32`)* |
+| Terras | `roomfacility=123` | Terras |
+| Sauna | `popular_activities=10` | Sauna |
+| Parkeren | `hotelfacility=2` | Parkeren |
+| Spa | `hotelfacility=54` | Spa- en wellnesscentrum |
+| Gratis annuleren | `fc=2` | Gratis annuleren |
+| Erg goed ontbijt | `rated_high=1` | Erg goed ontbijt |
+
+### Andere nuttige families
+
+- **Maaltijden:** `mealplan=9` halfpension, `mealplan=3` all-inclusive, `mealplan=999` keuken  
+- **Accommodatietype:** `ht_id=204` hotels, `201` appartementen, `208` B&B, `216` pensions, `220` vakantiehuizen, `privacy_type=3` hele woning  
+- **Sterren:** `class=1`…`class=5`  
+- **Kamer:** `roomfacility=38` eigen badkamer, `81` uitzicht, `999` keuken/kitchenette, `5` bad  
+- **Activiteiten:** `popular_activities=70/76/86/26` (wandelen/fietsen/…)  
+- **Steden (`uf=`):** Freiburg `-1771505`, Baden-Baden `-1743083`, Titisee `-1874960`, Rust `-1854104`, Bad Wildbad `-1888060`, Bazel `-2551183`, …  
+- **Prijs (per nacht):** `price=0-<max>-1`
+
+Named aliases: `python scrape.py --list-filters`.
+
+## Zoek-input (Capla)
 
 ```json
 {
   "dates": { "checkin": "2026-08-26", "checkout": "2026-08-29" },
   "location": { "destId": 1477, "destType": "REGION", "searchString": "Zwarte Woud" },
   "nbAdults": 2,
-  "nbChildren": 0,
   "nbRooms": 1,
   "filters": {
-    "selectedFilters": "review_score=90;mealplan=1;popular_activities=2;roomfacility=32;price=0-167-1"
+    "selectedFilters": "review_score=90;mealplan=1;hotelfacility=433;roomfacility=17;price=0-167-1"
   },
   "sorters": { "selectedSorter": "price" },
   "pagination": { "offset": 0, "rowsPerPage": 25 }

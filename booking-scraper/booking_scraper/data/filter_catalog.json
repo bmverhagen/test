@@ -1,0 +1,1129 @@
+{
+  "destination": "Zwarte Woud",
+  "dest_id": "1477",
+  "source": "capla_store.search.filters",
+  "chips": [
+    {
+      "chip": "SustainablePropertyLevelFilter=4",
+      "key": "SustainablePropertyLevelFilter",
+      "value": "4",
+      "label": "Duurzaamheidscertificatie"
+    },
+    {
+      "chip": "accessible_facilities=186",
+      "key": "accessible_facilities",
+      "value": "186",
+      "label": "Toilet met handgrepen"
+    },
+    {
+      "chip": "accessible_facilities=187",
+      "key": "accessible_facilities",
+      "value": "187",
+      "label": "Toilet op verhoging"
+    },
+    {
+      "chip": "accessible_facilities=188",
+      "key": "accessible_facilities",
+      "value": "188",
+      "label": "Lage wastafel in de badkamer"
+    },
+    {
+      "chip": "accessible_facilities=189",
+      "key": "accessible_facilities",
+      "value": "189",
+      "label": "Noodkoord in de badkamer"
+    },
+    {
+      "chip": "accessible_facilities=211",
+      "key": "accessible_facilities",
+      "value": "211",
+      "label": "Visuele ondersteuning: braille"
+    },
+    {
+      "chip": "accessible_facilities=212",
+      "key": "accessible_facilities",
+      "value": "212",
+      "label": "Visuele ondersteuning: tactiele borden"
+    },
+    {
+      "chip": "accessible_facilities=213",
+      "key": "accessible_facilities",
+      "value": "213",
+      "label": "Audiobegeleiding"
+    },
+    {
+      "chip": "accessible_room_facilities=131",
+      "key": "accessible_room_facilities",
+      "value": "131",
+      "label": "Gehele unit op de begane grond"
+    },
+    {
+      "chip": "accessible_room_facilities=132",
+      "key": "accessible_room_facilities",
+      "value": "132",
+      "label": "Bovenverdiepingen bereikbaar per lift"
+    },
+    {
+      "chip": "accessible_room_facilities=134",
+      "key": "accessible_room_facilities",
+      "value": "134",
+      "label": "Gehele unit is rolstoeltoegankelijk"
+    },
+    {
+      "chip": "accessible_room_facilities=147",
+      "key": "accessible_room_facilities",
+      "value": "147",
+      "label": "Toilet met handgrepen"
+    },
+    {
+      "chip": "accessible_room_facilities=148",
+      "key": "accessible_room_facilities",
+      "value": "148",
+      "label": "Aangepast bad"
+    },
+    {
+      "chip": "accessible_room_facilities=149",
+      "key": "accessible_room_facilities",
+      "value": "149",
+      "label": "Rolstoeltoegankelijke douche"
+    },
+    {
+      "chip": "accessible_room_facilities=150",
+      "key": "accessible_room_facilities",
+      "value": "150",
+      "label": "Inloopdouche"
+    },
+    {
+      "chip": "accessible_room_facilities=151",
+      "key": "accessible_room_facilities",
+      "value": "151",
+      "label": "Verhoogd toilet"
+    },
+    {
+      "chip": "accessible_room_facilities=152",
+      "key": "accessible_room_facilities",
+      "value": "152",
+      "label": "Verlaagde wastafel"
+    },
+    {
+      "chip": "accessible_room_facilities=153",
+      "key": "accessible_room_facilities",
+      "value": "153",
+      "label": "Noodkoord in de badkamer"
+    },
+    {
+      "chip": "accessible_room_facilities=154",
+      "key": "accessible_room_facilities",
+      "value": "154",
+      "label": "Douchestoel"
+    },
+    {
+      "chip": "chaincode=1050",
+      "key": "chaincode",
+      "value": "1050",
+      "label": "Novotel"
+    },
+    {
+      "chip": "chaincode=1051",
+      "key": "chaincode",
+      "value": "1051",
+      "label": "Mercure"
+    },
+    {
+      "chip": "chaincode=1053",
+      "key": "chaincode",
+      "value": "1053",
+      "label": "ibis"
+    },
+    {
+      "chip": "chaincode=10845",
+      "key": "chaincode",
+      "value": "10845",
+      "label": "Holidu"
+    },
+    {
+      "chip": "chaincode=1175",
+      "key": "chaincode",
+      "value": "1175",
+      "label": "B&B Hotels"
+    },
+    {
+      "chip": "chaincode=1282",
+      "key": "chaincode",
+      "value": "1282",
+      "label": "Motel One"
+    },
+    {
+      "chip": "chaincode=13782",
+      "key": "chaincode",
+      "value": "13782",
+      "label": "Plaza Hotels"
+    },
+    {
+      "chip": "chaincode=13837",
+      "key": "chaincode",
+      "value": "13837",
+      "label": "limehome"
+    },
+    {
+      "chip": "chaincode=1396",
+      "key": "chaincode",
+      "value": "1396",
+      "label": "Premier Inn"
+    },
+    {
+      "chip": "chaincode=14678",
+      "key": "chaincode",
+      "value": "14678",
+      "label": "SECRA"
+    },
+    {
+      "chip": "chaincode=14848",
+      "key": "chaincode",
+      "value": "14848",
+      "label": "Destination Solutions"
+    },
+    {
+      "chip": "chaincode=15657",
+      "key": "chaincode",
+      "value": "15657",
+      "label": "WMM Hotels"
+    },
+    {
+      "chip": "chaincode=15679",
+      "key": "chaincode",
+      "value": "15679",
+      "label": "Travanto Ferienwohnungen"
+    },
+    {
+      "chip": "chaincode=1737",
+      "key": "chaincode",
+      "value": "1737",
+      "label": "Dorint Hotels"
+    },
+    {
+      "chip": "chaincode=2301",
+      "key": "chaincode",
+      "value": "2301",
+      "label": "Holiday Inn Express"
+    },
+    {
+      "chip": "chaincode=2752",
+      "key": "chaincode",
+      "value": "2752",
+      "label": "Interhome"
+    },
+    {
+      "chip": "chaincode=3086",
+      "key": "chaincode",
+      "value": "3086",
+      "label": "ibis Styles"
+    },
+    {
+      "chip": "chaincode=3186",
+      "key": "chaincode",
+      "value": "3186",
+      "label": "ibis Budget"
+    },
+    {
+      "chip": "chaincode=3292",
+      "key": "chaincode",
+      "value": "3292",
+      "label": "Belvilla"
+    },
+    {
+      "chip": "chaincode=9983",
+      "key": "chaincode",
+      "value": "9983",
+      "label": "BW Signature Collection by Best Western"
+    },
+    {
+      "chip": "class=1",
+      "key": "class",
+      "value": "1",
+      "label": "1 ster"
+    },
+    {
+      "chip": "class=2",
+      "key": "class",
+      "value": "2",
+      "label": "2 sterren"
+    },
+    {
+      "chip": "class=3",
+      "key": "class",
+      "value": "3",
+      "label": "3 sterren"
+    },
+    {
+      "chip": "class=4",
+      "key": "class",
+      "value": "4",
+      "label": "4 sterren"
+    },
+    {
+      "chip": "class=5",
+      "key": "class",
+      "value": "5",
+      "label": "5 sterren"
+    },
+    {
+      "chip": "entire_place_bedroom_count=1",
+      "key": "entire_place_bedroom_count",
+      "value": "1",
+      "label": "1+ slaapkamer"
+    },
+    {
+      "chip": "entire_place_bedroom_count=2",
+      "key": "entire_place_bedroom_count",
+      "value": "2",
+      "label": "2+ slaapkamers"
+    },
+    {
+      "chip": "entire_place_bedroom_count=3",
+      "key": "entire_place_bedroom_count",
+      "value": "3",
+      "label": "3+ slaapkamers"
+    },
+    {
+      "chip": "entire_place_bedroom_count=4",
+      "key": "entire_place_bedroom_count",
+      "value": "4",
+      "label": "4+ slaapkamers"
+    },
+    {
+      "chip": "entire_place_bedroom_count=5",
+      "key": "entire_place_bedroom_count",
+      "value": "5",
+      "label": "5+ slaapkamers"
+    },
+    {
+      "chip": "fc=2",
+      "key": "fc",
+      "value": "2",
+      "label": "Gratis annuleren"
+    },
+    {
+      "chip": "fc=4",
+      "key": "fc",
+      "value": "4",
+      "label": "Boeken zonder creditcard "
+    },
+    {
+      "chip": "hotelfacility=107",
+      "key": "hotelfacility",
+      "value": "107",
+      "label": "Gratis WiFi"
+    },
+    {
+      "chip": "hotelfacility=11",
+      "key": "hotelfacility",
+      "value": "11",
+      "label": "Gym"
+    },
+    {
+      "chip": "hotelfacility=16",
+      "key": "hotelfacility",
+      "value": "16",
+      "label": "Rookvrije kamers"
+    },
+    {
+      "chip": "hotelfacility=17",
+      "key": "hotelfacility",
+      "value": "17",
+      "label": "Luchthavenshuttle"
+    },
+    {
+      "chip": "hotelfacility=182",
+      "key": "hotelfacility",
+      "value": "182",
+      "label": "Oplaadpunt voor elektrische voertuigen"
+    },
+    {
+      "chip": "hotelfacility=185",
+      "key": "hotelfacility",
+      "value": "185",
+      "label": "Rolstoeltoegankelijk"
+    },
+    {
+      "chip": "hotelfacility=2",
+      "key": "hotelfacility",
+      "value": "2",
+      "label": "Parkeren"
+    },
+    {
+      "chip": "hotelfacility=3",
+      "key": "hotelfacility",
+      "value": "3",
+      "label": "Restaurant"
+    },
+    {
+      "chip": "hotelfacility=433",
+      "key": "hotelfacility",
+      "value": "433",
+      "label": "Zwembad"
+    },
+    {
+      "chip": "hotelfacility=5",
+      "key": "hotelfacility",
+      "value": "5",
+      "label": "Roomservice"
+    },
+    {
+      "chip": "hotelfacility=54",
+      "key": "hotelfacility",
+      "value": "54",
+      "label": "Spa- en wellnesscentrum"
+    },
+    {
+      "chip": "hotelfacility=63",
+      "key": "hotelfacility",
+      "value": "63",
+      "label": "Hot tub / jacuzzi"
+    },
+    {
+      "chip": "hotelfacility=8",
+      "key": "hotelfacility",
+      "value": "8",
+      "label": "24-uursreceptie"
+    },
+    {
+      "chip": "ht_beach=1",
+      "key": "ht_beach",
+      "value": "1",
+      "label": "Aan het strand"
+    },
+    {
+      "chip": "ht_id=201",
+      "key": "ht_id",
+      "value": "201",
+      "label": "Appartementen"
+    },
+    {
+      "chip": "ht_id=203",
+      "key": "ht_id",
+      "value": "203",
+      "label": "Hostels"
+    },
+    {
+      "chip": "ht_id=204",
+      "key": "ht_id",
+      "value": "204",
+      "label": "Hotels"
+    },
+    {
+      "chip": "ht_id=205",
+      "key": "ht_id",
+      "value": "205",
+      "label": "Motels"
+    },
+    {
+      "chip": "ht_id=206",
+      "key": "ht_id",
+      "value": "206",
+      "label": "Resorts"
+    },
+    {
+      "chip": "ht_id=208",
+      "key": "ht_id",
+      "value": "208",
+      "label": "Bed & breakfasts"
+    },
+    {
+      "chip": "ht_id=210",
+      "key": "ht_id",
+      "value": "210",
+      "label": "Vakantieboerderijen"
+    },
+    {
+      "chip": "ht_id=212",
+      "key": "ht_id",
+      "value": "212",
+      "label": "Vakantieparken"
+    },
+    {
+      "chip": "ht_id=214",
+      "key": "ht_id",
+      "value": "214",
+      "label": "Campings"
+    },
+    {
+      "chip": "ht_id=215",
+      "key": "ht_id",
+      "value": "215",
+      "label": "Boten"
+    },
+    {
+      "chip": "ht_id=216",
+      "key": "ht_id",
+      "value": "216",
+      "label": "Pensions"
+    },
+    {
+      "chip": "ht_id=220",
+      "key": "ht_id",
+      "value": "220",
+      "label": "Vakantiehuizen"
+    },
+    {
+      "chip": "ht_id=221",
+      "key": "ht_id",
+      "value": "221",
+      "label": "Lodges"
+    },
+    {
+      "chip": "ht_id=222",
+      "key": "ht_id",
+      "value": "222",
+      "label": "Homestays"
+    },
+    {
+      "chip": "ht_id=223",
+      "key": "ht_id",
+      "value": "223",
+      "label": "Landhuizen"
+    },
+    {
+      "chip": "ht_id=225",
+      "key": "ht_id",
+      "value": "225",
+      "label": "Capsulehotels"
+    },
+    {
+      "chip": "ht_id=228",
+      "key": "ht_id",
+      "value": "228",
+      "label": "Chalets"
+    },
+    {
+      "chip": "mealplan=1",
+      "key": "mealplan",
+      "value": "1",
+      "label": "Ontbijt inbegrepen"
+    },
+    {
+      "chip": "mealplan=3",
+      "key": "mealplan",
+      "value": "3",
+      "label": "Inclusief alle maaltijden"
+    },
+    {
+      "chip": "mealplan=9",
+      "key": "mealplan",
+      "value": "9",
+      "label": "Inclusief ontbijt & diner"
+    },
+    {
+      "chip": "mealplan=999",
+      "key": "mealplan",
+      "value": "999",
+      "label": "Eigen kookgelegenheid"
+    },
+    {
+      "chip": "min_bathrooms=0",
+      "key": "min_bathrooms",
+      "value": "0",
+      "label": ""
+    },
+    {
+      "chip": "min_bathrooms=1",
+      "key": "min_bathrooms",
+      "value": "1",
+      "label": "1+ badkamer"
+    },
+    {
+      "chip": "min_bathrooms=10",
+      "key": "min_bathrooms",
+      "value": "10",
+      "label": "10+ badkamers"
+    },
+    {
+      "chip": "min_bathrooms=11",
+      "key": "min_bathrooms",
+      "value": "11",
+      "label": "11+ badkamers"
+    },
+    {
+      "chip": "min_bathrooms=12",
+      "key": "min_bathrooms",
+      "value": "12",
+      "label": "12+ badkamers"
+    },
+    {
+      "chip": "min_bathrooms=13",
+      "key": "min_bathrooms",
+      "value": "13",
+      "label": "13+ badkamers"
+    },
+    {
+      "chip": "min_bathrooms=14",
+      "key": "min_bathrooms",
+      "value": "14",
+      "label": "14+ badkamers"
+    },
+    {
+      "chip": "min_bathrooms=15",
+      "key": "min_bathrooms",
+      "value": "15",
+      "label": "15+ badkamers"
+    },
+    {
+      "chip": "min_bathrooms=2",
+      "key": "min_bathrooms",
+      "value": "2",
+      "label": "2+ badkamers"
+    },
+    {
+      "chip": "min_bathrooms=3",
+      "key": "min_bathrooms",
+      "value": "3",
+      "label": "3+ badkamers"
+    },
+    {
+      "chip": "min_bathrooms=4",
+      "key": "min_bathrooms",
+      "value": "4",
+      "label": "4+ badkamers"
+    },
+    {
+      "chip": "min_bathrooms=5",
+      "key": "min_bathrooms",
+      "value": "5",
+      "label": "5+ badkamers"
+    },
+    {
+      "chip": "min_bathrooms=6",
+      "key": "min_bathrooms",
+      "value": "6",
+      "label": "6+ badkamers"
+    },
+    {
+      "chip": "min_bathrooms=7",
+      "key": "min_bathrooms",
+      "value": "7",
+      "label": "7+ badkamers"
+    },
+    {
+      "chip": "min_bathrooms=8",
+      "key": "min_bathrooms",
+      "value": "8",
+      "label": "8+ badkamers"
+    },
+    {
+      "chip": "min_bathrooms=9",
+      "key": "min_bathrooms",
+      "value": "9",
+      "label": "9+ badkamers"
+    },
+    {
+      "chip": "oos=1",
+      "key": "oos",
+      "value": "1",
+      "label": "Alleen beschikbare accommodaties tonen"
+    },
+    {
+      "chip": "pmt=101",
+      "key": "pmt",
+      "value": "101",
+      "label": "Accepteert online betalingen"
+    },
+    {
+      "chip": "pmt=102",
+      "key": "pmt",
+      "value": "102",
+      "label": "Apple Pay"
+    },
+    {
+      "chip": "popular_activities=10",
+      "key": "popular_activities",
+      "value": "10",
+      "label": "Sauna"
+    },
+    {
+      "chip": "popular_activities=26",
+      "key": "popular_activities",
+      "value": "26",
+      "label": "Skiën"
+    },
+    {
+      "chip": "popular_activities=70",
+      "key": "popular_activities",
+      "value": "70",
+      "label": "Hiking"
+    },
+    {
+      "chip": "popular_activities=76",
+      "key": "popular_activities",
+      "value": "76",
+      "label": "Fietsen"
+    },
+    {
+      "chip": "popular_activities=86",
+      "key": "popular_activities",
+      "value": "86",
+      "label": "Paardrijden"
+    },
+    {
+      "chip": "popular_nearby_landmarks=11063",
+      "key": "popular_nearby_landmarks",
+      "value": "11063",
+      "label": "Cultuurcentrum Osterfeld"
+    },
+    {
+      "chip": "popular_nearby_landmarks=13521",
+      "key": "popular_nearby_landmarks",
+      "value": "13521",
+      "label": "Dreiländereck"
+    },
+    {
+      "chip": "popular_nearby_landmarks=1589",
+      "key": "popular_nearby_landmarks",
+      "value": "1589",
+      "label": "Europa-Park Hoofdingang"
+    },
+    {
+      "chip": "popular_nearby_landmarks=16281",
+      "key": "popular_nearby_landmarks",
+      "value": "16281",
+      "label": "Museum Tinguely"
+    },
+    {
+      "chip": "popular_nearby_landmarks=18052",
+      "key": "popular_nearby_landmarks",
+      "value": "18052",
+      "label": "Adlerschanze"
+    },
+    {
+      "chip": "popular_nearby_landmarks=1886",
+      "key": "popular_nearby_landmarks",
+      "value": "1886",
+      "label": "Martinstor"
+    },
+    {
+      "chip": "popular_nearby_landmarks=2065",
+      "key": "popular_nearby_landmarks",
+      "value": "2065",
+      "label": "Spalentor"
+    },
+    {
+      "chip": "popular_nearby_landmarks=2067",
+      "key": "popular_nearby_landmarks",
+      "value": "2067",
+      "label": "Munster van Bazel"
+    },
+    {
+      "chip": "popular_nearby_landmarks=2071",
+      "key": "popular_nearby_landmarks",
+      "value": "2071",
+      "label": "Zoo Basel"
+    },
+    {
+      "chip": "popular_nearby_landmarks=266282",
+      "key": "popular_nearby_landmarks",
+      "value": "266282",
+      "label": "Federal Constitutional Court of Germany"
+    },
+    {
+      "chip": "popular_nearby_landmarks=266390",
+      "key": "popular_nearby_landmarks",
+      "value": "266390",
+      "label": "Kaiserstraße"
+    },
+    {
+      "chip": "popular_nearby_landmarks=266392",
+      "key": "popular_nearby_landmarks",
+      "value": "266392",
+      "label": "Zoo"
+    },
+    {
+      "chip": "popular_nearby_landmarks=266399",
+      "key": "popular_nearby_landmarks",
+      "value": "266399",
+      "label": "Karlsruhe Institute of Technology"
+    },
+    {
+      "chip": "popular_nearby_landmarks=53338",
+      "key": "popular_nearby_landmarks",
+      "value": "53338",
+      "label": "Munster"
+    },
+    {
+      "chip": "popular_nearby_landmarks=900061053",
+      "key": "popular_nearby_landmarks",
+      "value": "900061053",
+      "label": "Tinguely Fountain"
+    },
+    {
+      "chip": "popular_nearby_landmarks=900067785",
+      "key": "popular_nearby_landmarks",
+      "value": "900067785",
+      "label": "Federal Constitutional Court of Germany"
+    },
+    {
+      "chip": "popular_nearby_landmarks=900075102",
+      "key": "popular_nearby_landmarks",
+      "value": "900075102",
+      "label": "Schlossberg"
+    },
+    {
+      "chip": "popular_nearby_landmarks=900075106",
+      "key": "popular_nearby_landmarks",
+      "value": "900075106",
+      "label": "Schwabentor"
+    },
+    {
+      "chip": "popular_nearby_landmarks=900076018",
+      "key": "popular_nearby_landmarks",
+      "value": "900076018",
+      "label": "Faberge Museum"
+    },
+    {
+      "chip": "popular_nearby_landmarks=900076868",
+      "key": "popular_nearby_landmarks",
+      "value": "900076868",
+      "label": "Watervallen van Triberg"
+    },
+    {
+      "chip": "popular_nearby_landmarks=900118375",
+      "key": "popular_nearby_landmarks",
+      "value": "900118375",
+      "label": "Burghof Lorrach"
+    },
+    {
+      "chip": "popular_nearby_landmarks=9452",
+      "key": "popular_nearby_landmarks",
+      "value": "9452",
+      "label": "Drinking hall"
+    },
+    {
+      "chip": "popular_nearby_landmarks=9453",
+      "key": "popular_nearby_landmarks",
+      "value": "9453",
+      "label": "Kurhaus Baden Baden"
+    },
+    {
+      "chip": "popular_nearby_landmarks=9455",
+      "key": "popular_nearby_landmarks",
+      "value": "9455",
+      "label": "Museum Frieder Burda"
+    },
+    {
+      "chip": "popular_nearby_landmarks=9460",
+      "key": "popular_nearby_landmarks",
+      "value": "9460",
+      "label": "Lichtentaler Allee"
+    },
+    {
+      "chip": "privacy_type=3",
+      "key": "privacy_type",
+      "value": "3",
+      "label": "Hele huizen & appartementen"
+    },
+    {
+      "chip": "rated_high=1",
+      "key": "rated_high",
+      "value": "1",
+      "label": "Erg goed ontbijt"
+    },
+    {
+      "chip": "review_score=60",
+      "key": "review_score",
+      "value": "60",
+      "label": "Aangenaam: 6+"
+    },
+    {
+      "chip": "review_score=70",
+      "key": "review_score",
+      "value": "70",
+      "label": "Goed: 7+"
+    },
+    {
+      "chip": "review_score=80",
+      "key": "review_score",
+      "value": "80",
+      "label": "Erg goed: 8+"
+    },
+    {
+      "chip": "review_score=90",
+      "key": "review_score",
+      "value": "90",
+      "label": "Fantastisch: 9+"
+    },
+    {
+      "chip": "roomfacility=120",
+      "key": "roomfacility",
+      "value": "120",
+      "label": "Koffiezetapparaat"
+    },
+    {
+      "chip": "roomfacility=123",
+      "key": "roomfacility",
+      "value": "123",
+      "label": "Terras"
+    },
+    {
+      "chip": "roomfacility=16",
+      "key": "roomfacility",
+      "value": "16",
+      "label": "Kitchenette"
+    },
+    {
+      "chip": "roomfacility=17",
+      "key": "roomfacility",
+      "value": "17",
+      "label": "Balkon"
+    },
+    {
+      "chip": "roomfacility=23",
+      "key": "roomfacility",
+      "value": "23",
+      "label": "Bureau"
+    },
+    {
+      "chip": "roomfacility=34",
+      "key": "roomfacility",
+      "value": "34",
+      "label": "Wasmachine"
+    },
+    {
+      "chip": "roomfacility=38",
+      "key": "roomfacility",
+      "value": "38",
+      "label": "Eigen badkamer"
+    },
+    {
+      "chip": "roomfacility=5",
+      "key": "roomfacility",
+      "value": "5",
+      "label": "Bad"
+    },
+    {
+      "chip": "roomfacility=75",
+      "key": "roomfacility",
+      "value": "75",
+      "label": "Flatscreen-tv"
+    },
+    {
+      "chip": "roomfacility=79",
+      "key": "roomfacility",
+      "value": "79",
+      "label": "Geluidsisolatie"
+    },
+    {
+      "chip": "roomfacility=81",
+      "key": "roomfacility",
+      "value": "81",
+      "label": "Uitzicht"
+    },
+    {
+      "chip": "roomfacility=86",
+      "key": "roomfacility",
+      "value": "86",
+      "label": "Elektrische waterkoker"
+    },
+    {
+      "chip": "roomfacility=998",
+      "key": "roomfacility",
+      "value": "998",
+      "label": "Koffie-/theefaciliteiten "
+    },
+    {
+      "chip": "roomfacility=999",
+      "key": "roomfacility",
+      "value": "999",
+      "label": "Keuken/kitchenette"
+    },
+    {
+      "chip": "stay_type=1",
+      "key": "stay_type",
+      "value": "1",
+      "label": "Huisdieren toegestaan"
+    },
+    {
+      "chip": "stay_type=2",
+      "key": "stay_type",
+      "value": "2",
+      "label": "Alleen volwassenen"
+    },
+    {
+      "chip": "stay_type=4",
+      "key": "stay_type",
+      "value": "4",
+      "label": "Travel Proud (LHBTI+-vriendelijk)"
+    },
+    {
+      "chip": "tdb=2",
+      "key": "tdb",
+      "value": "2",
+      "label": "Twee aparte bedden"
+    },
+    {
+      "chip": "tdb=3",
+      "key": "tdb",
+      "value": "3",
+      "label": "Tweepersoonsbed"
+    },
+    {
+      "chip": "tdb=5",
+      "key": "tdb",
+      "value": "5",
+      "label": "Groot tweepersoonsbed"
+    },
+    {
+      "chip": "tdb=6",
+      "key": "tdb",
+      "value": "6",
+      "label": "Extra groot tweepersoonsbed"
+    },
+    {
+      "chip": "uf=-1466722",
+      "key": "uf",
+      "value": "-1466722",
+      "label": "Saint-Louis"
+    },
+    {
+      "chip": "uf=-1743034",
+      "key": "uf",
+      "value": "-1743034",
+      "label": "Bad Bellingen"
+    },
+    {
+      "chip": "uf=-1743083",
+      "key": "uf",
+      "value": "-1743083",
+      "label": "Baden-Baden"
+    },
+    {
+      "chip": "uf=-1743226",
+      "key": "uf",
+      "value": "-1743226",
+      "label": "Bad Säckingen"
+    },
+    {
+      "chip": "uf=-1743393",
+      "key": "uf",
+      "value": "-1743393",
+      "label": "Baiersbronn"
+    },
+    {
+      "chip": "uf=-1769232",
+      "key": "uf",
+      "value": "-1769232",
+      "label": "Feldberg"
+    },
+    {
+      "chip": "uf=-1771505",
+      "key": "uf",
+      "value": "-1771505",
+      "label": "Freiburg im Breisgau"
+    },
+    {
+      "chip": "uf=-1771789",
+      "key": "uf",
+      "value": "-1771789",
+      "label": "Freudenstadt"
+    },
+    {
+      "chip": "uf=-1803994",
+      "key": "uf",
+      "value": "-1803994",
+      "label": "Karlsruhe"
+    },
+    {
+      "chip": "uf=-1814929",
+      "key": "uf",
+      "value": "-1814929",
+      "label": "Lahr"
+    },
+    {
+      "chip": "uf=-1820950",
+      "key": "uf",
+      "value": "-1820950",
+      "label": "Lörrach"
+    },
+    {
+      "chip": "uf=-1839098",
+      "key": "uf",
+      "value": "-1839098",
+      "label": "Offenburg"
+    },
+    {
+      "chip": "uf=-1842944",
+      "key": "uf",
+      "value": "-1842944",
+      "label": "Pforzheim"
+    },
+    {
+      "chip": "uf=-1853327",
+      "key": "uf",
+      "value": "-1853327",
+      "label": "Rottweil"
+    },
+    {
+      "chip": "uf=-1854104",
+      "key": "uf",
+      "value": "-1854104",
+      "label": "Rust"
+    },
+    {
+      "chip": "uf=-1855595",
+      "key": "uf",
+      "value": "-1855595",
+      "label": "Sasbachwalden"
+    },
+    {
+      "chip": "uf=-1859893",
+      "key": "uf",
+      "value": "-1859893",
+      "label": "Schonach"
+    },
+    {
+      "chip": "uf=-1860538",
+      "key": "uf",
+      "value": "-1860538",
+      "label": "Schönwald"
+    },
+    {
+      "chip": "uf=-1874960",
+      "key": "uf",
+      "value": "-1874960",
+      "label": "Titisee-Neustadt"
+    },
+    {
+      "chip": "uf=-1875063",
+      "key": "uf",
+      "value": "-1875063",
+      "label": "Todtmoos"
+    },
+    {
+      "chip": "uf=-1875833",
+      "key": "uf",
+      "value": "-1875833",
+      "label": "Triberg"
+    },
+    {
+      "chip": "uf=-1879835",
+      "key": "uf",
+      "value": "-1879835",
+      "label": "Villingen-Schwenningen"
+    },
+    {
+      "chip": "uf=-1884429",
+      "key": "uf",
+      "value": "-1884429",
+      "label": "Weil am Rhein"
+    },
+    {
+      "chip": "uf=-1888060",
+      "key": "uf",
+      "value": "-1888060",
+      "label": "Bad Wildbad"
+    },
+    {
+      "chip": "uf=-2551183",
+      "key": "uf",
+      "value": "-2551183",
+      "label": "Bazel"
+    }
+  ]
+}

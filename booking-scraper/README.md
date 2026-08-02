@@ -51,29 +51,28 @@ Of als module:
 python -m booking_scraper --max-price 450 --adults 2
 ```
 
-## Backend
+## Backend & filters
 
-Booking levert resultaten niet via de DOM, maar via:
+Booking levert resultaten via de **Capla Apollo store** (`data-capla-store-data`) — dezelfde JSON als `/dml/graphql`. Zie [BACKEND.md](./BACKEND.md).
 
-1. **Capla Apollo store** in `script[data-capla-store-data]` (SSR JSON = GraphQL-cache) — dit is wat de scraper primair parset
-2. **`POST /dml/graphql`** (persisted queries, WAF + CSRF vereist)
-3. Officiële **Demand API** (alleen partners)
+Standaard-`nflt` (gecorrigeerd vanuit Capla):
 
-Details: [BACKEND.md](./BACKEND.md).
+| Filter | Chip |
+| --- | --- |
+| Score 9+ | `review_score=90` |
+| Ontbijt | `mealplan=1` |
+| Zwembad | `hotelfacility=433` |
+| Balkon | `roomfacility=17` |
+| Budget | `price=0-<per-nacht>-1` |
 
-## Filters (techniek)
+```bash
+python scrape.py --list-filters
+python scrape.py --filter spa,sauna,parking --free-cancellation
+python scrape.py --stars 3,4 --property-type hotels --city freiburg
+python scrape.py --balcony-or-terrace --print-nflt
+```
 
-De scraper bouwt een `searchresults.nl.html`-URL met `nflt`-chips:
-
-- `review_score=90` — Fantastisch 9+
-- `mealplan=1` — ontbijt inbegrepen
-- `popular_activities=2` — zwembad
-- `roomfacility=32` — balkon
-- `price=0-<per-nacht-cap>-1` — ruwe budgetslider (per nacht)
-
-Daarna filtert de scraper **client-side** nogmaals op totale prijs ≤ max en score ≥ min.
-
-**Let op:** Booking’s balkonfilter geldt op accommodatieniveau. De goedkoopste getoonde kamer heeft soms géén balkon (bijv. “ohne Balkon”). Gebruik `--require-room-balcony-text` om die eruit te filteren, of controleer de kamer bij boeking.
+Daarna filtert de scraper **client-side** op totale prijs en score. Booking’s balkonfilter is accommodatieniveau — gebruik `--require-room-balcony-text` voor strengere kamernamen.
 
 ## Tests
 
