@@ -104,10 +104,12 @@ def _match_room(
     for room in rooms.values():
         if _norm_name(room.name) == target:
             return room
-    # Soft match: search room name contained in hotel room name or vice versa.
+    # Soft match only when the search name is contained in a longer hotel name
+    # (e.g. "deluxe" ⊂ "deluxe heritage"), not the reverse (avoids
+    # "deluxe kamer" matching "grand deluxe kamer").
     for room in rooms.values():
         name = _norm_name(room.name)
-        if target in name or name in target:
+        if target and target in name and len(target) >= 8:
             return room
     return None
 
