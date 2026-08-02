@@ -1,6 +1,11 @@
 from booking_scraper.balcony import balcony_from_room, text_mentions_balcony
 from booking_scraper.models import PropertyResult
-from booking_scraper.rooms import RoomDetails, enrich_property_balcony, parse_room_details_from_store
+from booking_scraper.rooms import (
+    RoomDetails,
+    enrich_property_balcony,
+    hotel_url_with_dates,
+    parse_room_details_from_store,
+)
 
 
 def test_text_mentions_balcony_and_negatives():
@@ -62,6 +67,16 @@ def test_enrich_property_uses_description_and_amenities():
     enriched = enrich_property_balcony(prop, rooms)
     assert enriched.room_mentions_balcony is True
     assert enriched.balcony_source == "omschrijving"
+
+
+def test_hotel_url_with_dates():
+    url = hotel_url_with_dates(
+        "https://www.booking.com/hotel/de/x.html",
+        checkin="2026-08-26",
+        checkout="2026-08-29",
+    )
+    assert "checkin=2026-08-26" in url
+    assert "checkout=2026-08-29" in url
 
 
 def test_parse_room_details_from_hotel_store():

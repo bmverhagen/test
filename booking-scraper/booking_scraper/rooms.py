@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, replace
 from typing import Any
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from .balcony import balcony_from_room, text_mentions_balcony
 from .capla import CaplaStore, extract_capla_store
@@ -12,6 +13,23 @@ from .fetcher import FetchError, PlaywrightFetcher
 from .models import PropertyResult
 
 logger = logging.getLogger(__name__)
+
+
+def hotel_url_with_dates(
+    url: str, *, checkin: str | None = None, checkout: str | None = None
+) -> str:
+    """Ensure hotel URLs carry stay dates so Capla exposes matching rooms."""
+    if not url or (not checkin and not checkout):
+        return url
+    parts = urlparse(url)
+    query = parse_qs(parts.query, keep_blank_values=True)
+    if checkin:
+        query["checkin"] = [checkin]
+    if checkout:
+        query["checkout"] = [checkout]
+    # flatten for urlencode
+    flat = [(k, v) for k, values in query.items() for v in values]
+    return urlunparse(parts._replace(query=urlencode(flat)))
 
 
 @dataclass(frozen=True)
@@ -71,16 +89,25 @@ def parse_room_details_from_html(html: str) -> dict[int, RoomDetails]:
     return parse_room_details_from_store(store)
 
 
+def _norm_name(value: str | None) -> str:
+    return " ".join((value or "").casefold().split())
+
+
 def _match_room(
     rooms: dict[int, RoomDetails], prop: PropertyResult
 ) -> RoomDetails | None:
     if prop.unit_id is not None and prop.unit_id in rooms:
         return rooms[prop.unit_id]
-    target = (prop.room_name or "").strip().casefold()
+    target = _norm_name(prop.room_name)
     if not target:
         return None
     for room in rooms.values():
-        if room.name.strip().casefold() == target:
+        if _norm_name(room.name) == target:
+            return room
+    # Soft match: search room name contained in hotel room name or vice versa.
+    for room in rooms.values():
+        name = _norm_name(room.name)
+        if target in name or name in target:
             return room
     return None
 
@@ -124,6 +151,8 @@ def enrich_properties_with_hotel_pages(
     fetcher: PlaywrightFetcher,
     *,
     only_missing: bool = True,
+    checkin: str | None = None,
+    checkout: str | None = None,
 ) -> list[PropertyResult]:
     """Fetch hotel pages for properties lacking name-level balcony evidence."""
     cache: dict[str, dict[int, RoomDetails]] = {}
@@ -141,19 +170,22 @@ def enrich_properties_with_hotel_pages(
             )
             continue
 
-        if prop.url not in cache:
+        fetch_url = hotel_url_with_dates(
+            prop.url, checkin=checkin, checkout=checkout
+        )
+        if fetch_url not in cache:
             try:
-                html = fetcher.fetch_hotel_html(prop.url)
-                cache[prop.url] = parse_room_details_from_html(html)
+                html = fetcher.fetch_hotel_html(fetch_url)
+                cache[fetch_url] = parse_room_details_from_html(html)
                 logger.info(
                     "Hotel Capla rooms for %s: %s",
                     prop.name,
-                    len(cache[prop.url]),
+                    len(cache[fetch_url]),
                 )
             except FetchError as exc:
                 logger.warning("Hotel enrich failed for %s: %s", prop.name, exc)
-                cache[prop.url] = {}
+                cache[fetch_url] = {}
 
-        enriched.append(enrich_property_balcony(prop, cache[prop.url]))
+        enriched.append(enrich_property_balcony(prop, cache[fetch_url]))
 
     return enriched

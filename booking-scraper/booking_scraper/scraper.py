@@ -190,7 +190,11 @@ class BookingScraper:
                         len(candidates),
                     )
                     candidates = enrich_properties_with_hotel_pages(
-                        candidates, active, only_missing=True
+                        candidates,
+                        active,
+                        only_missing=True,
+                        checkin=self.query.checkin,
+                        checkout=self.query.checkout,
                     )
                 if self.require_room_balcony_text:
                     candidates = [
