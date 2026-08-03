@@ -42,6 +42,20 @@ python3 fetch_search_volumes.py -f terms.example.txt \
   --csv out.csv -o out.json --top 30
 ```
 
+## FiveX (also checked)
+
+Deep notes: [`FIVEX.md`](./FIVEX.md)
+
+```bash
+# Sequential only — no bulk endpoint; IP free-quota / CF sensitive
+python3 fetch_fivex_search_terms.py -f terms.example.txt --csv fivex.csv -o fivex.json
+```
+
+- Public: `GET https://www.fivex.com/api/bol-search-terms?query=...`
+- Free limit ~3/day per IP (`429`); `X-FX-Bol-Preview: 1` often still works with pacing
+- Portal API twin: `GET https://fivex.com/portal/api/bol-search-terms` → needs API key (`401` without)
+- **Not suitable as primary bulk path** vs Bolmate demo multi-term
+
 ## Notes
 
 - Demo credentials live in Bolmate’s frontend for their free tool; treat availability/rate limits as third-party.
