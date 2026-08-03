@@ -1,0 +1,59 @@
+{
+  "results": {
+    "status": "success",
+    "searchResults": {
+      "1524": {
+        "id": 1524,
+        "phrase": "mat",
+        "organic": true,
+        "smart": false,
+        "impressionExact30": 14.19,
+        "resultsNumber": ">100,000",
+        "chart": "https://cdn.helium10.com/images/graphics/28.png"
+      },
+      "18499": {
+        "id": 18499,
+        "phrase": "exercise mat",
+        "organic": true,
+        "smart": false,
+        "impressionExact30": 9.06,
+        "resultsNumber": ">10,000",
+        "chart": "https://cdn.helium10.com/images/graphics/31.png"
+      },
+      "18500": {
+        "id": 18500,
+        "phrase": "workout mat",
+        "organic": true,
+        "smart": false,
+        "impressionExact30": 8.93,
+        "resultsNumber": ">8,000",
+        "chart": "https://cdn.helium10.com/images/graphics/54.png"
+      },
+      "27224": {
+        "id": 27224,
+        "phrase": "yoga mat towel",
+        "organic": true,
+        "smart": true,
+        "impressionExact30": 8.49,
+        "resultsNumber": ">3,000",
+        "chart": "https://cdn.helium10.com/images/graphics/15.png"
+      }
+    },
+    "bestPhrase": {
+      "id": 18521,
+      "phrase": "yoga mat",
+      "organic": true,
+      "smart": true,
+      "impressionExact30": 506976,
+      "resultsNumber": ">10,000",
+      "chart": "https://cdn.helium10.com/images/graphics/59.png"
+    },
+    "count": {
+      "organic": 2961,
+      "smart": 7500,
+      "all": 9036,
+      "words": 14699
+    }
+  },
+  "_note": "Live-captured 2026-08-03. Truncated searchResults for brevity; bestPhrase matches seed → seed absolute = 506976."
+}

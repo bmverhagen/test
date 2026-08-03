@@ -1,0 +1,40 @@
+{
+  "endpoint": "POST https://www.smart-minded.com/api/dataforseo",
+  "path": "/v3/keywords_data/google_ads/search_volume/live",
+  "auth": null,
+  "tests": {
+    "size_ladder_dummy_keywords": {
+      "100": {"ok": true, "results": 100, "seconds": 4.1},
+      "250": {"ok": true, "results": 250, "seconds": 3.3},
+      "500": {"ok": true, "results": 500, "seconds": 3.9},
+      "750": {"ok": true, "results": 750, "seconds": 3.3},
+      "1000": {"ok": true, "results": 1000, "seconds": 4.5}
+    },
+    "real_terms_1000": {
+      "n": 1000,
+      "returned": 1000,
+      "with_volume": 989,
+      "null_volume_examples": [
+        "pocket knife",
+        "acne patches",
+        "knee brace",
+        "backpack kids",
+        "best webcam"
+      ],
+      "note": "Null volume means Google Ads returned the keyword without a number — endpoint still succeeded."
+    },
+    "frequency": {
+      "10x100_rapid_no_pause": {"ok": "10/10"},
+      "5x200_with_1s_gap": {"ok": "5/5"},
+      "3x1000_back_to_back": {
+        "ok": "1/3 then recovered",
+        "note": "2nd/3rd immediate full-1000 returned empty result arrays; after ~15s wait full 1000 worked again (2/2)."
+      }
+    }
+  },
+  "guidance": {
+    "preferred": "POST up to 1000 keywords per call",
+    "high_frequency": "Use chunks of 100–200 with ~1s pause, or retry empty full-1000 with 8–15s backoff",
+    "not_amazon_aba": true
+  }
+}

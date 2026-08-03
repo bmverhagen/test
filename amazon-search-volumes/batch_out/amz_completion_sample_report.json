@@ -1,0 +1,50 @@
+{
+  "auth": null,
+  "endpoint": "GET https://completion.amazon.com/api/2017/suggestions",
+  "note": "Amazon-native relative 0-100 estimate; NOT absolute monthly volume.",
+  "market": "US",
+  "n": 5,
+  "ok": 5,
+  "rows": [
+    {
+      "keyword": "laptop",
+      "ok": true,
+      "score": 97.92,
+      "error": null,
+      "prefixes": 6,
+      "hits": 6
+    },
+    {
+      "keyword": "shampoo",
+      "ok": true,
+      "score": 80.13,
+      "error": null,
+      "prefixes": 7,
+      "hits": 7
+    },
+    {
+      "keyword": "yoga mat",
+      "ok": true,
+      "score": 100.0,
+      "error": null,
+      "prefixes": 8,
+      "hits": 8
+    },
+    {
+      "keyword": "kindle",
+      "ok": true,
+      "score": 100.0,
+      "error": null,
+      "prefixes": 6,
+      "hits": 6
+    },
+    {
+      "keyword": "air fryer",
+      "ok": true,
+      "score": 94.32,
+      "error": null,
+      "prefixes": 9,
+      "hits": 9
+    }
+  ]
+}

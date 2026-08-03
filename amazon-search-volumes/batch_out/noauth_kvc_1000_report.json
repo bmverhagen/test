@@ -1,0 +1,59 @@
+{
+  "auth": "supabase anon key embedded in public frontend (no user login)",
+  "endpoint": "POST https://lsbehnmosinxcmafumbo.supabase.co/functions/v1/keyword-volume",
+  "n": 1000,
+  "ok": 1000,
+  "seconds": 305.9,
+  "sample": [
+    {
+      "keyword": "laptop",
+      "ok": true,
+      "volume": 1200000,
+      "cpc": 1.8,
+      "difficulty": 92,
+      "intent": "commercial",
+      "trend": "stable",
+      "error": ""
+    },
+    {
+      "keyword": "yoga mat",
+      "ok": true,
+      "volume": 246000,
+      "cpc": 0.95,
+      "difficulty": 68,
+      "intent": "transactional",
+      "trend": "stable",
+      "error": ""
+    },
+    {
+      "keyword": "air fryer",
+      "ok": true,
+      "volume": 1500000,
+      "cpc": 0.8,
+      "difficulty": 85,
+      "intent": "transactional",
+      "trend": "rising",
+      "error": ""
+    },
+    {
+      "keyword": "kindle",
+      "ok": true,
+      "volume": 823000,
+      "cpc": 1.1,
+      "difficulty": 75,
+      "intent": "navigational",
+      "trend": "stable",
+      "error": ""
+    },
+    {
+      "keyword": "protein powder",
+      "ok": true,
+      "volume": 368000,
+      "cpc": 2.5,
+      "difficulty": 82,
+      "intent": "commercial",
+      "trend": "stable",
+      "error": ""
+    }
+  ]
+}

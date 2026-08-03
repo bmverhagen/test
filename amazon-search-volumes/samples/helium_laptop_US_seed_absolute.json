@@ -1,0 +1,163 @@
+{
+  "results": {
+    "status": "success",
+    "searchResults": {
+      "305248": {
+        "id": 305248,
+        "phrase": "macbook",
+        "organic": true,
+        "smart": false,
+        "impressionExact30": 37.05,
+        "resultsNumber": ">30,000",
+        "chart": "https://cdn.helium10.com/images/graphics/73.png"
+      },
+      "3513001": {
+        "id": 3513001,
+        "phrase": "gaming laptop",
+        "organic": true,
+        "smart": true,
+        "impressionExact30": 35.78,
+        "resultsNumber": ">50,000",
+        "chart": "https://cdn.helium10.com/images/graphics/61.png"
+      },
+      "399266100": {
+        "id": 399266100,
+        "phrase": "macbook neo",
+        "organic": true,
+        "smart": false,
+        "impressionExact30": 34.61,
+        "resultsNumber": ">2,000",
+        "chart": "https://cdn.helium10.com/images/graphics/58.png"
+      },
+      "19249": {
+        "id": 19249,
+        "phrase": "laptop stand",
+        "organic": false,
+        "smart": true,
+        "impressionExact30": 34.61,
+        "resultsNumber": ">40,000",
+        "chart": "https://cdn.helium10.com/images/graphics/13.png"
+      },
+      "2086553": {
+        "id": 2086553,
+        "phrase": "macbook air",
+        "organic": true,
+        "smart": false,
+        "impressionExact30": 33.42,
+        "resultsNumber": ">10,000",
+        "chart": "https://cdn.helium10.com/images/graphics/92.png"
+      },
+      "293674": {
+        "id": 293674,
+        "phrase": "laptops",
+        "organic": true,
+        "smart": true,
+        "impressionExact30": 25.65,
+        "resultsNumber": ">100,000",
+        "chart": "https://cdn.helium10.com/images/graphics/5.png"
+      },
+      "14729": {
+        "id": 14729,
+        "phrase": "apple",
+        "organic": true,
+        "smart": false,
+        "impressionExact30": 25.65,
+        "resultsNumber": ">100,000",
+        "chart": "https://cdn.helium10.com/images/graphics/27.png"
+      },
+      "2086557": {
+        "id": 2086557,
+        "phrase": "macbook pro",
+        "organic": true,
+        "smart": false,
+        "impressionExact30": 25.65,
+        "resultsNumber": ">20,000",
+        "chart": "https://cdn.helium10.com/images/graphics/71.png"
+      },
+      "36766065": {
+        "id": 36766065,
+        "phrase": "gaming",
+        "organic": true,
+        "smart": false,
+        "impressionExact30": 14.94,
+        "resultsNumber": ">100,000",
+        "chart": "https://cdn.helium10.com/images/graphics/75.png"
+      }
+    },
+    "bestPhrase": {
+      "id": 31236,
+      "phrase": "laptop",
+      "organic": true,
+      "smart": true,
+      "impressionExact30": 881687,
+      "resultsNumber": ">100,000",
+      "chart": "https://cdn.helium10.com/images/graphics/2.png"
+    },
+    "count": {
+      "organic": 9833,
+      "smart": 7498,
+      "all": 16818,
+      "words": 29972
+    },
+    "wordFrequency": {
+      "laptops": 2037,
+      "macbook": 1357,
+      "hp": 1032,
+      "air": 921,
+      "apple": 0,
+      "gaming": 0,
+      "inch": 0,
+      "computer": 0,
+      "dell": 0,
+      "sale": 0,
+      "chromebook": 0,
+      "ram": 0,
+      "lenovo": 0,
+      "acer": 0,
+      "windows": 0,
+      "mac": 0
+    },
+    "topAsins": {
+      "B0D2JGRK47": {
+        "asin": "B0D2JGRK47",
+        "title": "Lenovo USB-C Dual Display Travel Dock w/ 100W Power Adapter - 7 Ports, Integrated USB-C Cable, Universal Compatibility, Dual Displays at 4K - Black",
+        "imageUrl": "https://m.media-amazon.com/images/I/61tMxSOgMbL._SX450_.jpg"
+      },
+      "B0GX66CNNJ": {
+        "asin": "B0GX66CNNJ",
+        "title": "Lenovo 15.6\" Business Laptop, 2026 Edition, 8GB DDR5 256GB SSD, Win 11",
+        "imageUrl": "https://m.media-amazon.com/images/I/51pcMdTNCzL._SX450_.jpg"
+      },
+      "B0GZZ6FNYD": {
+        "asin": "B0GZZ6FNYD",
+        "title": "Lenovo Business Laptop, 2026 Edition, Intel 13th Gen i5-13420H, Copilot AI",
+        "imageUrl": "https://m.media-amazon.com/images/I/71-DAgUbvHL._SX450_.jpg"
+      },
+      "B0GWZ3HLNC": {
+        "asin": "B0GWZ3HLNC",
+        "title": "Lenovo ThinkPad E16 Laptop, Intel Ultra 7 255H, 32GB DDR5 RAM, 1TB SSD",
+        "imageUrl": "https://m.media-amazon.com/images/I/41JfrekCP-L._SX450_.jpg"
+      },
+      "B0GYX8SFXM": {
+        "asin": "B0GYX8SFXM",
+        "title": "Lenovo 16\" Premium Laptop, i7-13620H, 24GB DDR5 1TB SSD",
+        "imageUrl": "https://m.media-amazon.com/images/I/71PDxQWoRyL._SX450_.jpg"
+      },
+      "B0GY1ZBMF6": {
+        "asin": "B0GY1ZBMF6",
+        "title": "Lenovo IdeaPad Business Slim Laptop Computer, 15.6\" FHD Display, Intel N150 CPU, 8GB LPDDR5 RAM, 128GB SSD, WI-FI 6, Long Buttery Life, Windows 11 with Office 365",
+        "imageUrl": "https://m.media-amazon.com/images/I/71pZyJAhwgL._SX450_.jpg"
+      },
+      "B0GS97JNMP": {
+        "asin": "B0GS97JNMP",
+        "title": "Lenovo 15.6\" Essential Laptop, 2026 Edition, 8GB DDR5 256GB SSD",
+        "imageUrl": "https://m.media-amazon.com/images/I/519vZDktGbL._SX450_.jpg"
+      },
+      "B0GN8PQ93D": {
+        "asin": "B0GN8PQ93D",
+        "title": "Lenovo 15.6\" Touchscreen Laptop, Intel 10-Core i5-1335U, 16GB RAM+1TB SSD",
+        "imageUrl": "https://m.media-amazon.com/images/I/81hRyWpp7UL._SX450_.jpg"
+      }
+    }
+  }
+}
