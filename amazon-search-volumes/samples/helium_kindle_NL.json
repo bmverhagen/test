@@ -1,0 +1,163 @@
+{
+  "results": {
+    "status": "success",
+    "searchResults": {
+      "1529": {
+        "id": 1529,
+        "phrase": "kindle paperwhite",
+        "organic": true,
+        "smart": true,
+        "impressionExact30": 28.87,
+        "resultsNumber": ">10,000",
+        "chart": "https://cdn.helium10.com/images/graphics/83.png"
+      },
+      "383": {
+        "id": 383,
+        "phrase": "ereader",
+        "organic": true,
+        "smart": false,
+        "impressionExact30": 7.49,
+        "resultsNumber": ">30,000",
+        "chart": "https://cdn.helium10.com/images/graphics/26.png"
+      },
+      "36522": {
+        "id": 36522,
+        "phrase": "kindle books",
+        "organic": true,
+        "smart": true,
+        "impressionExact30": 6.3,
+        "resultsNumber": ">60,000",
+        "chart": "https://cdn.helium10.com/images/graphics/91.png"
+      },
+      "109215": {
+        "id": 109215,
+        "phrase": "kindle case",
+        "organic": false,
+        "smart": true,
+        "impressionExact30": 5.38,
+        "resultsNumber": "631",
+        "chart": "https://cdn.helium10.com/images/graphics/42.png"
+      },
+      "105360": {
+        "id": 105360,
+        "phrase": "free kindle books",
+        "organic": false,
+        "smart": true,
+        "impressionExact30": 4.83,
+        "resultsNumber": ">50,000",
+        "chart": "https://cdn.helium10.com/images/graphics/23.png"
+      },
+      "244": {
+        "id": 244,
+        "phrase": "kobo",
+        "organic": true,
+        "smart": false,
+        "impressionExact30": 4.66,
+        "resultsNumber": "5,000",
+        "chart": "https://cdn.helium10.com/images/graphics/78.png"
+      },
+      "377": {
+        "id": 377,
+        "phrase": "e reader",
+        "organic": true,
+        "smart": false,
+        "impressionExact30": 4.53,
+        "resultsNumber": ">100,000",
+        "chart": "https://cdn.helium10.com/images/graphics/21.png"
+      },
+      "125319": {
+        "id": 125319,
+        "phrase": "kindle scribe",
+        "organic": false,
+        "smart": true,
+        "impressionExact30": 4.06,
+        "resultsNumber": ">7,000",
+        "chart": "https://cdn.helium10.com/images/graphics/64.png"
+      },
+      "9103": {
+        "id": 9103,
+        "phrase": "kindle paperwhite case",
+        "organic": false,
+        "smart": true,
+        "impressionExact30": 4.05,
+        "resultsNumber": "7,000",
+        "chart": "https://cdn.helium10.com/images/graphics/8.png"
+      }
+    },
+    "bestPhrase": {
+      "id": 56,
+      "phrase": "kindle",
+      "organic": true,
+      "smart": true,
+      "impressionExact30": 13144,
+      "resultsNumber": ">90,000",
+      "chart": "https://cdn.helium10.com/images/graphics/19.png"
+    },
+    "count": {
+      "organic": 216,
+      "smart": 301,
+      "all": 386,
+      "words": 666
+    },
+    "wordFrequency": {
+      "paperwhite": 68,
+      "amazon": 30,
+      "oasis": 29,
+      "reader": 29,
+      "free": 0,
+      "books": 0,
+      "case": 0,
+      "cover": 0,
+      "ereader": 0,
+      "e": 0,
+      "hoes": 0,
+      "stuff": 0,
+      "fire": 0,
+      "kobo": 0,
+      "day": 0,
+      "scribe": 0
+    },
+    "topAsins": {
+      "B0DKNTGB1D": {
+        "asin": "B0DKNTGB1D",
+        "title": "Hoesje voor 7 inch Kindle Paperwhite met polsband - Ultradun PU-lederen smart cover met automatische slaap en waak voor Kindle Paperwhite 12e generatie - release 2024 (lichtblauw)",
+        "imageUrl": "https://m.media-amazon.com/images/I/615svrFIIRL._SX450_.jpg"
+      },
+      "B0GGGWQC3N": {
+        "asin": "B0GGGWQC3N",
+        "title": "MoKo 2PC Anti-Glare and 1PCS Tempered Glass Screen Protector for All-New Kindle 11th Generation 2024/2022, Kobo Clara, Kobo Nia and PocketBook, 9H Anti-Scratch HD Clear, PET Matt film, Case Friendly",
+        "imageUrl": "https://m.media-amazon.com/images/I/71SCoaWUO9L._SX450_.jpg"
+      },
+      "B0DNK5JVV1": {
+        "asin": "B0DNK5JVV1",
+        "title": "ZhaoCo Hoes voor 7'' Kindle Colorsoft Signature Edition 2024 / Kindle Paperwhite 2024 / Kindle Paperwhite Signature Edition 2024, Book Folio Cover Smart Beschermhoes - Zwart",
+        "imageUrl": "https://m.media-amazon.com/images/I/51azrXViCAL._SX450_.jpg"
+      },
+      "B0DL9TXDRD": {
+        "asin": "B0DL9TXDRD",
+        "title": "Hikaka HD/Frosted/Gehard Glas Screenprotector Compatibel met Kindle Paperwhite 7 inch 12e generatie 2024 en Colorsoft Signature Edition, Slijtvaste Anti-Glare Schrijffilm (Frosted Soft Film)",
+        "imageUrl": "https://m.media-amazon.com/images/I/61FjPQ1oyWL._SX450_.jpg"
+      },
+      "B07CQQG66F": {
+        "asin": "B07CQQG66F",
+        "title": "Tefal 5-Seconden Hakmolen K1320404 Handmatige Voedselhakmolen 900ml, Roestvrijstalen Messen, Trekkoordmechanisme, Hakt Uien Kruiden Noten in Seconden, BPA-vrij, Vaatwasmachinebestendig",
+        "imageUrl": "https://m.media-amazon.com/images/I/71M1nIB9ZEL._SX450_.jpg"
+      },
+      "B0CZXX465Z": {
+        "asin": "B0CZXX465Z",
+        "title": "Kobo Libra Colour | eReader | 7\" niet-spiegelend E Ink Kaleido\u2122 3-kleurenscherm | Donkere leesmodus | Waterdicht | Luisterboeken | 32 GB opslagruimte | Zwart",
+        "imageUrl": "https://m.media-amazon.com/images/I/61gbdrkvfQL._SX450_.jpg"
+      },
+      "B0GTK8GRQC": {
+        "asin": "B0GTK8GRQC",
+        "title": "MoKo 2 Pack Anti Blue Light Screen Protector for 7\" Kindle Paperwhite 12th Generation 2024 & Kindle Colorsoft Signature Edition, Premium PET Protective Film Screen Protector for Kobo Aura 2",
+        "imageUrl": "https://m.media-amazon.com/images/I/71CR+gHhdNL._SX450_.jpg"
+      },
+      "B0DCBT1CDJ": {
+        "asin": "B0DCBT1CDJ",
+        "title": "CoBak Kindle Hoes Case voor 6\" nieuwe Kindle 11e Generatie, 2024/2022 e-reader (modelnr. C2V2L3), Lichtgewicht Beschermhoes met Auto Slaap/Waakfunctie Smart Cover, Matcha Groen",
+        "imageUrl": "https://m.media-amazon.com/images/I/719YYlyA2ML._SX450_.jpg"
+      }
+    }
+  }
+}

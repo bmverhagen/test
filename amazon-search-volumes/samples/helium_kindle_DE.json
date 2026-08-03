@@ -1,0 +1,163 @@
+{
+  "results": {
+    "status": "success",
+    "searchResults": {
+      "140118830": {
+        "id": 140118830,
+        "phrase": "kindle paperwhite",
+        "organic": true,
+        "smart": false,
+        "impressionExact30": 40.79,
+        "resultsNumber": ">601",
+        "chart": "https://cdn.helium10.com/images/graphics/36.png"
+      },
+      "140363631": {
+        "id": 140363631,
+        "phrase": "kindle b\u00fccher",
+        "organic": true,
+        "smart": false,
+        "impressionExact30": 6.62,
+        "resultsNumber": ">100,000",
+        "chart": "https://cdn.helium10.com/images/graphics/56.png"
+      },
+      "214177842": {
+        "id": 214177842,
+        "phrase": "kindle colorsoft",
+        "organic": true,
+        "smart": false,
+        "impressionExact30": 5.17,
+        "resultsNumber": ">281",
+        "chart": "https://cdn.helium10.com/images/graphics/37.png"
+      },
+      "40520579": {
+        "id": 40520579,
+        "phrase": "kindle unlimited",
+        "organic": true,
+        "smart": false,
+        "impressionExact30": 5.14,
+        "resultsNumber": "65",
+        "chart": "https://cdn.helium10.com/images/graphics/85.png"
+      },
+      "141190621": {
+        "id": 141190621,
+        "phrase": "read",
+        "organic": true,
+        "smart": false,
+        "impressionExact30": 4.29,
+        "resultsNumber": ">5,000",
+        "chart": "https://cdn.helium10.com/images/graphics/7.png"
+      },
+      "4598714": {
+        "id": 4598714,
+        "phrase": "amazon",
+        "organic": true,
+        "smart": false,
+        "impressionExact30": 4.24,
+        "resultsNumber": ">100,000",
+        "chart": "https://cdn.helium10.com/images/graphics/14.png"
+      },
+      "213228485": {
+        "id": 213228485,
+        "phrase": "kindle scribe",
+        "organic": false,
+        "smart": true,
+        "impressionExact30": 4.18,
+        "resultsNumber": ">161",
+        "chart": "https://cdn.helium10.com/images/graphics/24.png"
+      },
+      "140456446": {
+        "id": 140456446,
+        "phrase": "tolino",
+        "organic": true,
+        "smart": false,
+        "impressionExact30": 3.71,
+        "resultsNumber": ">397",
+        "chart": "https://cdn.helium10.com/images/graphics/27.png"
+      },
+      "211457037": {
+        "id": 211457037,
+        "phrase": "kindl",
+        "organic": true,
+        "smart": true,
+        "impressionExact30": 3.21,
+        "resultsNumber": ">3,000",
+        "chart": "https://cdn.helium10.com/images/graphics/67.png"
+      }
+    },
+    "bestPhrase": {
+      "id": 140357961,
+      "phrase": "kindle",
+      "organic": true,
+      "smart": false,
+      "impressionExact30": 320248,
+      "resultsNumber": ">3,000",
+      "chart": "https://cdn.helium10.com/images/graphics/94.png"
+    },
+    "count": {
+      "organic": 595,
+      "smart": 7500,
+      "all": 7947,
+      "words": 16863
+    },
+    "wordFrequency": {
+      "paperwhite": 1532,
+      "generation": 715,
+      "deutsch": 594,
+      "zoll": 332,
+      "amazon": 0,
+      "signature": 0,
+      "edition": 0,
+      "kindl": 0,
+      "ebook": 0,
+      "mit": 0,
+      "kostenlos": 0,
+      "der": 0,
+      "unlimited": 0,
+      "case": 0,
+      "reader": 0,
+      "fire": 0
+    },
+    "topAsins": {
+      "B0CKSHF4C6": {
+        "asin": "B0CKSHF4C6",
+        "title": "CloudValley Magnetische Basis Kompatibel mit PopSocket & iPhone MagSafe Serie, f\u00fcr Kindle Handygriffen Phone Grips Telefonhalter Basis, Leichte Slim Case Magnetisch Zubeh\u00f6r, Matt Klar",
+        "imageUrl": "https://m.media-amazon.com/images/I/515DMG90KsL._SX450_.jpg"
+      },
+      "B0F54GHHQW": {
+        "asin": "B0F54GHHQW",
+        "title": "ERUNTO H\u00fclle f\u00fcr 7-Zoll Kindle Paperwhite (12. Gen.), Signature Edition & Colorsoft, Transparenter Acrylr\u00fccken, Magnetische Abdeckung mit Handschlaufe, Auto Aufwachen/Schlafen(Rosa)",
+        "imageUrl": "https://m.media-amazon.com/images/I/61pt7YASrfL._SX450_.jpg"
+      },
+      "B0FX24FL76": {
+        "asin": "B0FX24FL76",
+        "title": "Kindle Zubeh\u00f6r Deko Set, Niedliches Charms-Set f\u00fcr Kindle Paperwhite 11./12. Generation, Staubschutzstecker USB-C mit Anh\u00e4nger, H\u00e4ngende Ornamente, Einlegekarte aus Karton f\u00fcr E-Reader, 6,8 \u00d7 4,8 Zoll",
+        "imageUrl": "https://m.media-amazon.com/images/I/81cFD8nkrIL._SX450_.jpg"
+      },
+      "B0GQVKLTGV": {
+        "asin": "B0GQVKLTGV",
+        "title": "Just One More Chapter Bookish Reading Pink Book Lover PopSockets Klebender PopGrip",
+        "imageUrl": "https://m.media-amazon.com/images/I/61OTP8uzVDL._SX450_.jpg"
+      },
+      "B0F2484FDJ": {
+        "asin": "B0F2484FDJ",
+        "title": "Hot Girl Book Club Minimalistisches Retro PopSockets Klebender PopGrip",
+        "imageUrl": "https://m.media-amazon.com/images/I/51SJ5Hi-SOL._SX450_.jpg"
+      },
+      "B0DYJG18CG": {
+        "asin": "B0DYJG18CG",
+        "title": "Just One More Chapter Bookish Book Reading Beige PopSockets Klebender PopGrip",
+        "imageUrl": "https://m.media-amazon.com/images/I/61et+r5YWtL._SX450_.jpg"
+      },
+      "B0FLDC45D9": {
+        "asin": "B0FLDC45D9",
+        "title": "2m USB C Ladeger\u00e4t Kabel f\u00fcr Amazon Kindle Paperwhite 6/5 Tablet(2021,2023,2024,2025), Ladekabel Typ C Schnellladeger\u00e4t f\u00fcr Kids Pro, Fire 7/8/10, Fire HD 8/10 Plus, Signature Edition,Scribe,Colorsoft",
+        "imageUrl": "https://m.media-amazon.com/images/I/61jTGFM8KfL._SX450_.jpg"
+      },
+      "B0F7W1D7GR": {
+        "asin": "B0F7W1D7GR",
+        "title": "BOOX Go 6 Black",
+        "imageUrl": "https://m.media-amazon.com/images/I/51-9xPDpyDL._SX450_.jpg"
+      }
+    }
+  }
+}
