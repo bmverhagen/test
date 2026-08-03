@@ -1,0 +1,919 @@
+{
+  "auth": null,
+  "endpoint": "GET https://amazon-keyword-tool.vercel.app/api/keywords?input=...&marketplace=com",
+  "note": "No login. Amazon-branded free tool; searchVolume appears relative 0-100 (not absolute monthly).",
+  "n": 101,
+  "ok": 101,
+  "fail": 0,
+  "rows": [
+    {
+      "keyword": "laptop",
+      "ok": true,
+      "searchVolume": 89,
+      "competition": "Hard",
+      "ppcBidLow": 1.34,
+      "ppcBidHigh": 1.92,
+      "error": null
+    },
+    {
+      "keyword": "yoga mat",
+      "ok": true,
+      "searchVolume": 83,
+      "competition": "Hard",
+      "ppcBidLow": 0.94,
+      "ppcBidHigh": 1.47,
+      "error": null
+    },
+    {
+      "keyword": "air fryer",
+      "ok": true,
+      "searchVolume": 61,
+      "competition": "Hard",
+      "ppcBidLow": 0.47,
+      "ppcBidHigh": 1.19,
+      "error": null
+    },
+    {
+      "keyword": "kindle",
+      "ok": true,
+      "searchVolume": 61,
+      "competition": "Hard",
+      "ppcBidLow": 0.79,
+      "ppcBidHigh": 1.6,
+      "error": null
+    },
+    {
+      "keyword": "protein powder",
+      "ok": true,
+      "searchVolume": 59,
+      "competition": "Medium",
+      "ppcBidLow": 1,
+      "ppcBidHigh": 1.96,
+      "error": null
+    },
+    {
+      "keyword": "wireless earbuds",
+      "ok": true,
+      "searchVolume": 75,
+      "competition": "Hard",
+      "ppcBidLow": 0.91,
+      "ppcBidHigh": 1.76,
+      "error": null
+    },
+    {
+      "keyword": "phone case",
+      "ok": true,
+      "searchVolume": 89,
+      "competition": "Hard",
+      "ppcBidLow": 1.4,
+      "ppcBidHigh": 1.86,
+      "error": null
+    },
+    {
+      "keyword": "water bottle",
+      "ok": true,
+      "searchVolume": 64,
+      "competition": "Hard",
+      "ppcBidLow": 0.85,
+      "ppcBidHigh": 1.63,
+      "error": null
+    },
+    {
+      "keyword": "led lights",
+      "ok": true,
+      "searchVolume": 75,
+      "competition": "Hard",
+      "ppcBidLow": 1.12,
+      "ppcBidHigh": 1.7,
+      "error": null
+    },
+    {
+      "keyword": "gaming chair",
+      "ok": true,
+      "searchVolume": 83,
+      "competition": "Hard",
+      "ppcBidLow": 1.28,
+      "ppcBidHigh": 1.79,
+      "error": null
+    },
+    {
+      "keyword": "desk lamp",
+      "ok": true,
+      "searchVolume": 78,
+      "competition": "Hard",
+      "ppcBidLow": 1.18,
+      "ppcBidHigh": 1.73,
+      "error": null
+    },
+    {
+      "keyword": "bluetooth speaker",
+      "ok": true,
+      "searchVolume": 79,
+      "competition": "Hard",
+      "ppcBidLow": 1.06,
+      "ppcBidHigh": 1.74,
+      "error": null
+    },
+    {
+      "keyword": "electric toothbrush",
+      "ok": true,
+      "searchVolume": 53,
+      "competition": "Medium",
+      "ppcBidLow": 0.69,
+      "ppcBidHigh": 1.45,
+      "error": null
+    },
+    {
+      "keyword": "hair dryer",
+      "ok": true,
+      "searchVolume": 77,
+      "competition": "Hard",
+      "ppcBidLow": 1.1,
+      "ppcBidHigh": 1.78,
+      "error": null
+    },
+    {
+      "keyword": "shampoo",
+      "ok": true,
+      "searchVolume": 67,
+      "competition": "Hard",
+      "ppcBidLow": 0.91,
+      "ppcBidHigh": 1.67,
+      "error": null
+    },
+    {
+      "keyword": "conditioner",
+      "ok": true,
+      "searchVolume": 74,
+      "competition": "Hard",
+      "ppcBidLow": 1.1,
+      "ppcBidHigh": 1.69,
+      "error": null
+    },
+    {
+      "keyword": "running shoes",
+      "ok": true,
+      "searchVolume": 85,
+      "competition": "Hard",
+      "ppcBidLow": 1.32,
+      "ppcBidHigh": 1.81,
+      "error": null
+    },
+    {
+      "keyword": "backpack",
+      "ok": true,
+      "searchVolume": 71,
+      "competition": "Hard",
+      "ppcBidLow": 0.99,
+      "ppcBidHigh": 1.71,
+      "error": null
+    },
+    {
+      "keyword": "coffee maker",
+      "ok": true,
+      "searchVolume": 74,
+      "competition": "Hard",
+      "ppcBidLow": 1.1,
+      "ppcBidHigh": 1.69,
+      "error": null
+    },
+    {
+      "keyword": "instant pot",
+      "ok": true,
+      "searchVolume": 60,
+      "competition": "Hard",
+      "ppcBidLow": 0.46,
+      "ppcBidHigh": 1.18,
+      "error": null
+    },
+    {
+      "keyword": "robot vacuum",
+      "ok": true,
+      "searchVolume": 57,
+      "competition": "Medium",
+      "ppcBidLow": 0.77,
+      "ppcBidHigh": 1.49,
+      "error": null
+    },
+    {
+      "keyword": "smart watch",
+      "ok": true,
+      "searchVolume": 74,
+      "competition": "Hard",
+      "ppcBidLow": 1.1,
+      "ppcBidHigh": 1.69,
+      "error": null
+    },
+    {
+      "keyword": "tablet stand",
+      "ok": true,
+      "searchVolume": 61,
+      "competition": "Medium",
+      "ppcBidLow": 0.9,
+      "ppcBidHigh": 1.49,
+      "error": null
+    },
+    {
+      "keyword": "usb c hub",
+      "ok": true,
+      "searchVolume": 86,
+      "competition": "Hard",
+      "ppcBidLow": 1.25,
+      "ppcBidHigh": 1.74,
+      "error": null
+    },
+    {
+      "keyword": "portable charger",
+      "ok": true,
+      "searchVolume": 91,
+      "competition": "Hard",
+      "ppcBidLow": 1.28,
+      "ppcBidHigh": 1.85,
+      "error": null
+    },
+    {
+      "keyword": "webcam",
+      "ok": true,
+      "searchVolume": 59,
+      "competition": "Medium",
+      "ppcBidLow": 0.81,
+      "ppcBidHigh": 1.52,
+      "error": null
+    },
+    {
+      "keyword": "mechanical keyboard",
+      "ok": true,
+      "searchVolume": 75,
+      "competition": "Hard",
+      "ppcBidLow": 0.98,
+      "ppcBidHigh": 1.69,
+      "error": null
+    },
+    {
+      "keyword": "gaming mouse",
+      "ok": true,
+      "searchVolume": 72,
+      "competition": "Hard",
+      "ppcBidLow": 0.92,
+      "ppcBidHigh": 1.66,
+      "error": null
+    },
+    {
+      "keyword": "monitor stand",
+      "ok": true,
+      "searchVolume": 89,
+      "competition": "Hard",
+      "ppcBidLow": 1.25,
+      "ppcBidHigh": 1.83,
+      "error": null
+    },
+    {
+      "keyword": "office chair",
+      "ok": true,
+      "searchVolume": 92,
+      "competition": "Hard",
+      "ppcBidLow": 0.94,
+      "ppcBidHigh": 1.3,
+      "error": null
+    },
+    {
+      "keyword": "standing desk",
+      "ok": true,
+      "searchVolume": 70,
+      "competition": "Hard",
+      "ppcBidLow": 1.03,
+      "ppcBidHigh": 1.64,
+      "error": null
+    },
+    {
+      "keyword": "mattress topper",
+      "ok": true,
+      "searchVolume": 85,
+      "competition": "Hard",
+      "ppcBidLow": 1.32,
+      "ppcBidHigh": 1.82,
+      "error": null
+    },
+    {
+      "keyword": "pillow",
+      "ok": true,
+      "searchVolume": 53,
+      "competition": "Hard",
+      "ppcBidLow": 0.37,
+      "ppcBidHigh": 1.14,
+      "error": null
+    },
+    {
+      "keyword": "duvet cover",
+      "ok": true,
+      "searchVolume": 78,
+      "competition": "Hard",
+      "ppcBidLow": 1.18,
+      "ppcBidHigh": 1.74,
+      "error": null
+    },
+    {
+      "keyword": "kitchen knife",
+      "ok": true,
+      "searchVolume": 62,
+      "competition": "Hard",
+      "ppcBidLow": 0.54,
+      "ppcBidHigh": 1.14,
+      "error": null
+    },
+    {
+      "keyword": "cutting board",
+      "ok": true,
+      "searchVolume": 68,
+      "competition": "Hard",
+      "ppcBidLow": 0.99,
+      "ppcBidHigh": 1.62,
+      "error": null
+    },
+    {
+      "keyword": "cast iron skillet",
+      "ok": true,
+      "searchVolume": 58,
+      "competition": "Medium",
+      "ppcBidLow": 0.79,
+      "ppcBidHigh": 1.51,
+      "error": null
+    },
+    {
+      "keyword": "blender",
+      "ok": true,
+      "searchVolume": 66,
+      "competition": "Hard",
+      "ppcBidLow": 0.54,
+      "ppcBidHigh": 1.22,
+      "error": null
+    },
+    {
+      "keyword": "toaster",
+      "ok": true,
+      "searchVolume": 63,
+      "competition": "Hard",
+      "ppcBidLow": 0.83,
+      "ppcBidHigh": 1.62,
+      "error": null
+    },
+    {
+      "keyword": "microwave",
+      "ok": true,
+      "searchVolume": 74,
+      "competition": "Hard",
+      "ppcBidLow": 1.05,
+      "ppcBidHigh": 1.75,
+      "error": null
+    },
+    {
+      "keyword": "air purifier",
+      "ok": true,
+      "searchVolume": 53,
+      "competition": "Medium",
+      "ppcBidLow": 0.69,
+      "ppcBidHigh": 1.45,
+      "error": null
+    },
+    {
+      "keyword": "humidifier",
+      "ok": true,
+      "searchVolume": 79,
+      "competition": "Hard",
+      "ppcBidLow": 1.2,
+      "ppcBidHigh": 1.75,
+      "error": null
+    },
+    {
+      "keyword": "dehumidifier",
+      "ok": true,
+      "searchVolume": 59,
+      "competition": "Medium",
+      "ppcBidLow": 0.81,
+      "ppcBidHigh": 1.52,
+      "error": null
+    },
+    {
+      "keyword": "space heater",
+      "ok": true,
+      "searchVolume": 68,
+      "competition": "Hard",
+      "ppcBidLow": 0.99,
+      "ppcBidHigh": 1.62,
+      "error": null
+    },
+    {
+      "keyword": "fan",
+      "ok": true,
+      "searchVolume": 60,
+      "competition": "Hard",
+      "ppcBidLow": 0.77,
+      "ppcBidHigh": 1.59,
+      "error": null
+    },
+    {
+      "keyword": "extension cord",
+      "ok": true,
+      "searchVolume": 83,
+      "competition": "Hard",
+      "ppcBidLow": 1.28,
+      "ppcBidHigh": 1.79,
+      "error": null
+    },
+    {
+      "keyword": "power strip",
+      "ok": true,
+      "searchVolume": 60,
+      "competition": "Hard",
+      "ppcBidLow": 0.83,
+      "ppcBidHigh": 1.53,
+      "error": null
+    },
+    {
+      "keyword": "surge protector",
+      "ok": true,
+      "searchVolume": 68,
+      "competition": "Hard",
+      "ppcBidLow": 0.99,
+      "ppcBidHigh": 1.62,
+      "error": null
+    },
+    {
+      "keyword": "hdmi cable",
+      "ok": true,
+      "searchVolume": 59,
+      "competition": "Medium",
+      "ppcBidLow": 0.81,
+      "ppcBidHigh": 1.52,
+      "error": null
+    },
+    {
+      "keyword": "ethernet cable",
+      "ok": true,
+      "searchVolume": 82,
+      "competition": "Hard",
+      "ppcBidLow": 1.26,
+      "ppcBidHigh": 1.78,
+      "error": null
+    },
+    {
+      "keyword": "wifi router",
+      "ok": true,
+      "searchVolume": 80,
+      "competition": "Hard",
+      "ppcBidLow": 1.07,
+      "ppcBidHigh": 1.75,
+      "error": null
+    },
+    {
+      "keyword": "mesh wifi",
+      "ok": true,
+      "searchVolume": 73,
+      "competition": "Hard",
+      "ppcBidLow": 1.08,
+      "ppcBidHigh": 1.68,
+      "error": null
+    },
+    {
+      "keyword": "security camera",
+      "ok": true,
+      "searchVolume": 58,
+      "competition": "Medium",
+      "ppcBidLow": 0.66,
+      "ppcBidHigh": 1.53,
+      "error": null
+    },
+    {
+      "keyword": "doorbell camera",
+      "ok": true,
+      "searchVolume": 79,
+      "competition": "Hard",
+      "ppcBidLow": 1.06,
+      "ppcBidHigh": 1.73,
+      "error": null
+    },
+    {
+      "keyword": "smart bulb",
+      "ok": true,
+      "searchVolume": 78,
+      "competition": "Hard",
+      "ppcBidLow": 1.18,
+      "ppcBidHigh": 1.74,
+      "error": null
+    },
+    {
+      "keyword": "smart plug",
+      "ok": true,
+      "searchVolume": 55,
+      "competition": "Medium",
+      "ppcBidLow": 0.73,
+      "ppcBidHigh": 1.47,
+      "error": null
+    },
+    {
+      "keyword": "thermostat",
+      "ok": true,
+      "searchVolume": 84,
+      "competition": "Hard",
+      "ppcBidLow": 1.3,
+      "ppcBidHigh": 1.8,
+      "error": null
+    },
+    {
+      "keyword": "pet bed",
+      "ok": true,
+      "searchVolume": 59,
+      "competition": "Medium",
+      "ppcBidLow": 0.59,
+      "ppcBidHigh": 1.31,
+      "error": null
+    },
+    {
+      "keyword": "dog leash",
+      "ok": true,
+      "searchVolume": 84,
+      "competition": "Hard",
+      "ppcBidLow": 0.97,
+      "ppcBidHigh": 1.48,
+      "error": null
+    },
+    {
+      "keyword": "cat litter",
+      "ok": true,
+      "searchVolume": 79,
+      "competition": "Hard",
+      "ppcBidLow": 0.89,
+      "ppcBidHigh": 1.45,
+      "error": null
+    },
+    {
+      "keyword": "bird feeder",
+      "ok": true,
+      "searchVolume": 88,
+      "competition": "Hard",
+      "ppcBidLow": 1.38,
+      "ppcBidHigh": 1.85,
+      "error": null
+    },
+    {
+      "keyword": "camping tent",
+      "ok": true,
+      "searchVolume": 63,
+      "competition": "Hard",
+      "ppcBidLow": 0.63,
+      "ppcBidHigh": 1.32,
+      "error": null
+    },
+    {
+      "keyword": "sleeping bag",
+      "ok": true,
+      "searchVolume": 68,
+      "competition": "Hard",
+      "ppcBidLow": 0.99,
+      "ppcBidHigh": 1.62,
+      "error": null
+    },
+    {
+      "keyword": "hiking backpack",
+      "ok": true,
+      "searchVolume": 82,
+      "competition": "Hard",
+      "ppcBidLow": 0.93,
+      "ppcBidHigh": 1.46,
+      "error": null
+    },
+    {
+      "keyword": "fishing rod",
+      "ok": true,
+      "searchVolume": 84,
+      "competition": "Hard",
+      "ppcBidLow": 1.24,
+      "ppcBidHigh": 1.86,
+      "error": null
+    },
+    {
+      "keyword": "bicycle pump",
+      "ok": true,
+      "searchVolume": 72,
+      "competition": "Hard",
+      "ppcBidLow": 1.06,
+      "ppcBidHigh": 1.67,
+      "error": null
+    },
+    {
+      "keyword": "bike lock",
+      "ok": true,
+      "searchVolume": 92,
+      "competition": "Hard",
+      "ppcBidLow": 1.08,
+      "ppcBidHigh": 1.53,
+      "error": null
+    },
+    {
+      "keyword": "car phone mount",
+      "ok": true,
+      "searchVolume": 68,
+      "competition": "Hard",
+      "ppcBidLow": 0.78,
+      "ppcBidHigh": 1.45,
+      "error": null
+    },
+    {
+      "keyword": "dash cam",
+      "ok": true,
+      "searchVolume": 89,
+      "competition": "Hard",
+      "ppcBidLow": 1.4,
+      "ppcBidHigh": 1.86,
+      "error": null
+    },
+    {
+      "keyword": "tire inflator",
+      "ok": true,
+      "searchVolume": 59,
+      "competition": "Medium",
+      "ppcBidLow": 0.63,
+      "ppcBidHigh": 1.38,
+      "error": null
+    },
+    {
+      "keyword": "jump starter",
+      "ok": true,
+      "searchVolume": 86,
+      "competition": "Hard",
+      "ppcBidLow": 1.34,
+      "ppcBidHigh": 1.83,
+      "error": null
+    },
+    {
+      "keyword": "tool set",
+      "ok": true,
+      "searchVolume": 72,
+      "competition": "Hard",
+      "ppcBidLow": 0.63,
+      "ppcBidHigh": 1.07,
+      "error": null
+    },
+    {
+      "keyword": "drill",
+      "ok": true,
+      "searchVolume": 81,
+      "competition": "Hard",
+      "ppcBidLow": 0.69,
+      "ppcBidHigh": 1.17,
+      "error": null
+    },
+    {
+      "keyword": "screwdriver set",
+      "ok": true,
+      "searchVolume": 83,
+      "competition": "Hard",
+      "ppcBidLow": 1.28,
+      "ppcBidHigh": 1.79,
+      "error": null
+    },
+    {
+      "keyword": "measuring tape",
+      "ok": true,
+      "searchVolume": 90,
+      "competition": "Hard",
+      "ppcBidLow": 0.83,
+      "ppcBidHigh": 1.19,
+      "error": null
+    },
+    {
+      "keyword": "paint roller",
+      "ok": true,
+      "searchVolume": 68,
+      "competition": "Hard",
+      "ppcBidLow": 0.99,
+      "ppcBidHigh": 1.62,
+      "error": null
+    },
+    {
+      "keyword": "garden hose",
+      "ok": true,
+      "searchVolume": 84,
+      "competition": "Hard",
+      "ppcBidLow": 1.3,
+      "ppcBidHigh": 1.8,
+      "error": null
+    },
+    {
+      "keyword": "lawn mower",
+      "ok": true,
+      "searchVolume": 65,
+      "competition": "Hard",
+      "ppcBidLow": 0.93,
+      "ppcBidHigh": 1.59,
+      "error": null
+    },
+    {
+      "keyword": "plant pot",
+      "ok": true,
+      "searchVolume": 58,
+      "competition": "Medium",
+      "ppcBidLow": 0.49,
+      "ppcBidHigh": 1.12,
+      "error": null
+    },
+    {
+      "keyword": "fertilizer",
+      "ok": true,
+      "searchVolume": 88,
+      "competition": "Hard",
+      "ppcBidLow": 1.38,
+      "ppcBidHigh": 1.85,
+      "error": null
+    },
+    {
+      "keyword": "sunscreen",
+      "ok": true,
+      "searchVolume": 70,
+      "competition": "Hard",
+      "ppcBidLow": 0.88,
+      "ppcBidHigh": 1.57,
+      "error": null
+    },
+    {
+      "keyword": "moisturizer",
+      "ok": true,
+      "searchVolume": 75,
+      "competition": "Hard",
+      "ppcBidLow": 0.97,
+      "ppcBidHigh": 1.61,
+      "error": null
+    },
+    {
+      "keyword": "face wash",
+      "ok": true,
+      "searchVolume": 67,
+      "competition": "Hard",
+      "ppcBidLow": 0.83,
+      "ppcBidHigh": 1.54,
+      "error": null
+    },
+    {
+      "keyword": "body lotion",
+      "ok": true,
+      "searchVolume": 83,
+      "competition": "Hard",
+      "ppcBidLow": 1.1,
+      "ppcBidHigh": 1.68,
+      "error": null
+    },
+    {
+      "keyword": "deodorant",
+      "ok": true,
+      "searchVolume": 80,
+      "competition": "Hard",
+      "ppcBidLow": 1.16,
+      "ppcBidHigh": 1.82,
+      "error": null
+    },
+    {
+      "keyword": "razor",
+      "ok": true,
+      "searchVolume": 84,
+      "competition": "Hard",
+      "ppcBidLow": 1.24,
+      "ppcBidHigh": 1.86,
+      "error": null
+    },
+    {
+      "keyword": "nail clipper",
+      "ok": true,
+      "searchVolume": 72,
+      "competition": "Hard",
+      "ppcBidLow": 1.07,
+      "ppcBidHigh": 1.67,
+      "error": null
+    },
+    {
+      "keyword": "toothbrush",
+      "ok": true,
+      "searchVolume": 68,
+      "competition": "Hard",
+      "ppcBidLow": 0.93,
+      "ppcBidHigh": 1.68,
+      "error": null
+    },
+    {
+      "keyword": "toothpaste",
+      "ok": true,
+      "searchVolume": 66,
+      "competition": "Hard",
+      "ppcBidLow": 0.89,
+      "ppcBidHigh": 1.66,
+      "error": null
+    },
+    {
+      "keyword": "floss",
+      "ok": true,
+      "searchVolume": 66,
+      "competition": "Hard",
+      "ppcBidLow": 0.95,
+      "ppcBidHigh": 1.6,
+      "error": null
+    },
+    {
+      "keyword": "vitamins",
+      "ok": true,
+      "searchVolume": 78,
+      "competition": "Hard",
+      "ppcBidLow": 1.36,
+      "ppcBidHigh": 2.27,
+      "error": null
+    },
+    {
+      "keyword": "protein bar",
+      "ok": true,
+      "searchVolume": 83,
+      "competition": "Hard",
+      "ppcBidLow": 1.54,
+      "ppcBidHigh": 2.27,
+      "error": null
+    },
+    {
+      "keyword": "granola",
+      "ok": true,
+      "searchVolume": 57,
+      "competition": "Medium",
+      "ppcBidLow": 0.77,
+      "ppcBidHigh": 1.49,
+      "error": null
+    },
+    {
+      "keyword": "olive oil",
+      "ok": true,
+      "searchVolume": 76,
+      "competition": "Hard",
+      "ppcBidLow": 1.09,
+      "ppcBidHigh": 1.77,
+      "error": null
+    },
+    {
+      "keyword": "rice cooker",
+      "ok": true,
+      "searchVolume": 64,
+      "competition": "Hard",
+      "ppcBidLow": 0.91,
+      "ppcBidHigh": 1.58,
+      "error": null
+    },
+    {
+      "keyword": "slow cooker",
+      "ok": true,
+      "searchVolume": 70,
+      "competition": "Hard",
+      "ppcBidLow": 1.03,
+      "ppcBidHigh": 1.64,
+      "error": null
+    },
+    {
+      "keyword": "waffle maker",
+      "ok": true,
+      "searchVolume": 72,
+      "competition": "Hard",
+      "ppcBidLow": 1.07,
+      "ppcBidHigh": 1.67,
+      "error": null
+    },
+    {
+      "keyword": "ice cream maker",
+      "ok": true,
+      "searchVolume": 64,
+      "competition": "Hard",
+      "ppcBidLow": 0.78,
+      "ppcBidHigh": 1.52,
+      "error": null
+    },
+    {
+      "keyword": "juicer",
+      "ok": true,
+      "searchVolume": 58,
+      "competition": "Medium",
+      "ppcBidLow": 0.79,
+      "ppcBidHigh": 1.51,
+      "error": null
+    },
+    {
+      "keyword": "food processor",
+      "ok": true,
+      "searchVolume": 69,
+      "competition": "Hard",
+      "ppcBidLow": 1.01,
+      "ppcBidHigh": 1.63,
+      "error": null
+    },
+    {
+      "keyword": "hand mixer",
+      "ok": true,
+      "searchVolume": 79,
+      "competition": "Hard",
+      "ppcBidLow": 1.2,
+      "ppcBidHigh": 1.75,
+      "error": null
+    }
+  ]
+}
