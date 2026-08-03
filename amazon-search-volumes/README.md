@@ -1,13 +1,27 @@
-# Amazon search volume ingress research
+# Amazon search volume ingress — SUCCESS
 
-Live survey of **no-auth / demo** Amazon keyword volume APIs for seed terms
-(e.g. `shampoo`) on Amazon.nl / .de / .com.
+Working no-auth Amazon keyword volume API found (Helium 10 Magnet demo),
+analogous to FiveX/Bolmate for bol.com.
+
+## Live-validated absolute volumes
+
+| Market | Seed | Absolute monthly volume (`bestPhrase.impressionExact30`) |
+|--------|------|----------------------------------------------------------|
+| US | laptop | **881.687** |
+| US | yoga mat | **506.976** |
+| NL | kindle | **13.144** |
+| DE | kindle | **320.248** |
+| DE | duschgel | **25.853** (earlier live) |
+| NL | laptop | **6.128** (earlier live) |
+
+Samples under [`samples/`](./samples/).
 
 ## Verdict
 
-**Helium 10 Magnet demo is still the best working no-auth ingress.**  
+**Helium 10 Magnet demo is the best working no-auth ingress.**  
 No better public endpoint returned absolute monthly volume for an arbitrary seed
-without captcha, API key, or a dead backend.
+without captcha, API key, or a dead backend (SellerApp has the right path +
+`x-client: website` but upstream currently **503**).
 
 Closest runners-up that *almost* work:
 
@@ -141,7 +155,7 @@ Prints `seed_absolute` when `bestPhrase` matches the seed; otherwise `seed_relat
 2. **Helium Cerebro demo / other magnet-* paths** — cerebro needs ASIN; history/trends 404.
 3. **SoldScope** `api/demo/.../search-volume` — 422 captcha/apiKey; US sometimes 429.
 4. **SellerSprite** web + `api.sellersprite.com` — unauthorized / login.
-5. **SellerApp** free_tool/keyword — JS-confirmed; **503** live.
+5. **SellerApp** `POST /amazon/{geo}/research/new/free_tool/keyword` + header `x-client: website` — path confirmed in public JS; live **503** upstream (empty/reset).
 6. **KeywordTool.io** Amazon — locations/categories 200; results volume empty/`[]`.
 7. **Jungle Scout** free page / developer API — CF 403 / 404 without key.
 8. **DataForSEO** Amazon bulk SV — 401; sandbox host missing.
