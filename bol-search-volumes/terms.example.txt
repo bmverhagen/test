@@ -1,0 +1,6 @@
+# One bol.com search term per line
+laptop
+airfryer
+stofzuiger
+powerbank
+smartwatch
