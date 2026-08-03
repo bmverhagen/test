@@ -1,87 +1,81 @@
-# Extended ingress hunt (no-auth)
+# Extended JS reverse-engineering hunt
 
-Goal: find a **good** no-auth search-volume ingress that scales (ideally Amazon absolute, bulk / high frequency).
+Method: download free-tool HTML + JS bundles from 30+ sites, extract `/api/*`
+and volume-related strings, then live-probe every promising endpoint.
 
-## Verdict after broad live probing
+## Working no-auth ingresses found
 
-| Rank | Ingress | Auth | Absolute? | Amazon? | Scale | Status |
-|------|---------|------|-----------|---------|-------|--------|
-| **1** | **Smart-Minded** `google_ads/search_volume/live` | none | **yes** | no (Google Ads) | **1000/POST**, high-freq chunks | **BEST** — validated 1000/1000 |
-| **2** | **Smart-Minded** `google_ads/keywords_for_keywords/live` | none | **yes** | no | 1 seed → **~1900** KWs w/ volume | **BEST for discovery** |
-| 3 | Olifant `GET /api/keywords` | none | relative 0–100 | Amazon-branded | 1 call/KW; 101/101 | OK secondary |
-| 4 | Amazon `completion.*/suggestions` | none | relative DIY 0–100 | **yes** | **50/50 rapid** in ~6s | Amazon-native relative |
-| 5 | Helium Magnet demo | none | Amazon abs *sometimes* | **yes** | IP **429** here | Not bulk-safe |
-| 6 | KeywordTool guest MCP | none | yes (first 5 only) | Google/Bing guest | 60/hr, 120/day | Too capped |
-| 7 | Smart-Minded Amazon `ranked_keywords` | none | mostly **0** SV | Amazon KW list from ASIN | needs Google SV enrich | Discovery only |
+### 1) Keyword Volume Checker — Supabase edge function (NEW, from JS)
 
-There is **no** currently working no-auth endpoint that returns **Amazon ABA absolute** monthly volume for arbitrary seeds at 1000-scale from this environment. Helium is the only Amazon-absolute demo found; it is rate-limited.
+Reversed from `keywordvolumechecker.com/assets/index-*.js`:
+
+```js
+supabase.functions.invoke("keyword-volume", { body: { keywords, country } })
+```
+
+```http
+POST https://lsbehnmosinxcmafumbo.supabase.co/functions/v1/keyword-volume
+Authorization: Bearer <public anon JWT from frontend>
+apikey: <same>
+Content-Type: application/json
+
+{"keywords":["laptop","shampoo"],"country":"us"}
+```
+
+| Test | Result |
+|------|--------|
+| 5 keywords | absolute `volume` + cpc/difficulty/intent/trend |
+| 5× rapid calls | **5/5** |
+| **1000 keywords** (40×25 chunks) | **1000/1000** in ~306s |
+
+No user login. Uses the site's **public anon key** embedded in the browser bundle.
+
+Script: `fetch_kvc_volume.py`  
+Artifact: `batch_out/noauth_kvc_1000.csv`
+
+### 2) Smart-Minded DataForSEO proxy (still strongest bulk)
+
+```http
+POST https://www.smart-minded.com/api/dataforseo
+{"path":"/v3/keywords_data/google_ads/search_volume/live","body":[{...}]}
+```
+
+- **1000/POST** in ~5s
+- Also `keywords_for_keywords/live` (seed → ~1900 KWs)
 
 ---
 
-## Smart-Minded allowlist (live-mapped)
+## JS-confirmed but not usable no-auth
 
-`POST https://www.smart-minded.com/api/dataforseo` body `{"path","body"}`
-
-| Path | Allowed | Notes |
-|------|---------|-------|
-| `/v3/keywords_data/google_ads/search_volume/live` | **yes** | Bulk absolute SV, up to ~1000 KW |
-| `/v3/keywords_data/google_ads/keywords_for_keywords/live` | **yes** | Seed → related + absolute SV |
-| `/v3/dataforseo_labs/amazon/ranked_keywords/live` | **yes** | ASIN → Amazon keywords; `search_volume` often 0 |
-| Amazon bulk SV / related / suggestions | **403** path not allowed | |
-| Bing / Google Labs / SERP Amazon | **403** | |
-| `GET /api/rainforest?type=autocomplete` | **yes** | Suggestions only |
-| `GET /api/rainforest?type=search` | **403** | |
-
----
-
-## Probe matrix (this round + prior)
-
-### Working / useful
-- Smart-Minded Google Ads SV — 1000 OK, 10×100 OK, 5×200 OK
-- Smart-Minded k4k — `yoga mat` → 1909 rows with volume in ~8.5s
-- Olifant keywords — relative
-- Amazon completion — 50/50 rapid
-- FiveX `bol-search-terms` — bol.com only (not Amazon)
-- KeywordTool guest MCP — absolute on ≤5 cached; hourly/daily caps
-
-### Blocked / dead for no-auth Amazon absolute
-- Helium Magnet / Cerebro demos — **429**
-- SoldScope demo SV — captchaToken/apiKey **422**
-- SellerApp free_tool — **503/404**
-- Maxmerce `/api/keyword/*` — **401** (account)
-- DataForSEO Amazon direct — **401**
-- SellerSprite web/API — session expired / unauthorized
-- MerchantWords / Rainforest / Keepa demo — 403/401/400
-- Viral Launch `/api/keyword` — HTML shell, not JSON API
-- Ahrefs Amazon tool — marketing shell, no open volume JSON
-- Jungle Scout free page — CF / missing AJAX payload
-- KeywordFinder.dev — CAPTCHA **403**
-- TrendsMCP Amazon — needs API key
-- Zonguru / SearchVolume.io / Keywords Everywhere — 404/401/reset
+| Site | JS evidence | Live result |
+|------|-------------|-------------|
+| **Helium** `keywordResearch.js` / `h10-features` | `members.helium10.com/api/v1/cerebro/product/magnet-demo-search`; also authed `/api/v1/keywords/search-volume` | Magnet demo **429**; chart endpoints need session |
+| **SellerApp** `sa_main.js` | `POST api.sellerapp.com/amazon/{geo}/research/new/free_tool/keyword` + header `x-client: website` | Path confirmed; upstream **503** |
+| **SoldScope** | demo `search-volume` needs `captchaToken`/`apiKey` | **422** |
+| **Maxmerce** `umi.js` | `/bi/api/keyword/*` proxy to RESEARCH_API | **401** without account |
+| **Thieve** `_buildManifest` | `/api/google/search-volume`, `/api/google/keyword-ideas` | Initially 500 (bad body), then CF **403** |
+| **SellerSprite** | `gkdata` / open API | session expired / login |
+| **KeywordTool** guest MCP | suggestions + ≤5 metrics | 60/hr 120/day cap |
+| **AmzScout / Ahrefs / Jungle Scout** | marketing / CF / no open volume JSON | dead for no-auth |
 
 ---
 
-## Recommended usage
+## Sites/pages JS scanned (sample)
 
-**Bulk absolute numbers (best no-auth ingress found):**
+Helium free Magnet/Cerebro, SoldScope, SellerApp, Smart-Minded, Olifant Vercel,
+KeywordTool.io, Ahrefs Amazon tool, Maxmerce, AmzScout, SellerSprite, Thieve,
+Viral Launch/Intellifox, DataHawk, Zonguru, KeywordVolumeChecker, KeywordFinder,
+Canopy, Kparser, SellerMetrics, BookBeam, PublisherRocket, Kindlepreneur, Pattern, …
 
-```bash
-python3 fetch_smartminded_volume.py -f terms_1000.txt --location US \
-  -o batch_out/noauth_smartminded_1000.csv
-```
+Full downloaded bundle list under `/tmp/jsrev/` on the agent VM.
 
-**Seed → many related absolute volumes:**
+---
 
-```bash
-python3 fetch_smartminded_k4k.py "yoga mat" --limit 500 \
-  -o batch_out/k4k_yoga_mat.csv
-```
+## Practical pick
 
-**Amazon-native relative (high frequency, not absolute):**
-
-```bash
-python3 fetch_amazon_completion_score.py -f terms_100.txt --market US \
-  -o batch_out/amz_completion_rel.csv
-```
-
-For true Amazon absolute at scale: paid DataForSEO Amazon / Helium / Jungle Scout / SellerSprite — not available no-auth here.
+| Need | Use |
+|------|-----|
+| **Often + absolute, chunked** | KVC Supabase `keyword-volume` (≤25/call, 1000/1000 proven) |
+| **Fastest bulk absolute (1 call)** | Smart-Minded Google Ads SV (1000/POST) |
+| Amazon-native relative | Amazon completion scorer / Olifant |
+| Amazon absolute | Helium Magnet only when not 429 — not scalable here |

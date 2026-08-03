@@ -1,77 +1,67 @@
-# Search volume ingress — no auth (extended hunt)
+# Search volume ingress — no auth (JS-reversed)
 
-See full probe matrix in [`HUNT.md`](./HUNT.md).
+Full hunt notes: [`HUNT.md`](./HUNT.md).
 
-## Best ingress found
+## Best working ingresses (live-validated)
 
-**Smart-Minded public DataForSEO proxy — no login.**
+### A) Keyword Volume Checker (found by reversing frontend JS)
 
-| Use case | Endpoint path | Scale (live) |
-|----------|---------------|--------------|
-| **Bulk absolute volumes** | `google_ads/search_volume/live` | **1000 keywords / POST**, ~5s |
-| **Seed → related + volumes** | `google_ads/keywords_for_keywords/live` | 1 seed → **~1900** KWs w/ volume |
+```http
+POST https://lsbehnmosinxcmafumbo.supabase.co/functions/v1/keyword-volume
+Authorization: Bearer <public anon key from their JS>
+apikey: <same>
+
+{"keywords":["laptop","shampoo"],"country":"us"}
+```
+
+- **No user login** (public Supabase anon key in browser bundle)
+- Returns absolute `volume`, plus cpc / difficulty / intent / trend
+- Validated **1000/1000** in chunks of 25 (~5 min)
+
+```bash
+python3 fetch_kvc_volume.py -f terms_1000.txt --country us \
+  -o batch_out/noauth_kvc_1000.csv
+```
+
+### B) Smart-Minded DataForSEO proxy (fastest bulk)
 
 ```http
 POST https://www.smart-minded.com/api/dataforseo
-Content-Type: application/json
-
-{
-  "path": "/v3/keywords_data/google_ads/search_volume/live",
-  "body": [{
-    "keywords": ["… tot 1000 …"],
-    "location_code": 2840,
-    "language_code": "en"
-  }]
-}
+{"path":"/v3/keywords_data/google_ads/search_volume/live","body":[{
+  "keywords":["…≤1000…"],"location_code":2840,"language_code":"en"
+}]}
 ```
 
-> Absolute monthly volumes are **Google Ads**, not Amazon ABA.  
-> Amazon absolute no-auth at 1k-scale was **not** found (Helium Magnet is Amazon-abs but IP **429**).
-
----
-
-## Commands
+- **1000 keywords in one POST** (~5s)
+- Seed expansion: `fetch_smartminded_k4k.py`
 
 ```bash
-# 1000-term bulk absolute (validated)
 python3 fetch_smartminded_volume.py -f terms_1000.txt --location US \
   -o batch_out/noauth_smartminded_1000.csv
-
-# discovery: one seed → many related absolute volumes
-python3 fetch_smartminded_k4k.py "yoga mat" --limit 500 \
-  -o batch_out/k4k_yoga_mat.csv
-
-# Amazon-native relative 0–100 (completion API, high frequency)
-python3 fetch_amazon_completion_score.py -f terms_100.txt --market US \
-  -o batch_out/amz_completion_rel.csv
-
-# Amazon-branded relative tool (Olifant)
-python3 fetch_olifant_keywords.py -f terms_100.txt --marketplace com \
-  -o batch_out/noauth_olifant_100.csv
 ```
 
-Artifacts: `batch_out/noauth_smartminded_1000.csv`, `batch_out/k4k_yoga_mat.csv`, `HUNT.md`.
+---
+
+## What JS confirmed but does not work no-auth
+
+| Tool | Endpoint in JS | Live |
+|------|----------------|------|
+| Helium Magnet demo | `…/magnet-demo-search` | **429** |
+| SellerApp free tool | `…/free_tool/keyword` + `x-client: website` | **503** |
+| SoldScope demo | captcha/apiKey required | **422** |
+| Maxmerce keyword API | `/api/keyword/*` | **401** |
+| Thieve Google SV proxy | `/api/google/search-volume` | CF **403** |
 
 ---
 
-## What else was tried (short)
-
-| Candidate | Result |
-|-----------|--------|
-| Helium Magnet demo | Amazon abs sometimes; **429** bulk |
-| Smart-Minded Amazon `ranked_keywords` | ASIN→KW ok; SV mostly 0 |
-| Smart-Minded Amazon bulk SV | **403** path not allowed |
-| SoldScope / SellerApp / Maxmerce | captcha / 503 / **401** |
-| KeywordTool guest MCP | abs on ≤5; 60/hr 120/day |
-| SellerSprite / MerchantWords / Keepa / Rainforest / TrendsMCP | auth/session/key |
-| Ahrefs / Jungle Scout free pages | no open volume JSON |
-
----
-
-## Helium (Amazon abs, not scalable here)
+## Other helpers
 
 ```bash
-python3 fetch_helium_magnet_demo.py laptop --market US
+# Amazon-native relative 0–100
+python3 fetch_amazon_completion_score.py laptop shampoo --market US
+
+# Amazon-branded relative tool
+python3 fetch_olifant_keywords.py laptop --marketplace com
 ```
 
-Absolute only when `bestPhrase.phrase == seed`. Samples under [`samples/`](./samples/).
+Volumes from KVC/Smart-Minded align with **Google-scale** absolute numbers, not Amazon ABA.
