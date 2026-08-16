@@ -172,6 +172,38 @@ Per attribuut levert het:
   - hype mét stijgende Amazon-omzet → ACT NOW
   - Amazon groot, hype vlak → DEFEND / MATURE
 
+### Second-order signalen (uit de ruwe video's, geen extra scraping)
+
+Views en velocity alleen zeggen niet of een trend écht is en of er geld in
+zit. Daarom rekent de brug per attribuut extra leading indicators uit over
+de ~150 geoogste video's:
+
+| signaal | wat het meet | waarom het telt |
+|---|---|---|
+| **save-rate** | bookmarks/plays | mensen saven wat ze willen kopen/proberen — sterkste koopintentie-proxy |
+| **unique creators** + top-author-share | breedte van de trend | 1-2 accounts = toeval; 100+ onafhankelijke creators = echte trend |
+| **breakout-share** | aandeel video's met plays > 5× de followers van de maker | het algoritme duwt het onderwerp voorbij bestaande audiences = pre-viral |
+| **koopintentie** | aandeel captions met shop-cues (tiktokshop, link in bio, #ad, korting, …) | scheidt koopbare trends van pure media-trends |
+| **branded-share + merkconcentratie** | hoeveel video's noemen een merk, en domineert er één? | onbrande vraag + koopintentie = **private-label gat**; één dominant merk = benchmark/dupe-doelwit |
+| **versheid** | aandeel <30 dagen oud + plays recent vs ouder | nog stijgend of al gepiekt? |
+
+Deze worden gecombineerd tot een **conviction-score (0-100)**: hoeveel
+onafhankelijke signalen elkaar bevestigen. Eén hete metric kan toeval
+zijn; velocity + saves + creator-breedte + koopintentie + algoritme-push
+die elkaar bevestigen zelden. Bij één dominant account krijgt de score
+een korting.
+
+Daarnaast krijgt elk attribuut een **commerciële lezing van het merkveld**:
+- `PRIVATE-LABEL KANS` — koopintentie zonder merkdominantie (instappen)
+- `MERK-GEDOMINEERD` — één merk bezit de trend (dupe/benchmark)
+- `GEFRAGMENTEERD MERKVELD` — ruimte voor een challenger
+- `MEDIA-TREND` — nog weinig directe koopsignalen
+
+Voorbeeld uit een echte run: *scalp serum* kreeg conviction 69% met
+`PRIVATE-LABEL KANS` (14% koopintentie, geen dominant merk), terwijl
+*heatless curls* met méér views als media-trend werd ontmaskerd
+(47% algoritme-push maar 1% koopintentie).
+
 De headline-cijfers komen alleen van direct geoogste tags; attributen die
 alleen als co-hashtag opduiken verschijnen als DISCOVERY-kandidaten voor de
 watchlist (ze erven nooit de views van hun parent-tag).

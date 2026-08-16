@@ -36,6 +36,7 @@ import argparse
 import json
 import os
 import re
+import time
 from collections import Counter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -97,6 +98,16 @@ BRANDS = [
     "living proof", "amika", "verb", "moroccanoil", "cerave",
 ]
 
+# Caption cues that separate BUY-intent from pure media trends. A video
+# whose caption contains one of these is treated as a commerce signal.
+COMMERCE_CUES = [
+    "tiktokshop", "tiktok shop", "tiktokmademebuyit", "link in bio",
+    "linkinbio", "shop now", "shopnow", "use code", "kortingscode",
+    "korting", "affiliate", "#ad", "amazonfinds", "amazon", "sephora",
+    "ulta", "douglas", "kruidvat", "bestellen", "gekocht", "sold out",
+    "restock", "must have", "musthave", "where to buy",
+]
+
 
 def fmt_int(n):
     if not n:
@@ -114,6 +125,120 @@ def fmt_int(n):
 def matches(text, needles):
     t = text.lower()
     return any(n in t for n in needles)
+
+
+def compute_signals(vids, brand_counter):
+    """Second-order leading indicators from the raw harvested videos.
+
+    Research-backed early signals that plain view counts miss:
+      save_rate        bookmarks/plays — purchase-intent proxy (people save
+                       what they plan to buy/try, strongest leading metric)
+      unique_creators  breadth: >=~10 independent creators = real trend,
+                       1-2 accounts = fluke (top_author_share catches this)
+      breakout_share   videos where plays > 5x the author's followers =
+                       the algorithm is pushing the topic beyond existing
+                       audiences (pre-viral tell)
+      fresh_share_30d  fraction of harvested videos <30d old; combined with
+                       recency_boost (avg plays recent vs older) it answers
+                       "is this still rising or already peaked?"
+      commerce_intent  fraction of captions with shop/buy cues — separates
+                       purchasable trends from pure media noise
+      branded_share    fraction of videos naming a known brand; low share +
+                       commerce intent = unbranded demand = private-label gap
+      top_brand_share  concentration among brand mentions; >50% = one brand
+                       owns the trend (benchmark/dupe target, hard to enter)
+    """
+    n = len(vids)
+    if not n:
+        return {}
+    plays = sum(v.get("plays") or 0 for v in vids)
+    bookmarks = sum(v.get("bookmarks") or 0 for v in vids)
+    shares = sum(v.get("shares") or 0 for v in vids)
+
+    author_counts = Counter(v["author"] for v in vids if v.get("author"))
+    top_author_share = (author_counts.most_common(1)[0][1] / n
+                        if author_counts else 0.0)
+
+    now = time.time()
+    recent = [v for v in vids
+              if v.get("createTime") and now - v["createTime"] < 30 * 86400]
+    older = [v for v in vids
+             if v.get("createTime") and now - v["createTime"] >= 30 * 86400]
+
+    def avg_plays(rows):
+        return (sum(v.get("plays") or 0 for v in rows) / len(rows)
+                if rows else 0)
+
+    recent_avg, older_avg = avg_plays(recent), avg_plays(older)
+
+    breakout = [v for v in vids
+                if (v.get("authorFollowers") or 0) > 0
+                and (v.get("plays") or 0) > 5 * v["authorFollowers"]]
+    commerce = [v for v in vids
+                if any(c in (v.get("desc") or "").lower()
+                       for c in COMMERCE_CUES)]
+    branded = [v for v in vids
+               if any(b in (v.get("desc") or "").lower() for b in BRANDS)]
+
+    total_mentions = sum(brand_counter.values())
+    top_brand_share = (brand_counter.most_common(1)[0][1] / total_mentions
+                       if total_mentions else 0.0)
+
+    return {
+        "sample_videos": n,
+        "save_rate": round(bookmarks / plays, 4) if plays else None,
+        "share_rate": round(shares / plays, 4) if plays else None,
+        "unique_creators": len(author_counts),
+        "top_author_share": round(top_author_share, 2),
+        "breakout_share": round(len(breakout) / n, 2),
+        "fresh_share_30d": round(len(recent) / n, 2),
+        "recency_boost": (round(recent_avg / older_avg, 2)
+                          if older_avg else None),
+        "commerce_intent": round(len(commerce) / n, 2),
+        "branded_share": round(len(branded) / n, 2),
+        "top_brand_share": round(top_brand_share, 2),
+    }
+
+
+def conviction_score(row):
+    """0-100 composite: how many INDEPENDENT signals confirm this trend.
+
+    One hot metric can be a fluke; velocity + saves + breadth + commerce
+    intent + algorithmic push confirming each other rarely is.
+    """
+    s = row.get("signals") or {}
+
+    def cap(x, lim):
+        return min((x or 0) / lim, 1.0)
+
+    score = (
+        25 * cap(row.get("velocity"), 3.0)          # posting acceleration
+        + 20 * cap(s.get("save_rate"), 0.05)        # 5% saves = exceptional
+        + 15 * cap(s.get("unique_creators"), 25)    # breadth
+        + 15 * cap(s.get("commerce_intent"), 0.25)  # buy-intent
+        + 15 * cap(s.get("breakout_share"), 0.30)   # algorithmic push
+        + 10 * cap(s.get("fresh_share_30d"), 0.50)  # still-fresh content
+    )
+    # Haircut when one account dominates the sample: not an organic trend.
+    if (s.get("top_author_share") or 0) > 0.4:
+        score *= 0.7
+    return int(round(score))
+
+
+def opportunity(row):
+    """Commercial read of the brand landscape inside the trend."""
+    s = row.get("signals") or {}
+    branded = s.get("branded_share") or 0
+    top_brand = s.get("top_brand_share") or 0
+    commerce = s.get("commerce_intent") or 0
+    if branded < 0.25 and commerce >= 0.10:
+        return "PRIVATE-LABEL KANS — koopintentie zonder merkdominantie"
+    if branded >= 0.25 and top_brand >= 0.50:
+        leader = row["brands"][0][0] if row["brands"] else "?"
+        return f"MERK-GEDOMINEERD — {leader} bezit de trend (dupe/benchmark)"
+    if branded >= 0.25:
+        return "GEFRAGMENTEERD MERKVELD — ruimte voor een challenger"
+    return "MEDIA-TREND — nog weinig directe koopsignalen"
 
 
 def load_tiktok():
@@ -138,6 +263,7 @@ def aggregate_attribute(attr, spec, tt_rows):
     evidence = []
     matched_tags = []      # directly harvested tags for this attribute
     co_occurs_in = []      # tags where this attr shows up only as co-hashtag
+    vids = {}              # id -> video, deduped across matched tags
 
     for r in tt_rows:
         tag = r["tag"].lower()
@@ -156,6 +282,7 @@ def aggregate_attribute(attr, spec, tt_rows):
             engagement = max(engagement, r["engagementRate"])
         posts = max(posts, r.get("totalVideos") or 0)
         for v in r.get("videos", []):
+            vids[v.get("id") or len(vids)] = v
             desc = (v.get("desc") or "")
             low = desc.lower()
             for b in BRANDS:
@@ -187,6 +314,7 @@ def aggregate_attribute(attr, spec, tt_rows):
         "velocity": round(velocity, 2) if velocity else None,
         "engagement": round(engagement, 4) if engagement else None,
         "brands": brand_counter.most_common(5),
+        "signals": compute_signals(list(vids.values()), brand_counter),
         "evidence": evidence,
         "amazon_needles": spec["amazon"],
         "amazon_query": f"{attr} hair",
@@ -274,16 +402,18 @@ def main():
         am = amazon.get(attr)
         agg["amazon"] = am
         agg["action"] = combined_phase(agg["hype_phase"], am)
+        agg["conviction"] = conviction_score(agg)
+        agg["opportunity"] = opportunity(agg)
         rows.append(agg)
 
-    rows.sort(key=lambda r: -(r["velocity"] or 0))
+    rows.sort(key=lambda r: -r["conviction"])
 
     print("=" * 100)
     print("  TIKTOK → AMAZON ATTRIBUTE BRIDGE — trend insights, "
           "joinable to products")
     print("=" * 100)
     print(f"  {'attribute':<18} {'level':<10} {'tiktok views':>12} "
-          f"{'vel':>5} {'hype':<26} {'amazon':<14}")
+          f"{'vel':>5} {'conv':>5} {'hype':<26} {'amazon':<14}")
     print("-" * 100)
     for r in rows:
         am = r["amazon"]
@@ -292,17 +422,35 @@ def main():
         vel = f"x{r['velocity']}" if r["velocity"] else "-"
         print(f"  {r['attribute']:<18} {r['level']:<10} "
               f"{fmt_int(r['tiktok_views']):>12} {vel:>5} "
-              f"{r['hype_phase']:<26} {amtxt:<14}")
+              f"{r['conviction']:>4}% {r['hype_phase']:<26} {amtxt:<14}")
     print("-" * 100)
+    print("  conv = conviction: hoeveel ONAFHANKELIJKE signalen elkaar "
+          "bevestigen (velocity, saves,\n  creator-breedte, koopintentie, "
+          "algoritme-push, versheid) — 1 hete metric kan toeval zijn,\n"
+          "  5 bevestigende zelden.")
 
     print("\n  ACTIONS (cross-platform funnel):")
     for r in rows:
+        s = r.get("signals") or {}
         brands = ", ".join(f"{b}({c})" for b, c in r["brands"][:4]) or "—"
         eng = (f", eng {r['engagement']*100:.1f}%"
                if r["engagement"] else "")
-        print(f"\n  • {r['attribute'].upper()} [{r['level']}] — {r['action']}")
+        print(f"\n  • {r['attribute'].upper()} [{r['level']}] "
+              f"— conviction {r['conviction']}% — {r['action']}")
+        print(f"      {r['opportunity']}")
         print(f"      tiktok: {fmt_int(r['tiktok_views'])} views, "
               f"vel {r['velocity']}{eng}")
+        if s:
+            save = (f"{s['save_rate']*100:.1f}%" if s.get("save_rate")
+                    else "-")
+            boost = (f"x{s['recency_boost']}" if s.get("recency_boost")
+                     else "-")
+            print(f"      signalen (n={s['sample_videos']}): "
+                  f"save-rate {save} | {s['unique_creators']} creators "
+                  f"(top {s['top_author_share']:.0%}) | "
+                  f"breakout {s['breakout_share']:.0%} | "
+                  f"koopintentie {s['commerce_intent']:.0%} | "
+                  f"<30d {s['fresh_share_30d']:.0%} (plays {boost})")
         print(f"      merken die de trend dragen: {brands}")
         print(f"      → Amazon join op: {r['amazon_needles']}")
         if r["amazon"]:
