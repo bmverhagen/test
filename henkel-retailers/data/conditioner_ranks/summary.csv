@@ -1,0 +1,21 @@
+shop,domain,status,source_type,product_count,henkel_count,henkel_best_rank,note
+Amazon.nl,amazon.nl,ok,search,48,1,38,
+De Online Drogist,deonlinedrogist.nl,ok,search,50,4,1,
+Notino,notino.nl,ok,search,24,0,,
+KoopjesDrogisterij,koopjesdrogisterij.nl,ok,search,25,6,2,
+Kruidvat,kruidvat.nl,ok,category,20,1,17,Search endpoint blocked; used conditioner category sorted 'Meest relevant'.
+Trekpleister,trekpleister.nl,ok,category,19,1,13,Search endpoint blocked; used conditioner category sorted 'Meest relevant'.
+Bol.com,bol.com,partial,serp_fallback,5,3,1,Shop blocks datacenter IP; ranked from public search hits (not live on-site order).
+Etos,etos.nl,partial,serp_fallback,5,0,,Shop blocks datacenter IP; ranked from public search hits (not live on-site order).
+Albert Heijn,ah.nl,partial,serp_fallback,5,5,1,Shop blocks datacenter IP; ranked from public search hits (not live on-site order).
+Jumbo,jumbo.com,partial,serp_fallback,4,3,1,Shop blocks datacenter IP; ranked from public search hits (not live on-site order).
+Plus,plus.nl,blocked,fallback_web,0,0,,Live search blocked from this environment.
+Dirk,dirk.nl,blocked,fallback_web,0,0,,Dirk search page did not return product cards for 'conditioner'.
+DA Drogist,da.nl,blocked,fallback_web,0,0,,DA search returned unrelated catalog noise; no reliable conditioner ranking.
+Plein.nl,plein.nl,partial,serp_fallback,4,4,1,Shop blocks datacenter IP; ranked from public search hits (not live on-site order).
+Drogeriedepot,drogeriedepot.nl,blocked,fallback_web,1,0,,Live search blocked from this environment.
+ICI Paris XL,iciparisxl.nl,partial,fallback_web,6,0,,Live search blocked from this environment.
+Douglas,douglas.nl,partial,fallback_web,6,0,,Live search blocked from this environment.
+Parfumselect,parfumselect.nl,partial,fallback_web,7,0,,Live search blocked from this environment.
+Newpharma,newpharma.nl,blocked,fallback_web,0,0,,Live search blocked from this environment.
+Zalando,zalando.nl,partial,fallback_web,7,0,,Live search blocked from this environment.

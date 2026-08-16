@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+data/raw/*.html
+data/raw/fallback_*.html
+data/raw/parsed_*.json
+data/conditioner_ranks/conditioner_ranks_20*.json

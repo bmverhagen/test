@@ -1,0 +1,237 @@
+shop,domain,source_type,status,rank,title,brand,is_henkel,price,url
+Amazon.nl,amazon.nl,search,ok,1,"Olaplex N°.5 Bond Maintenance™ Hair Strengthening Conditioner, 250 mL | Repairs damage and helps prevent breakage. Hydrates, softens, detangles, and reduces frizz for healthier-looking hair.",Olaplex,False,"€ 19,99",https://www.amazon.nl/Olaplex-N%C2%B0-5-MaintenanceTM-Strengthening-Conditioner/dp/B08TWV3S41/ref=sr_1_1
+Amazon.nl,amazon.nl,search,ok,2,"Cantu Sheaboter hydraterende crème conditioner, 400 ml (verpakking kan variëren)",Cantu,False,"€ 7,99",https://www.amazon.nl/Cantu-Sheaboter-hydraterende-conditioner-verpakking/dp/B00NMM8JYM/ref=sr_1_2
+Amazon.nl,amazon.nl,search,ok,3,"Garnier Echte schatten Reparerende spoeling, honing, versterkt en voedt beschadigd en breekbaar haar, tegen gespleten haarpunten, conditioner, voedende formule, minder haarbreuk, 1 x 200 ml",Garnier,False,"€ 3,59",https://www.amazon.nl/Garnier-Reparerende-beschadigd-haarpunten-conditioner/dp/B0C8JQ6XWQ/ref=sr_1_3
+Amazon.nl,amazon.nl,search,ok,4,"L'Oréal Professionnel, Professionele Herstellende Conditioner, Voor Droog en Beschadigd Haar, Voedt de Haarvezel Intens, Met Tarweproteïne, Absolut Repair",L'Oréal,False,"€ 20,19",https://www.amazon.nl/LOr%C3%A9al-Professionnel-Professionele-Herstellende-Tarweprote%C3%AFne/dp/B0918G7MMH/ref=sr_1_4
+Amazon.nl,amazon.nl,search,ok,5,"OGX Marokkaanse Argan Revive olieconditioner, 385 ml",OGX,False,"€ 8,95",https://www.amazon.nl/OGX-Marokkaanse-Argan-Revive-olieconditioner/dp/B06XK7BXQ9/ref=sr_1_5
+Amazon.nl,amazon.nl,search,ok,6,"Ogx Anti Breakage Keratin Oil Conditioner, 385 ml",OGX,False,"€ 7,21",https://www.amazon.nl/Ogx-Anti-Breakage-Keratin-Conditioner/dp/B01JGRBJV6/ref=sr_1_6
+Amazon.nl,amazon.nl,search,ok,7,Moroccanoil Hydrating Conditioner,Moroccanoil,False,"€ 29,50",https://www.amazon.nl/Moroccanoil-Hydrating-Conditioner-250-ml/dp/B0098QQ88U/ref=sr_1_7
+Amazon.nl,amazon.nl,search,ok,8,Revlon Herstellende Conditioner voor Beschadigd Haar 650 ml,,False,"€ 3,50",https://www.amazon.nl/Revlon-Herstellende-Conditioner-voor-Beschadigd/dp/B0BCW2MZKM/ref=sr_1_8
+Amazon.nl,amazon.nl,search,ok,9,Wella Professionals Fusion Intense Repair Conditioner – Herstellende conditioner voor beschadigd haar – 200ml,Wella,False,"€ 14,41",https://www.amazon.nl/Wella-Professionals-Fusion-Intense-Conditioner/dp/B09TFYBTKK/ref=sr_1_9
+Amazon.nl,amazon.nl,search,ok,10,"Bali Curls Moisturising Conditioner, hydraterende spoeling met sheaboter, kokosolie en ylang-ylang-extract voor de verzorging van natuurlijke krullen, veganistische haarconditioner voor droog haar",,False,"€ 10,62",https://www.amazon.nl/Bali-Curls-ylang-ylang-extract-veganistische-haarconditioner/dp/B0DRDDTQFV/ref=sr_1_10
+Amazon.nl,amazon.nl,search,ok,11,"Redken, Voor Gevoelig Geworden Lang Haar, Versterkt het Haar en Voorkomt Haarbreuk, Met Biotine en Casterolie, Extreme Length Conditioner, 300 ML",Redken,False,"€ 20,51",https://www.amazon.nl/Redken-Versterkt-Haarbreuk-Casterolie-Conditioner/dp/B08XZBCC4J/ref=sr_1_11
+Amazon.nl,amazon.nl,search,ok,12,Moroccanoil Moisture Repair Conditioner,Moroccanoil,False,"€ 22,77",https://www.amazon.nl/Moroccanoil-Moisture-Repair-Conditioner-250/dp/B002N5MKM6/ref=sr_1_12
+Amazon.nl,amazon.nl,search,ok,13,"Garnier Loving Blends Avocado & Shea Boter Conditioner - 6x250ml | Intens voedende conditioner verzorgt zeer droog, pluizig haar met avocado-olie en sheaboter, voordeelverpakking",Loving Blends,False,"€ 18,57",https://www.amazon.nl/Garnier-Loving-Blends-Avocado-Conditioner/dp/B0FRGPNV9J/ref=sr_1_13
+Amazon.nl,amazon.nl,search,ok,14,"L'Oréal Paris Elvive Glycolic Gloss Ultimate Conditioner - 150ml | Conditioner voor dof, poreus haar, met glycolic acid voor glanzend haar",L'Oréal,False,"€ 6,99",https://www.amazon.nl/LOr%C3%A9al-Elvive-Glycolic-Ultimate-Conditioner/dp/B0FP28SQJN/ref=sr_1_14
+Amazon.nl,amazon.nl,search,ok,15,Shea Moisture Manuka Honey & Mafura Oil intensieve hydraterende conditioner,Shea Moisture,False,"€ 9,93",https://www.amazon.nl/Shea-Moisture-intensieve-hydraterende-conditioner/dp/B07XWWJ1X1/ref=sr_1_15
+Amazon.nl,amazon.nl,search,ok,16,"Fanola Nutri Care Restructuring Conditioner, 1000 ml",,False,"€ 15,00",https://www.amazon.nl/Fanola-Nutri-Care-Restructuring-Conditioner/dp/B00CGPKDJU/ref=sr_1_16
+Amazon.nl,amazon.nl,search,ok,17,"OGX Vernieuwende conditioner met arganolie uit Marokko 88,7 ml",OGX,False,"€ 3,99",https://www.amazon.nl/OGX-Vernieuwende-conditioner-arganolie-Marokko/dp/B01KYQ9F0U/ref=sr_1_17
+Amazon.nl,amazon.nl,search,ok,18,L'Oréal Paris Elvive Bond Repair Conditioner - 150ml | Conditioner voor beschadigd haar,L'Oréal,False,"€ 6,99",https://www.amazon.nl/LOr%C3%A9al-Paris-Elvive-Repair-Conditioner/dp/B0FGWJ2Y1H/ref=sr_1_18
+Amazon.nl,amazon.nl,search,ok,19,"Creme of Nature sulfaatvrije conditioner met Arganolie uit Marokko voor een diepgaande versterking van het haar, 354ml",,False,"€ 8,00",https://www.amazon.nl/Creme-Nature-sulfaatvrije-conditioner-versterking/dp/B004YRVCGQ/ref=sr_1_19
+Amazon.nl,amazon.nl,search,ok,20,Ogx Nourishing Coconut Milk Conditioner,OGX,False,"€ 9,74",https://www.amazon.nl/Ogx-Nourishing-Coconut-Milk-Conditioner/dp/B000TG850M/ref=sr_1_20
+Amazon.nl,amazon.nl,search,ok,21,"John Frieda Frizz Ease Miraculous Recovery Conditioner voor Pluizig Haar - 250 Milliliter - Herstelt Droog, Beschadigd en Pluizig Haar",John Frieda,False,"€ 6,74",https://www.amazon.nl/John-Frieda-Miraculous-Recovery-Conditioner/dp/B074PW39L1/ref=sr_1_21
+Amazon.nl,amazon.nl,search,ok,22,"SheaMoisture Strengthen & Restore Leave-In Conditioner voor krullend, voor chemisch behandeld of met warmte gestyled haar Jamaican Black Castor Oil haarverzachter zonder siliconen en sulfaten 431 ml",SheaMoisture,False,"€ 18,50",https://www.amazon.nl/SheaMoisture-Strengthen-Conditioner-behandeld-haarverzachter/dp/B01HOD3ZNO/ref=sr_1_22
+Amazon.nl,amazon.nl,search,ok,23,"OGX Conditioner met kokosolie van Coconut Miracle, 385 ml",OGX,False,"€ 8,99",https://www.amazon.nl/OGX-Conditioner-kokosolie-Coconut-Miracle/dp/B07B68SW8Y/ref=sr_1_23
+Amazon.nl,amazon.nl,search,ok,24,"L'Oréal Paris Elvital Glycolic Gloss conditioner voor glanzend en dof haar, haarverzorging voor gezond haar en ultieme glans, regeneratie van de haarverzegeling, conditioner met glycolzuur, 150 ml",L'Oréal,False,"€ 6,30",https://www.amazon.nl/Paris-conditioner-haarverzorging-regeneratie-haarverzegeling/dp/B0CPT5WC6C/ref=sr_1_24
+Amazon.nl,amazon.nl,search,ok,25,"OGX Biotine & collageen conditioner, voedzame volumeconditioner, haarspoeling met biotine, collageen en tarweproteïnen, haarverzorging, sulfaatvrij, 385 ml (1 stuk)",OGX,False,"€ 9,99",https://www.amazon.nl/OGX-volumeconditioner-haarspoeling-tarweprote%C3%AFnen-haarverzorging/dp/B0DBVQWVBK/ref=sr_1_25
+Amazon.nl,amazon.nl,search,ok,26,"Jean & Len Mango en Matcha Conditioner, krullendroom, voor weerbarstig en pluizig haar, vermindert gespleten haarpunten, verzorgt en definieert natuurlijke golven en krullen, vegan, 300 ml | Verzorgt en geeft natuurlijk gedefinieerde krullen en golven, temt achtervolgend haar, zonder siliconen & parabenen",,False,"€ 6,25",https://www.amazon.nl/Jean-Len-Conditioner-krullendroom-weerbarstig/dp/B0CWHCVBD3/ref=sr_1_26
+Amazon.nl,amazon.nl,search,ok,27,"L'Oréal Elvive Hydraterende conditioner voor droog en dof haar, stralend, volumineus en licht haar, tot 72 uur vocht, verrijkt met zuiver hyaluronzuur,",L'Oréal,False,"€ 10,51",https://www.amazon.nl/Hydraterende-conditioner-stralend-volumineus-hyaluronzuur/dp/B0DPMX499G/ref=sr_1_27
+Amazon.nl,amazon.nl,search,ok,28,L’Oréal Paris Elvive Hydra Hyaluronic Conditioner - 6x 200ml | Hydraterende conditioner met hyaluronzuur,Elvive,False,"€ 22,77",https://www.amazon.nl/LOr%C3%A9al-Paris-Elvive-Hyaluronic-Conditioner/dp/B0FP275WW3/ref=sr_1_28
+Amazon.nl,amazon.nl,search,ok,29,"SKALA Brasil Maracuja Behandelingscrème, Conditioner 1000 ml",,False,"€ 12,50",https://www.amazon.nl/SKALA-Brasil-Maracuja-Behandelingscr%C3%A8me-Conditioner/dp/B0BC6RSS1S/ref=sr_1_29
+Amazon.nl,amazon.nl,search,ok,30,"OGX Rosemary Mint Conditioner, Verhelderend, Verwijdert Oliën & Residuen, Sulfaatvrij, Lipi Pro Shield™ Technologie, Gezond Uitziend Haar, 385 ml | Verrijkt met pepermunt en toverhazelaar om resten en ophoping te verwijderen voor een schonere, evenwichtige hoofdhuid",OGX,False,"€ 8,95",https://www.amazon.nl/OGX-Conditioner-Verhelderend-Sulfaatvrij-Technologie/dp/B0DLWJGZGG/ref=sr_1_30
+Amazon.nl,amazon.nl,search,ok,31,"Redken, Voor Beschadigd, Veeleisend en Gekleurd Haar, Beschermt Intensief Tegen Haarbreuk, Bonding Verzorging, Acidic Bonding Concentrate Conditioner, 500 ML",Redken,False,"€ 24,82",https://www.amazon.nl/Redken-Beschadigd-Veeleisend-Concentrate-Conditioner/dp/B08P66QBT9/ref=sr_1_31
+Amazon.nl,amazon.nl,search,ok,32,DOVE_Nutritive Solutions Intensive Repair Conditioner od¿ywka do w³osów zniszczonych 200ml,,False,"€ 8,14",https://www.amazon.nl/DOVE_Nutritive-Solutions-Intensive-Conditioner-zniszczonych/dp/B014G2WYKQ/ref=sr_1_32
+Amazon.nl,amazon.nl,search,ok,33,"Olaplex No.5 FINE Bond Maintenance® Conditioner | Doubles hair volume with body, bounce, and lift. Weightlessly hydrates while repairing damage and strengthening hair.",Olaplex,False,"€ 12,49",https://www.amazon.nl/Olaplex-No-5-FINE-Maintenance%C2%AE-Conditioner/dp/B0F3G93PPZ/ref=sr_1_33
+Amazon.nl,amazon.nl,search,ok,34,"Garnier Fructis Moisture Aloe Vera Hair Food Conditioner, voor normaal tot droog haar, veganistisch, 400 ml (1 stuk)",Garnier,False,"€ 8,23",https://www.amazon.nl/Garnier-Fructis-Moisture-Conditioner-veganistisch/dp/B08N6WZF3L/ref=sr_1_34
+Amazon.nl,amazon.nl,search,ok,35,"Kérastase Genesis, Fondant Renforçateur, Versterkende Anti-haaruitval Conditioner, Met Gemberwortel en Edelweiss, Voor Fijn, Verzwakt Haar, Anti-Haaruitval",,False,"€ 32,90",https://www.amazon.nl/Renfor%C3%A7ateur-Versterkende-Anti-haaruitval-Gemberwortel-Anti-Haaruitval/dp/B083JKX9MX/ref=sr_1_35
+Amazon.nl,amazon.nl,search,ok,36,"L'Oréal Paris Elvive Hyaluronic Conditioner, 300 ml",L'Oréal,False,"€ 10,87",https://www.amazon.nl/LOr%C3%A9al-Paris-Elvive-Hyaluronic-Conditioner/dp/B0B98YVZ16/ref=sr_1_36
+Amazon.nl,amazon.nl,search,ok,37,"OGX Coconut Milk Conditioner, Hydrateert & Verzacht, Sulfaatvrij, Tropische Kokosgeur, Voor Droog & Dof Haar, 385 ml",OGX,False,"€ 8,99",https://www.amazon.nl/OGX-Conditioner-Hydrateert-Sulfaatvrij-Tropische/dp/B0049SJU8M/ref=sr_1_37
+Amazon.nl,amazon.nl,search,ok,38,"Gliss Conditioner Liquid Silk (200 ml), haarconditioner met ceramide en zijde verzorgt broos en glanzend haar intensief, verzorgende conditioner voor haar zoals zijde",Gliss,True,"€ 6,99",https://www.amazon.nl/Gliss-Conditioner-haarconditioner-verzorgende-conditioner/dp/B0CVLBNXY9/ref=sr_1_38
+Amazon.nl,amazon.nl,search,ok,39,"Jean & Len Conditioner Rosemary & Ginger, 300 ml | Conditioner voor dof, glansloos haar, verzorgt intensief & verbetert kambaarheid, pittige geur, zonder parabenen & siliconen",,False,"€ 8,54",https://www.amazon.nl/Jean-Len-Conditioner-Rosemary-Ginger/dp/B0DG9FM6T4/ref=sr_1_39
+Amazon.nl,amazon.nl,search,ok,40,Wella Professionals Fusion Intense Repair Conditioner – Herstellende conditioner voor beschadigd haar – 1.000ml,Wella,False,"€ 30,51",https://www.amazon.nl/Wella-Professionals-Fusion-Intense-Conditioner/dp/B0BKMY6K1R/ref=sr_1_40
+Amazon.nl,amazon.nl,search,ok,41,Goldwell Dualsenses Rich Repair Conditioner Herstellend,,False,"€ 22,99",https://www.amazon.nl/Goldwell-Dualsenses-Repair-herstellende-conditioner/dp/B01N2387U7/ref=sr_1_41
+Amazon.nl,amazon.nl,search,ok,42,"L'Oréal Paris 3474636975471 Absolut Repair Gold Conditioner, 750 ml,kleur",L'Oréal,False,"€ 33,15",https://www.amazon.nl/LOr%C3%A9al-Paris-3474636975471-Absolut-Conditioner/dp/B097BGDJV2/ref=sr_1_42
+Amazon.nl,amazon.nl,search,ok,43,Moroccanoil Alles-in-één leave-in conditioner,Moroccanoil,False,"€ 35,00",https://www.amazon.nl/Moroccanoil-Alles-in-%C3%A9%C3%A9n-leave-in-conditioner-160ml/dp/B08DPLN32V/ref=sr_1_43
+Amazon.nl,amazon.nl,search,ok,44,"Pantene Pro-V haarconditioner voor beschadigd haar, 3 minuten Miracle, regenereert en beschermt, 150 ml | 3 minuten wonder, regenereert en beschermt",Pantene,False,"€ 7,25",https://www.amazon.nl/Pantene-haarconditioner-beschadigd-regenereert-beschermt/dp/B086HZGTR8/ref=sr_1_44
+Amazon.nl,amazon.nl,search,ok,45,Sheamoisture Restauratieve conditioner met rauwe sheaboter 384 ml,SheaMoisture,False,"€ 12,83",https://www.amazon.nl/Sheamoisture-Restauratieve-conditioner-rauwe-sheaboter/dp/B01HOD3W82/ref=sr_1_45
+Amazon.nl,amazon.nl,search,ok,46,"L'Oréal Professionnel, Versterkende Conditioner, Voor Lang en Dun Haar, Versterkt en Maakt het Haar Voller, Met Vulstof A-100 & Aminozuren, Pro Longer",L'Oréal,False,"€ 12,99",https://www.amazon.nl/LOr%C3%A9al-Professionnel-Versterkende-Conditioner-Aminozuren/dp/B0918CDRMY/ref=sr_1_46
+Amazon.nl,amazon.nl,search,ok,47,Shea moisture jamaican black castor oil leave-in conditioner 312g/11oz,Shea Moisture,False,"€ 20,00",https://www.amazon.nl/Shea-moisture-jamaican-castor-conditioner/dp/B07NQLWYXW/ref=sr_1_47
+Amazon.nl,amazon.nl,search,ok,48,"Redken, Voor Fijn en Slap Haar, Herstelt, Ontwart en Geeft Extra Volume, Voor Extra Lift, Met Filloxane en Verzachtende Polymeren, Volume Injection Conditioner, 300 ML",Redken,False,"€ 19,99",https://www.amazon.nl/Redken-Filloxane-Verzachtende-Polymeren-Conditioner/dp/B08Y1DT652/ref=sr_1_48
+De Online Drogist,deonlinedrogist.nl,search,ok,1,Schauma Anti-Klit Conditioner 250ML,Schauma,True,,https://www.deonlinedrogist.nl/drogist/schwarzkopf-anti-klit-conditioner-250ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,2,Elvive Shampoo Multivitamines 2in1 250ML,Elvive,False,,https://www.deonlinedrogist.nl/drogist/elvive-shampoo-multivitamine-2in1-250ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,3,Neutral Conditioner 250ML,Neutral,False,,https://www.deonlinedrogist.nl/drogist/neutral-conditioner-250-ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,4,Elvive Conditioner Color Vive Kleurbeschermend 200ML,Elvive,False,,https://www.deonlinedrogist.nl/drogist/elvive-color-vive-kleurbeschermende-conditioner-200ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,5,Dermolin Cremespoeling 200ML,,False,,https://www.deonlinedrogist.nl/dermolin-cremespoeling-200ml-p-53497.html
+De Online Drogist,deonlinedrogist.nl,search,ok,6,Elvive Dream Lenghts Conditioner 90ML,Elvive,False,,https://www.deonlinedrogist.nl/drogist/l-oreal-paris-elvive-dream-lenghts-conditioner-90ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,7,Plantur 39 Color Brown Conditioner 150ML,Plantur,False,,https://www.deonlinedrogist.nl/drogist/plantur39-color-brown-conditioner.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,8,Andrelon Conditioner Zilver Care Verzorgend 200ML,Andrelon,False,,https://www.deonlinedrogist.nl/drogist/andrelon-conditioner-zilver-care-verzorgend-200ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,9,Plantur 39 Conditioner with Cafeïne 150ML,Plantur,False,,https://www.deonlinedrogist.nl/drogist/plantur-39-conditioner-with-cafeine-150ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,10,Syoss Intense Keratin Deep Conditioner 12% Keratin Strong Complex 250ML,Syoss,True,,https://www.deonlinedrogist.nl/drogist/syoss-intense-keratin-deep-conditioner-12-keratin-strong-complex-250ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,11,Andrelon Glans Conditioner 250ML,Andrelon,False,,https://www.deonlinedrogist.nl/drogist/andrelon-glans-conditioner-250ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,12,Weleda Rosemary Revitalising Conditioner 150ML,Weleda,False,,https://www.deonlinedrogist.nl/drogist/weleda-rosemary-revitalising-conditioner-150ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,13,Inecto Naturals Coconut Conditioner 500ML,,False,,https://www.deonlinedrogist.nl/drogist/inecto-naturals-coconut-conditioner.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,14,Vichy Dercos Aminexil Energie Conditioner tegen haaruitval 200ML,,False,,https://www.deonlinedrogist.nl/drogist/vichy-dercos-aminexil-energie-conditioner-tegen-haaruitval-200ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,15,Naif Hair Conditioner 200ML,,False,,https://www.deonlinedrogist.nl/drogist/naif-softening-conditioner.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,16,Andrelon Conditioner Intens Repair Beschadigd Haar 200ML,Andrelon,False,,https://www.deonlinedrogist.nl/drogist/andrelon-conditioner-intens-repair-beschadigd-haar-200ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,17,OGX Biotin & Collagen Conditioner 385ML,OGX,False,,https://www.deonlinedrogist.nl/drogist/ogx-biotin-collagen-conditioner-385ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,18,John Frieda Frizz Ease Dream Curls Conditioner 250ML,John Frieda,False,,https://www.deonlinedrogist.nl/drogist/john-frieda-frizzease-dream-curls-conditioner-250ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,19,OGX Argan Oil of Morocco Conditioner 385ML,OGX,False,,https://www.deonlinedrogist.nl/drogist/ogx-argan-oil-of-morocco-conditioner-385ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,20,Elvive Conditioner Dream Lengths 200ML,Elvive,False,,https://www.deonlinedrogist.nl/drogist/elvive-dream-lengths-conditioner-200ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,21,Urtekram Rich Repair Conditioner Nordic Berry 180ML,Urtekram,False,,https://www.deonlinedrogist.nl/drogist/urtekram-rich-repair-conditioner-nordic-berry-180ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,22,Garnier Loving Blends Conditioner Honing Goud 200ML,Loving Blends,False,,https://www.deonlinedrogist.nl/drogist/garnier-loving-blends-conditioner-honing-goud-200ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,23,"Guhl Vochtherstel Verzorgende Conditioner voor droog, broos en overbelast haar 200ML",Guhl,False,,https://www.deonlinedrogist.nl/drogist/guhl-vochtherstel-verzorgende-conditioner-200ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,24,Syoss Intens Curl Deep Conditioner 250ML,Syoss,True,,https://www.deonlinedrogist.nl/drogist/syoss-intens-curl-deep-conditioner-250ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,25,Andrelon Conditioner Perfecte Krul Verzorgend 200ML,Andrelon,False,,https://www.deonlinedrogist.nl/drogist/andrelon-conditioner-perfecte-krul-verzorgend-200ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,26,Drs Leenarts Conditioner 150ML,,False,,https://www.deonlinedrogist.nl/drogist/drs-leenarts-conditioner-150ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,27,Urtekram Aloë Vera Conditioner 180ML,Urtekram,False,,https://www.deonlinedrogist.nl/drogist/urtekram-conditioner-aloe-vera.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,28,Elvive Crèmespoeling Total Repair 200ML,Elvive,False,,https://www.deonlinedrogist.nl/drogist/elvive-cremespoeling-total-repair-200ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,29,Andrelon Conditioner Oil & Care Voedend 200ML,Andrelon,False,,https://www.deonlinedrogist.nl/drogist/andrelon-conditioner-oil-care-voedend-200ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,30,Elvive Crèmespoeling Hydra Hyaluronic 200ML,Elvive,False,,https://www.deonlinedrogist.nl/drogist/elvive-cremespoeling-hydra-hyaluronic-200ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,31,John Frieda Frizz Ease Dream Curls Conditioner 75ML,John Frieda,False,,https://www.deonlinedrogist.nl/drogist/john-frieda-frizz-ease-dreamcurls-conditioner-75ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,32,Andrelon Levendig Lang Conditioner 200ML,Andrelon,False,,https://www.deonlinedrogist.nl/drogist/andrelon-levendig-lang-conditioner-200ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,33,Sence Beauty Conditioner Aloe Vera 400ML,,False,,https://www.deonlinedrogist.nl/drogist/sence-aloe-vera-conditioner-400ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,34,Faith in Nature Shea & Argan Moisturizing Conditioner 400ML,,False,,https://www.deonlinedrogist.nl/drogist/faith-in-nature-shea-argan-moisturizing-conditioner-400ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,35,Andrelon Conditioner Kokos Boost Volume 200ML,Andrelon,False,,https://www.deonlinedrogist.nl/drogist/andrelon-conditioner-kokos-boost-volume-200ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,36,OGX Nourishing Coconut Milk Conditioner 385ML,OGX,False,,https://www.deonlinedrogist.nl/drogist/ogx-nourishing-coconut-milk-conditioner-385ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,37,Palmers Coconut Oil Moisture Gro Hairdress - Leave‑in haarverzorging 150GR,,False,,https://www.deonlinedrogist.nl/palmer-s-coconut-conditioner-150gr-p-19591.html
+De Online Drogist,deonlinedrogist.nl,search,ok,38,Urtekram Coconut Leave-in Conditioner Spray 250ML,Urtekram,False,,https://www.deonlinedrogist.nl/urtekram-leave-in-conditioner-spray-coconut-p-70308.html
+De Online Drogist,deonlinedrogist.nl,search,ok,39,Hask Keratin Smooth Conditioner 355ML,,False,,https://www.deonlinedrogist.nl/drogist/hask-keratin-protein-smoothing-conditioner-355ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,40,Guhl Kracht & Volume Conditioner Rozemarijn 200ML,Guhl,False,,https://www.deonlinedrogist.nl/drogist/guhl-kracht-volume-conditioner-rozemarijn-200ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,41,Urtekram Coconut Conditioner 180ML,Urtekram,False,,https://www.deonlinedrogist.nl/drogist/urtekram-conditioner-coconut-180ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,42,Urtekram Spray Conditioner Nordic Berry 250ML,Urtekram,False,,https://www.deonlinedrogist.nl/drogist/urtekram-spray-conditioner-nordic-berry-250ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,43,John Frieda Brilliant Brunette Colour Vibrancy Conditioner 250ML,John Frieda,False,,https://www.deonlinedrogist.nl/drogist/john-frieda-brilliantbrunette-colour-vibrancy-conditioner-250ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,44,Andrelon Volume & Care Conditioner 300ML,Andrelon,False,,https://www.deonlinedrogist.nl/drogist/andrelon-volume-care-conditioner-300ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,45,Schwarzkopf Gliss Kur 4-in-1 Regeneration Bond-Building Hair Mask 400ML,Schwarzkopf,True,,https://www.deonlinedrogist.nl/drogist/schwarzkopf-gliss-kur-total-repair-2-in-1-treatment-masker-400ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,46,Weleda Hydro Shine Conditioner 150ML,Weleda,False,,https://www.deonlinedrogist.nl/drogist/weleda-hydro-shine-conditioner-150ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,47,Guhl Kleur 3-in-1 Masker Serum & Conditioner Rode Klaproos 200ML,Guhl,False,,https://www.deonlinedrogist.nl/drogist/guhl-kleur-3-in-1-masker-serum-conditioner-rode-klaproos-200ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,48,Urtekram Sensitive Scalp Conditioner Geurvrij 180ML,Urtekram,False,,https://www.deonlinedrogist.nl/drogist/urtekram-sensitive-scalp-conditioner-geurvrij-180ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,49,Urtekram Calendula Childrens Spray Conditioner 250ML,Urtekram,False,,https://www.deonlinedrogist.nl/drogist/urtekram-calendula-childrens-spray-conditioner-250ml.htm
+De Online Drogist,deonlinedrogist.nl,search,ok,50,Guhl Blond Glans 2-in-1 Masker & Conditioner Kamille 200ML,Guhl,False,,https://www.deonlinedrogist.nl/drogist/guhl-blond-glans-2-in-1-masker-conditioner-kamille-200ml.htm
+Notino,notino.nl,search,ok,1,Sensai Lash Condicioner Conditioner voor Wimpers 10 ml,Sensai,False,"€54,50",https://www.notino.nl/sensai/lash-condicioner-conditioner-voor-wimpers/p-16230033/
+Notino,notino.nl,search,ok,2,Joico Color Balance Purple Condicioner Paarse Conditioner neutraliseert gele Tinten,Joico,False,"€12,90",https://www.notino.nl/joico/color-balance-purple-condicioner-paarse-conditioner-neutraliseert-gele-tinten/p-16188822/
+Notino,notino.nl,search,ok,3,D.R. Harris Coconut Conditioner Conditioner voor het Haar 250 ml,D.R. Harris,False,"€24,50",https://www.notino.nl/d-r-harris/coconut-conditioner-conditioner-voor-het-haar/p-16319008/
+Notino,notino.nl,search,ok,4,Secesse Hair Conditioner Conditioner voor het Haar,Secesse,False,"€2,30",https://www.notino.nl/secesse/hair-conditioner-conditioner-voor-het-haar/p-16342880/
+Notino,notino.nl,search,ok,5,Morgan's Silk Conditioner Conditioner,Morgan's,False,"€9,80",https://www.notino.nl/morgans/silk-conditioner-conditioner/p-16386150/
+Notino,notino.nl,search,ok,6,Tołpa Dermo Barber Styling Foam-Conditioner Baard Conditioner 100 ml,Tołpa,False,"€8,80",https://www.notino.nl/tolpa/dermo-barber-styling-foam-conditioner-baard-conditioner/p-16374023/
+Notino,notino.nl,search,ok,7,D.R. Harris Golden Conditioner Milde Conditioner voor het Haar 250 ml,D.R. Harris,False,"€14,90",https://www.notino.nl/d-r-harris/golden-conditioner-milde-conditioner-voor-het-haar/p-16319013/
+Notino,notino.nl,search,ok,8,Zew For Men Shampoo with conditioner 2-in-1 Shampoo en Conditioner 2in1 85 ml,Zew For Men,False,"€6,50",https://www.notino.nl/zew/shampoo-with-conditioner-2-in-1-shampoo-en-conditioner-2in1/p-16079548/
+Notino,notino.nl,search,ok,9,Vittore De Conti Hair Conditioner Conditioner voor het Haar,Vittore De Conti,False,"€2,70",https://www.notino.nl/vittore-de-conti/hair-conditioner-conditioner-voor-het-haar/p-16281045/
+Notino,notino.nl,search,ok,10,Dear Barber Conditioner haar en baard conditioner voor Mannen 250 ml,Dear Barber,False,"€8,40",https://www.notino.nl/dear-barber/conditioner-haar-en-baard-conditioner-voor-mannen/p-16203137/
+Notino,notino.nl,search,ok,11,it's a 10 Miracle Deep Conditioner Hydraterende Conditioner 148 ml,it's a 10,False,"€17,50",https://www.notino.nl/its-a-10/miracle-deep-conditioner-hydraterende-conditioner/p-493671/
+Notino,notino.nl,search,ok,12,Kiehl's Amino Acid Conditioner Conditioner voor Alle Haar Typen 200 ml,Kiehl's,False,"€23,20",https://www.notino.nl/kiehls/amino-acid-conditioner-conditioner-voor-alle-haar-typen/p-16116835/
+Notino,notino.nl,search,ok,13,Angry Beards Jack Saloon Beard Conditioner Baard Conditioner 100 ml,Angry Beards,False,"€10,90",https://www.notino.nl/angry-beards/jack-saloon-wash-out-baard-conditioner/p-16332361/
+Notino,notino.nl,search,ok,14,Herbal Collection Hair Conditioner Conditioner voor het Haar,Herbal Collection,False,"€2,20",https://www.notino.nl/herbal-collection/hair-conditioner-conditioner-voor-het-haar/p-16343456/
+Notino,notino.nl,search,ok,15,Chicco Pop Comby Shampoo & Conditioner Shampoo en Conditioner,Chicco,False,"€5,50",https://www.notino.nl/chicco/pop-comby-shampoo-conditioner-shampoo-en-conditioner/p-16353668/
+Notino,notino.nl,search,ok,16,Biosilk Color Therapy Conditioner Conditioner zonder Parabenen 355 ml,Biosilk,False,"€12,50",https://www.notino.nl/biosilk/color-therapy-conditioner-zonder-parabenen/p-474269/
+Notino,notino.nl,search,ok,17,Osmo Extreme Volume Conditioner Conditioner voor het Haar 400 ml,Osmo,False,"€10,50",https://www.notino.nl/osmo/extreme-volume-conditioner-voor-het-haar/p-16257926/
+Notino,notino.nl,search,ok,18,Indola Color Conditioner conditioner voor kleurbescherming,Indola,False,"€9,90",https://www.notino.nl/indola/color-conditioner-conditioner-voor-kleurbescherming/p-16284135/
+Notino,notino.nl,search,ok,19,Cemio Collagen Conditioner Voedende Conditioner 250 ml,Cemio,False,"€8,90",https://www.notino.nl/cemio/kolagen-conditioner-voedende-conditioner/p-16336346/
+Notino,notino.nl,search,ok,20,it's a 10 Miracle Daily Conditioner Lichte Conditioner 295.7 ml,it's a 10,False,"€23,90",https://www.notino.nl/its-a-10/miracle-daily-conditioner-lichte-conditioner/p-16351865/
+Notino,notino.nl,search,ok,21,BusyB Becky Blossom Conditioner Conditioner voor het Haar 200 ml,BusyB,False,"€12,50",https://www.notino.nl/busyb/becky-blossom-conditioner-conditioner-voor-het-haar/p-16344856/
+Notino,notino.nl,search,ok,22,milk_shake® Cold Brunette Conditioner Conditioner voor Bruin Haar,milk_shake®,False,"€25,30",https://www.notino.nl/milk-shake/cold-brunette-conditioner-conditioner-voor-bruin-haar/p-16202182/
+Notino,notino.nl,search,ok,23,Biosilk Volumizing Therapy Conditioner Conditioner voor Volume 355 ml,Biosilk,False,"€10,90",https://www.notino.nl/biosilk/volumizing-therapy-conditioner-voor-volume/p-417828/
+Notino,notino.nl,search,ok,24,Aveda Men Pure - Formance™ Conditioner Conditioner voor het Haar 300 ml,Aveda,False,"€28,00",https://www.notino.nl/aveda/men-pure-formance-conditioner-voor-het-haar/p-16109241/
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,1,Bountiful Epsom zout (1000 gr),,False,,https://www.koopjesdrogisterij.nl/bountiful-epsom-zout-1000g-933131.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,2,Syoss Conditioner Intense Keratin (440 ml),Syoss,True,,https://www.koopjesdrogisterij.nl/syoss-conditioner-intense-keratin-440-ml.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,3,Tena Shampoo Cap (1 stuk),,False,,https://www.koopjesdrogisterij.nl/tena-shampoo-cap-1st-834605.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,4,Andrelon Conditioner Care & Repair (250 ml),Andrelon,False,,https://www.koopjesdrogisterij.nl/andrelon-conditioner-care-and-repair-250ml-282373.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,5,Andrelon Conditioner Iedere Dag (250 ml),Andrelon,False,,https://www.koopjesdrogisterij.nl/andrelon-conditioner-iedere-dag-250ml-284142.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,6,6x Andrelon Shampoo Glans (300 ml),Andrelon,False,,https://www.koopjesdrogisterij.nl/6x-andrelon-shampoo-glans-300-ml.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,7,Andrelon Shampoo Oil & Care (250 ml),Andrelon,False,,https://www.koopjesdrogisterij.nl/andrelon-shampoo-oil-care-250-ml.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,8,Andrelon Shampoo Perfecte Krul (250 ml),Andrelon,False,,https://www.koopjesdrogisterij.nl/andrelon-shampoo-perfecte-krul-250-ml.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,9,Andrelon Conditioner Levendige Kleur (300 ml),Andrelon,False,,https://www.koopjesdrogisterij.nl/andrelon-conditioner-levendige-kleur-300ml-943457.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,10,Andrelon Conditioner Verrassend Volume (300 ml),Andrelon,False,,https://www.koopjesdrogisterij.nl/andrelon-conditioner-verrassend-volume-300ml-943460.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,11,Andrelon Conditioner Perfecte Krul Verzorgend (200 ml),Andrelon,False,,https://www.koopjesdrogisterij.nl/andrelon-conditioner-perfecte-krul-verzorgend-200-ml.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,12,Syoss Color Oleo Intense 2-10 Bruinz (1 set),Syoss,True,,https://www.koopjesdrogisterij.nl/syoss-color-oleo-intense-2-10-bruinz-1set-829696.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,13,Neutral Conditioner normal (250 ml),Neutral,False,,https://www.koopjesdrogisterij.nl/neutral-conditioner-normal-250ml-934170.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,14,Syoss Color Oleo Intense 1-10 Zwart (1 set),Syoss,True,,https://www.koopjesdrogisterij.nl/syoss-color-oleo-intense-1-10-zwart-1set-829695.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,15,Dermolin Cremespoeling (200 ml),,False,,https://www.koopjesdrogisterij.nl/dermolin-cremespoeling-200ml-888129.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,16,Syoss Color Oleo Intense 4-18 mokkab (1 set),Syoss,True,,https://www.koopjesdrogisterij.nl/syoss-color-oleo-intense-4-18-mokkab-1set-829698.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,17,6x Neutral Conditioner normal (250 ml),Neutral,False,,https://www.koopjesdrogisterij.nl/6x-neutral-conditioner-normal-250-ml.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,18,Syoss Color Oleo Intense 5-86 Lichtb (1 set),Syoss,True,,https://www.koopjesdrogisterij.nl/syoss-color-oleo-intense-5-86-lichtb-1set-829701.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,19,Syoss Color Oleo Intense 5-92 Strale (1 set),Syoss,True,,https://www.koopjesdrogisterij.nl/syoss-color-oleo-intense-5-92-strale-1set-829700.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,20,Andrelon Conditioner Volume & Care (250 ml),Andrelon,False,,https://www.koopjesdrogisterij.nl/andrelon-conditioner-volume-and-care-300ml-284172.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,21,Bee Honest Shampoobar jojoba & honing (80 gr),,False,,https://www.koopjesdrogisterij.nl/bee-honest-shampoobar-jojoba-and-honing-80g-225293.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,22,Andrelon Conditioner Oil & Shine (300 ml),Andrelon,False,,https://www.koopjesdrogisterij.nl/andrelon-conditioner-oil-and-shine-300ml-943473.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,23,Urtekram Find balance conditioner gevoelige huid (180 ml),Urtekram,False,,https://www.koopjesdrogisterij.nl/urtekram-find-balance-conditioner-gevoelige-huid-180ml-945713.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,24,Andrelon Conditioner Zilver Care Verzorgend (200 ml),Andrelon,False,,https://www.koopjesdrogisterij.nl/andrelon-conditioner-zilver-care-verzorgend-200-ml.html
+KoopjesDrogisterij,koopjesdrogisterij.nl,search,ok,25,KoopjesDrogisterij nieuwsbrief,,False,,
+Kruidvat,kruidvat.nl,category,ok,1,Kruidvat Keratin Repair Conditioner 300ml,Kruidvat,False,,
+Kruidvat,kruidvat.nl,category,ok,2,Andrélon Oil & Care Conditioner 200ml,Andrelon,False,,
+Kruidvat,kruidvat.nl,category,ok,3,L'Oréal Paris Elvive Dream Lengths Conditioner 200ml,Elvive,False,,
+Kruidvat,kruidvat.nl,category,ok,4,Andrélon Levendig Lang Conditioner 200ml,Andrelon,False,,
+Kruidvat,kruidvat.nl,category,ok,5,L'Oréal Paris Elvive Bond Repair Conditioner 150ml,Elvive,False,,
+Kruidvat,kruidvat.nl,category,ok,6,L'Oréal Paris Elvive Color Vive Kleurbeschermende Conditioner 200ml,Elvive,False,,
+Kruidvat,kruidvat.nl,category,ok,7,Andrélon Zilver Care Conditioner 200ml,Andrelon,False,,
+Kruidvat,kruidvat.nl,category,ok,8,Andrélon Intense Repair Conditioner 200ml,Andrelon,False,,
+Kruidvat,kruidvat.nl,category,ok,9,L'Oréal Paris Glycolic Gloss Glansbeschermende Conditioner 200ml,Elvive,False,,
+Kruidvat,kruidvat.nl,category,ok,10,Garnier Loving Blends Avocado-olie & Sheaboter Conditioner 250ml,Loving Blends,False,,
+Kruidvat,kruidvat.nl,category,ok,11,Yari Green Curls Hydrating Conditioner 355ml,Yari Green Curls,False,,
+Kruidvat,kruidvat.nl,category,ok,12,Kruidvat Oil & Care Conditioner 300ml,Kruidvat,False,,
+Kruidvat,kruidvat.nl,category,ok,13,Andrélon Kokos Volume Boost Conditioner 200ml,Andrelon,False,,
+Kruidvat,kruidvat.nl,category,ok,14,Head & Shoulders Citrus Fresh 2-in-1 Antiroosshampoo 250ml,Head & Shoulders,False,,
+Kruidvat,kruidvat.nl,category,ok,15,Andrélon Perfecte Krul Conditioner 200ml,Andrelon,False,,
+Kruidvat,kruidvat.nl,category,ok,16,John Frieda Frizz Ease Dream Curls Curl-Defining Conditioner 250ml,John Frieda,False,,
+Kruidvat,kruidvat.nl,category,ok,17,Schauma Anti-Klit Conditioner 250ml,Schauma,True,,
+Kruidvat,kruidvat.nl,category,ok,18,Dove Scalp+Hair Therapy Density & Growth Conditioner 400ml,Dove,False,,
+Kruidvat,kruidvat.nl,category,ok,19,Head & Shoulders Classic 2-in-1 Antiroosshampoo 400ml,Head & Shoulders,False,,
+Kruidvat,kruidvat.nl,category,ok,20,Head & Shoulders Jeukende Hoofdhuid 2-in-1 Antiroosshampoo 250ml,Head & Shoulders,False,,
+Trekpleister,trekpleister.nl,category,ok,1,Andrélon Oil & Care Conditioner,Andrélon,False,,
+Trekpleister,trekpleister.nl,category,ok,2,L'Oréal Paris Elvive Dream Lengths Conditioner,L'Oréal,False,,
+Trekpleister,trekpleister.nl,category,ok,3,Andrélon Levendig Lang Conditioner,Andrélon,False,,
+Trekpleister,trekpleister.nl,category,ok,4,Andrélon Perfecte Krul Conditioner,Andrélon,False,,
+Trekpleister,trekpleister.nl,category,ok,5,Andrélon Zilver Care Conditioner,Andrélon,False,,
+Trekpleister,trekpleister.nl,category,ok,6,L'Oréal Paris Elvive Color Vive Kleurbeschermende Conditioner,L'Oréal,False,,
+Trekpleister,trekpleister.nl,category,ok,7,Head & Shoulders Citrus Fresh 2-in-1 Antiroosshampoo,Head & Shoulders,False,,
+Trekpleister,trekpleister.nl,category,ok,8,Head & Shoulders Jeukende Hoofdhuid 2-in-1 Antiroosshampoo,Head & Shoulders,False,,
+Trekpleister,trekpleister.nl,category,ok,9,Garnier Loving Blends Honing Goud Herstellende Conditioner,Loving Blends,False,,
+Trekpleister,trekpleister.nl,category,ok,10,Head & Shoulders Classic 2-in-1 Antiroosshampoo,Head & Shoulders,False,,
+Trekpleister,trekpleister.nl,category,ok,11,Garnier Loving Blends Avocado-olie & Sheaboter Conditioner,Loving Blends,False,,
+Trekpleister,trekpleister.nl,category,ok,12,L'Oréal Paris Elvive Hydra Hyaluronic Hydraterende Conditioner,L'Oréal,False,,
+Trekpleister,trekpleister.nl,category,ok,13,Syoss Intense Keratin Deep Conditioner,Syoss,True,,
+Trekpleister,trekpleister.nl,category,ok,14,Andrélon Kokos Volume Boost Conditioner,Andrélon,False,,
+Trekpleister,trekpleister.nl,category,ok,15,Head & Shoulders Menthol Fresh 2-in-1 Antiroosshampoo,Head & Shoulders,False,,
+Trekpleister,trekpleister.nl,category,ok,16,Andrélon Intense Repair Conditioner,Andrélon,False,,
+Trekpleister,trekpleister.nl,category,ok,17,Dove Scalp + Hair Therapy Damage Rescue Conditioner,Dove,False,,
+Trekpleister,trekpleister.nl,category,ok,18,Dove Scalp+Hair Therapy Density & Growth Conditioner,Dove,False,,
+Trekpleister,trekpleister.nl,category,ok,19,L'Oréal Paris Glycolic Gloss Glansbeschermende Conditioner,L'Oréal,False,,
+Bol.com,bol.com,serp_fallback,partial,1,Syoss Glaze Conditioner 6x250 ml,Syoss,True,,https://www.bol.com/nl/nl/p/syoss-glaze-conditioner-herstelt-futloos-en-dof-haar-glans-en-zijdezacht-resultaat-zacht-en-makkelijk-doorkambaar-vermindert-pluis-tot-24u-voordeelverpakking-6x250-ml/9300000256875424/
+Bol.com,bol.com,serp_fallback,partial,2,Andrélon Conditioner Oil & Curl 300 ml,Andrélon,False,,https://www.bol.com/nl/nl/p/andrelon-conditioner-oil-curl-300-ml/9300000032098979/
+Bol.com,bol.com,serp_fallback,partial,3,Syoss Keratin Shampoo & Conditioner pakket,Syoss,True,,https://www.bol.com/nl/nl/p/syoss-keratin-shampoo-en-conditioner-beauty-elixir-absolute-oil-pakket/9300000075695995/
+Bol.com,bol.com,serp_fallback,partial,4,Syoss Intense Curls Conditioner 6x250 ml,Syoss,True,,https://www.bol.com/nl/nl/p/syoss-curls-conditioner-6x250-ml-voordeelverpakking/9300000196911382/
+Bol.com,bol.com,serp_fallback,partial,5,Andrélon Perfecte Krul Conditioner 6x200 ml,Andrélon,False,,https://www.bol.com/nl/nl/p/andrelon-perfecte-krul-conditioner-200ml/9300000231452592/
+Etos,etos.nl,serp_fallback,partial,1,Olaplex No. 5 Bond Maintenance Conditioner 250 ML,Olaplex,False,,https://www.etos.nl/producten/olaplex-no.-5-bond-maintenance-conditioner-250-ml%C2%A0-120799611.html
+Etos,etos.nl,serp_fallback,partial,2,Guhl Hyaluron+ Verzorging Conditioner 200 ML,Guhl,False,,https://www.etos.nl/producten/guhl-hyaluron%2B-verzorging-conditioner-200-ml-120716847.html
+Etos,etos.nl,serp_fallback,partial,3,L'Oréal Paris Elvive Hydra Hyaluronic Conditioner 200 ML,L'Oréal,False,,https://www.etos.nl/producten/loreal-paris-elvive-hydra-hyaluronic-conditioner-200-ml-120599960.html
+Etos,etos.nl,serp_fallback,partial,4,Bjorn Axen Moisture Conditioner 250 ML,,False,,https://www.etos.nl/producten/bjorn-axen-moisture-conditioner-250-ml-120789270.html
+Etos,etos.nl,serp_fallback,partial,5,Etos Oil & Care Conditioner 250 ML,Etos,False,,https://www.etos.nl/producten/etos-oil-care-conditioner-250-ml-120641689.html
+Albert Heijn,ah.nl,serp_fallback,partial,1,Gliss Conditioner liquid silk,Gliss,True,,https://www.ah.nl/producten/product/wi569394/gliss-conditioner-liquid-silk
+Albert Heijn,ah.nl,serp_fallback,partial,2,Gliss Conditioner total repair,Gliss,True,,https://www.ah.nl/producten/product/wi110075/gliss-conditioner-total-repair
+Albert Heijn,ah.nl,serp_fallback,partial,3,Syoss Intense glaze deep caring conditioner,Syoss,True,,https://www.ah.nl/producten/product/wi606393/syoss-intense-glaze-deep-caring-conditioner
+Albert Heijn,ah.nl,serp_fallback,partial,4,Syoss Conditioner oleo,Syoss,True,,https://www.ah.nl/producten/product/wi586870/syoss-conditioner-oleo
+Albert Heijn,ah.nl,serp_fallback,partial,5,Syoss Conditioner keratin,Syoss,True,,https://www.ah.nl/producten/product/wi586869/conditioner-keratin
+Jumbo,jumbo.com,serp_fallback,partial,1,Syoss Repair Conditioner 440 ml,Syoss,True,,https://www.jumbo.com/producten/syoss-repair-conditioner-440-ml-388023STK
+Jumbo,jumbo.com,serp_fallback,partial,2,Andrélon Conditioner Iedere Dag 250 ml,Andrélon,False,,https://www.jumbo.com/producten/andrelon-conditioner-iedere-dag-250-ml-575445FLS
+Jumbo,jumbo.com,serp_fallback,partial,3,Syoss Deep Conditioner Oleo 250 ML,Syoss,True,,https://www.jumbo.com/producten/syoss-deep-conditioner-oleo-250-ml-700618TUB
+Jumbo,jumbo.com,serp_fallback,partial,4,Syoss Deep Conditioner Repair 250 ML,Syoss,True,,https://www.jumbo.com/producten/syoss-deep-conditioner-repair-250-ml-700650TUB
+Plein.nl,plein.nl,serp_fallback,partial,1,Syoss Keratin Conditioner 250 ml,Syoss,True,,https://www.plein.nl/syoss-keratin-conditioner-250-ml
+Plein.nl,plein.nl,serp_fallback,partial,2,Syoss Color Conditioner 250 ml,Syoss,True,,https://www.plein.nl/syoss-color-conditioner-250-ml
+Plein.nl,plein.nl,serp_fallback,partial,3,Syoss Oleo Conditioner 250 ml,Syoss,True,,https://www.plein.nl/syoss-oleo-conditioner-250-ml
+Plein.nl,plein.nl,serp_fallback,partial,4,Syoss Intense Repair Conditioner 250 ml,Syoss,True,,https://www.plein.nl/syoss-intense-repair-conditioner-250-ml
+Drogeriedepot,drogeriedepot.nl,fallback_web,blocked,1,Conditioner - drogeriedepot.nl,,False,,https://www.drogeriedepot.nl/c/Haarverzorging-Kleuren/Conditioner/
+ICI Paris XL,iciparisxl.nl,fallback_web,partial,1,Conditioner | Haarverzorging - ICI PARIS XL,,False,,https://www.iciparisxl.nl/haar/haarverzorging/conditioner/c/050103
+ICI Paris XL,iciparisxl.nl,fallback_web,partial,2,KÉRASTASE Conditioner - ICI PARIS XL,,False,,https://www.iciparisxl.nl/kerastase/b/352/producttype/conditioner/bc/3520202
+ICI Paris XL,iciparisxl.nl,fallback_web,partial,3,REDKEN Acidic Grow Full System Conditioner - Voor Dun Of Futloos Haar ...,Redken,False,,https://www.iciparisxl.nl/redken/acidic-grow-full-system/conditioner-voor-dun-of-futloos-haar/p/BP_1409561
+ICI Paris XL,iciparisxl.nl,fallback_web,partial,4,"KÉRASTASE Gloss Absolu Insta Glaze Conditioner voor lang, pluizig haar ...",,False,,https://www.iciparisxl.nl/kerastase/gloss-absolu-insta-glaze/conditioner-voor-lang-pluizig-haar/p/BP_1355920
+ICI Paris XL,iciparisxl.nl,fallback_web,partial,5,REDKEN Acidic Bonding Concentrate Herstellende conditioner - bonding ...,Redken,False,,https://www.iciparisxl.nl/redken/acidic-bonding-concentrate/herstellende-conditioner-bonding-verzorging/p/BP_1332134
+ICI Paris XL,iciparisxl.nl,fallback_web,partial,6,OLAPLEX CORE NO. 5P BLONDE ENHANCER™ TONING CONDITIONER | Haar | ICI ...,Olaplex,False,,https://www.iciparisxl.nl/olaplex/core/no-5p-blonde-enhancer-toning-conditioner/p/BP_1267545
+Douglas,douglas.nl,fallback_web,partial,1,Conditioner ️ online kopen | DOUGLAS,,False,,https://www.douglas.nl/nl/c/haar/haarverzorging/conditioner/140103
+Douglas,douglas.nl,fallback_web,partial,2,Leave-in conditioner ️ online kopen | DOUGLAS,,False,,https://www.douglas.nl/nl/c/haar/haarverzorging/leave-in-conditioner/140104
+Douglas,douglas.nl,fallback_web,partial,3,Kérastase Conditioner ️ online kopen | DOUGLAS,,False,,https://www.douglas.nl/nl/b/kerastase/haar/haarverzorging/conditioner/b0145_140103
+Douglas,douglas.nl,fallback_web,partial,4,The Ordinary Conditioner ️ online kopen | DOUGLAS,,False,,https://www.douglas.nl/nl/b/the-ordinary/haar/haarverzorging/conditioner/b5494_140103
+Douglas,douglas.nl,fallback_web,partial,5,Living Proof Conditioner ️ online kopen | DOUGLAS,,False,,https://www.douglas.nl/nl/b/living-proof/haar/haarverzorging/conditioner/ba598_140103
+Douglas,douglas.nl,fallback_web,partial,6,Wella Professionals Conditioner ️ online kopen | DOUGLAS,Wella,False,,https://www.douglas.nl/nl/b/wella-professionals/haar/haarverzorging/conditioner/ba656_140103
+Parfumselect,parfumselect.nl,fallback_web,partial,1,Conditioner voor Krullen - Parfumselect,,False,,https://parfumselect.nl/conditioner-voor-krullen/
+Parfumselect,parfumselect.nl,fallback_web,partial,2,Shea Conditioner | Hydraterend Haar | Parfumselect,,False,,https://parfumselect.nl/shea-conditioner-60-ml-2/
+Parfumselect,parfumselect.nl,fallback_web,partial,3,Conditioner Droog/Beschadigd Haar - Parfumselect,,False,,https://parfumselect.nl/conditioner-droog-beschadigd-haar/
+Parfumselect,parfumselect.nl,fallback_web,partial,4,Ors Conditioner | Wortel Olie Behandeling | Parfumselect,,False,,https://parfumselect.nl/conditioner-ors-850220-227-g/
+Parfumselect,parfumselect.nl,fallback_web,partial,5,Redken All Soft Conditioner Langdurig | Parfumselect,Redken,False,,https://parfumselect.nl/all-soft-conditioner-500-ml/
+Parfumselect,parfumselect.nl,fallback_web,partial,6,Goldwell Color Revive Conditioner Warm Red | Parfumselect,,False,,https://parfumselect.nl/goldwell-color-revive-color-giving-conditioner-warm-red-200-ml/
+Parfumselect,parfumselect.nl,fallback_web,partial,7,Kevin Murphy Herstellende Conditioner | Parfumselect,,False,,https://parfumselect.nl/herstellende-conditioner-kevin-murphy-rinses/
+Zalando,zalando.nl,fallback_web,partial,1,Conditioner - Een ruim assortiment conditioner online bij ZALANDO,,False,,https://www.zalando.nl/beauty-conditioner/
+Zalando,zalando.nl,fallback_web,partial,2,O&M Conditioner - Een ruim assortiment conditioner online bij ... - Zalando,,False,,https://www.zalando.nl/beauty-conditioner/oandm/
+Zalando,zalando.nl,fallback_web,partial,3,Monday Haircare MONDAY SMOOTH CONDITIONER - Zalando.nl,,False,,https://www.zalando.nl/monday-haircare-monday-smooth-conditioner-shampoo-02j34h003-s11.html
+Zalando,zalando.nl,fallback_web,partial,4,"Kérastase Genesis Fondant Renforçateur, Strengthening Conditioner for ...",,False,,https://www.zalando.nl/kerastase-genesis-fondant-renforcateur-conditioner-keh34h01o-s11.html
+Zalando,zalando.nl,fallback_web,partial,5,"KÉRASTASE Haarverzorgingsets - Shampoo, conditioner, kuren en meer per ...",,False,,https://www.zalando.nl/beauty-haarverzorgingssets/kerastase/
+Zalando,zalando.nl,fallback_web,partial,6,Monday Haircare MONDAY REPAIR LEAVE-IN CONDITIONER - Conditioner ...,,False,,https://www.zalando.nl/monday-haircare-monday-repair-leave-in-conditioner-conditioner-02j34h008-s11.html
+Zalando,zalando.nl,fallback_web,partial,7,Ouai LEAVE IN CONDTIONER - Leave-in conditioner - Zalando.nl,,False,,https://www.zalando.nl/ouai-leave-in-condtioner-stylingproduct-ou734h00l-s11.html

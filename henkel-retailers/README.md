@@ -23,6 +23,25 @@ lijst tenzij ze een sterke NL-webshop hebben.
 | `data/top20_shops.json` | Gerankte lijst + merken + bewijs-URL’s |
 | `data/top20_shops.csv` | Zelfde data, plat voor spreadsheets |
 | `brands.py` | Henkel-merklijst gebruikt voor latere scrapes |
+| `data/conditioner_ranks/conditioner_ranks_latest.json` | Conditioner-zoekranks per shop |
+| `data/conditioner_ranks/conditioner_ranks_latest.csv` | Plat productbestand |
+| `data/conditioner_ranks/summary.csv` | Per-shop status + Henkel best rank |
+
+## Conditioner ranks (BSR-proxy)
+
+Zoek/categorie-positie voor query **`conditioner`** op alle 20 shops:
+
+```bash
+cd conditioner_scraper
+python3 scrape_conditioner_ranks.py
+```
+
+`rank` = positie in de opkomende lijst (zoekresultaat of categorie “meest relevant”).
+Dat is een **BSR-proxy**, geen officiële Amazon BSR behalve op Amazon zelf.
+
+Sommige shops blokkeren datacenter-IP’s (o.a. Bol, Etos, AH). Voor die shops staat
+`source_type=serp_fallback` / `fallback_web` en is de volgorde een publieke zoekhit-
+ranking, niet de live on-site sort.
 
 ## Belangrijk voor BSR
 
