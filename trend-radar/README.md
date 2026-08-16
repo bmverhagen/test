@@ -155,6 +155,36 @@ Dagelijks laten draaien via cron (elke ochtend 06:00):
 De tijdreeks staat in `data/trend_history.db`; na de tweede run verschijnen
 de ACCELERATING/COOLING-secties automatisch.
 
+## Attribuut-brug (`attribute_bridge.py`) — trends koppelen aan Amazon
+
+Zet ruwe TikTok-trends om naar **product-attributen** (ingrediënt / format
+/ zorg / techniek) in exact het vocabulaire dat de Amazon-engine uit
+titels haalt. Zo wordt elke trend een rij die je 1-op-1 aan Amazon-
+producten koppelt. Media-ruis (nieuws, celebs, memes) komt er nooit in,
+omdat de taxonomie alleen product-attributen bevat.
+
+Per attribuut levert het:
+- TikTok-kant: views, velocity, engagement, én de **merken** die de trend
+  dragen (uit de captions: Olaplex, K18, Mielle, SheaMoisture, ...)
+- Amazon-kant: mid-tail momentum + funnel-fase (via `engine.py`)
+- een **cross-platform actie**:
+  - hype zónder Amazon-product → WHITESPACE (maken/inkopen)
+  - hype mét stijgende Amazon-omzet → ACT NOW
+  - Amazon groot, hype vlak → DEFEND / MATURE
+
+De headline-cijfers komen alleen van direct geoogste tags; attributen die
+alleen als co-hashtag opduiken verschijnen als DISCOVERY-kandidaten voor de
+watchlist (ze erven nooit de views van hun parent-tag).
+
+```bash
+python3 generate_demo_data.py     # zodat de Amazon-kant data heeft
+python3 attribute_bridge.py       # join TikTok-hype ↔ Amazon-omzet
+python3 attribute_bridge.py --no-amazon   # alleen de TikTok-kant
+```
+
+Output: console-digest + `data/attributes.json` — de joinbare
+attribuut-tabel (join-key = attribuutnaam, gelijk aan `engine.SIGNALS`).
+
 ## Wat dit bewijst
 
 - Signalen worden gedetecteerd op **behoefte/format-niveau**, niet op los ASIN-niveau
