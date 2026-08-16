@@ -269,6 +269,38 @@ Kanttekening: voor Engelstalige landen (US/GB) bewijst taal alleen
 "Engels", niet het land — daar is een residential proxy in het doelland
 de upgrade. Voor NL/DE/FR/ES/IT is taal een sterke land-proxy.
 
+## Echte per-land vraag, taal-onafhankelijk (`country_demand.py`)
+
+TikTok publiceert geen per-land views, en een taalfilter mist
+Nederlanders die Engelse termen kijken/zoeken ("olaplex", "heatless
+curls"). `country_demand.py` vult dat gat met de officiële per-land
+databron: Google Trends met `geo=NL` — meet wat héél Nederland zoekt,
+ongeacht taal.
+
+```bash
+python3 country_demand.py --country NL \
+    --from-tiktok data/trending_hair_nl_top200.json --limit 80 --rising
+python3 country_demand.py --country NL --terms krullen,olaplex
+```
+
+- **Anker-normalisatie**: Google Trends normaliseert alleen bínnen één
+  opvraag; door in elke batch een vast anker mee te sturen (default
+  "shampoo") worden alle termen cross-batch vergelijkbaar
+  (index 50 = half zo veel gezocht als shampoo in NL).
+- **Momentum**: laatste 14 dagen vs de 30 ervoor.
+- **Combined score**: 50% NL-zoekvraag × momentum + 50% TikTok
+  trend-score — hype én echte landelijke vraag in één getal.
+- **`--rising`**: Google's eigen RISING/BREAKOUT zoekopdrachten per
+  topterm — productniveau-vraag die NU opkomt in het land, alle talen
+  (live voorbeeld: "krultang automatisch" +550%, "stijltang en krultang
+  in 1" BREAKOUT, "k18 leave-in molecular repair hair mask" +190%,
+  "krullen crème kruidvat" +140%).
+- Hashtags worden automatisch naar zoektermen gesegmenteerd
+  ("heatlesscurls" → "heatless curls"); Nederlandse compounds blijven
+  intact.
+
+Vereist `pytrends` (`pip install pytrends`).
+
 De headline-cijfers komen alleen van direct geoogste tags; attributen die
 alleen als co-hashtag opduiken verschijnen als DISCOVERY-kandidaten voor de
 watchlist (ze erven nooit de views van hun parent-tag).
