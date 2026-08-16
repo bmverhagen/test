@@ -365,6 +365,41 @@ stijgers, dalers en evergreens hard te onderscheiden zonder externe
 data. (`country_demand.py` met Google Trends blijft beschikbaar als
 optionele extra bron, maar is voor niets hiervan vereist.)
 
+## Meer ingangen: sounds, explore, discover, related, oEmbed
+
+Naast tag-pagina's en video-detailpagina's zijn deze ingangen anoniem
+scrapebaar bevonden (elk getest zonder login):
+
+| Ingang | URL | Data | Waarde |
+|---|---|---|---|
+| **Sound-pagina** | `tiktok.com/music/x-<id>` (slug vrij) | `api/music/detail`: exacte cumulatieve `videoCount` per sound; `api/music/item_list`: volledige video-feed (zelfde itemStruct als tags) | Trends verspreiden zich vaak via een sound vóór er een hashtag is; snapshotbaar zoals tags → `sound_snapshot.py` |
+| **Explore-categoriefeed** | `tiktok.com/explore` | `api/explore/item_list?categoryType=…` met categorie-chips (o.a. "Beauty en zorg") | Categorie-brede trending feed, IP-gepersonaliseerd → met NL-proxy een NL-beautyfeed zonder tags te kennen |
+| **Discover/KAP-pagina** | `tiktok.com/discover/<keyword>` | SSR-blob `webapp.kap-detail` met o.a. `keywordFeatures.keywordEcomIntent` | TikToks éígen e-commerce-intentie-vlag per keyword — direct signaal of een term koopgedrag draagt |
+| **Related-videos** | videopagina | `api/related/item_list` | Aanbevelingsgraaf: vanaf één hit-video het omliggende trend-cluster uitbreiden |
+| **Creator-profiel** | `tiktok.com/@user` | SSR `webapp.user-detail`: volledige `stats` (volgers, hearts, videoCount) | Volgersgroei van NL-creators snapshotten = welke creators breken door |
+| **oEmbed** | `tiktok.com/oembed?url=…` | kale JSON zonder browser: titel, auteur, thumbnail | Gratis health-check of video's nog bestaan (verwijderd → error), zonder Playwright |
+
+Niet bruikbaar zonder login: de comment-API (leeg bij anoniem), de
+Creative Center hashtag-detailgrafiek, en het industry-filter in
+Creative Center. NL ontbreekt sowieso in de Creative Center-landenlijst.
+
+### Sound-trends (`sound_snapshot.py`)
+
+`trending.py`/`tiktok_tags.py` slaan per video nu ook `musicId` +
+`musicOriginal` op. `sound_snapshot.py` telt de meest gebruikte sounds
+in je harvest, haalt per sound de exacte cumulatieve `videoCount` op
+(~2 s per sound, geen scrollen) en bouwt er een dagelijkse tijdreeks
+van in `data/sound_history.db`:
+
+```bash
+python3 sound_snapshot.py --from-json data/trending_hair_nl_top200.json
+python3 sound_snapshot.py --ids 7543689509486676741
+```
+
+Vanaf dag 2: **Δposts/dag per sound**. Een "original" sound die hard
+stijgt is vaak een trend-in-wording nog vóór er een duidelijke hashtag
+bestaat — het vroegste signaal dat er is.
+
 ## Engelstalige video's die Nederlanders kijken (`geo_probe.py`)
 
 Taalfiltering mist per definitie de buitenlandse content die NL'ers

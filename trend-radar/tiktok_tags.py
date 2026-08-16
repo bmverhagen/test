@@ -144,6 +144,8 @@ def parse_item(it):
         "bookmarks": int(stats.get("collectCount") or 0),
         "hashtags": tags,
         "music": music.get("title"),
+        "musicId": music.get("id"),
+        "musicOriginal": bool(music.get("original")),
         "lang": it.get("textLanguage"),
     }
 
