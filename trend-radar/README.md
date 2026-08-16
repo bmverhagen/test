@@ -41,6 +41,30 @@ Geen dependencies buiten de Python 3 stdlib.
 deze stap door een dagelijkse Amazon-scrape of een data-provider (Keepa-achtige
 historie); de engine (`engine.py`) blijft identiek.
 
+## Pure TikTok-scrape (live, geen login of API-key)
+
+`tiktok_scrape.py` scrapet **echte, live trending hashtags** van TikTok's
+Creative Center. De JSON-API daarachter vereist JS-gesigneerde headers en kale
+curl krijgt een lege app-shell — maar als een echte browser de pagina laadt,
+embedt de server een SSR-payload in de HTML met per hashtag: naam, rank,
+posts, video views, industrie, top-creators én een **dagelijkse
+populariteitscurve**. Het script:
+
+1. draait headless Chromium (Playwright) en leest die SSR-payload uit
+2. oogst per regio (27 landen) × periode (7/30/120 dagen) de top-hashtags
+3. berekent momentum uit de dagcurves en classificeert:
+   EXPLODING / RISING / PEAKING / FADING
+
+```bash
+pip install playwright && python3 -m playwright install chromium
+python3 tiktok_scrape.py                        # 8 default-regio's, 30d
+python3 tiktok_scrape.py --all-regions --periods 7,30
+```
+
+Output: console-tabel + `data/tiktok_trends.json` (incl. ruwe dagcurves).
+Dit is de "hype"-kant van de hype-naar-omzet funnel; de Amazon-engine
+hieronder is de "revenue"-kant.
+
 ## Wat dit bewijst
 
 - Signalen worden gedetecteerd op **behoefte/format-niveau**, niet op los ASIN-niveau
