@@ -91,6 +91,24 @@ HAIR_LEXICON = ("hair", "haar", "curl", "krul", "scalp", "hoofdhuid",
 NOISE_TAGS = {"fyp", "foryou", "foryoupage", "viral", "tiktok", "trending",
               "fyp\u30b7", "viral\u30b7", "capcut", "duet", "greenscreen"}
 
+# Dutch function words for fallback language detection when TikTok's own
+# textLanguage field is missing/"un". >=2 hits = Dutch caption.
+DUTCH_HINTS = (" een ", " het ", " niet ", " voor ", " mijn ", " deze ",
+               " ook ", " maar ", " echt ", " krullen ", " hoofdhuid ",
+               " tegen ", " jouw ", " gebruik ")
+
+
+def is_dutch(v):
+    """NL/Flanders proxy: TikTok's per-video language classification,
+    with a Dutch-stopword fallback for unclassified captions."""
+    lang = v.get("lang")
+    if lang == "nl":
+        return True
+    if lang not in (None, "", "un"):
+        return False
+    d = " " + (v.get("desc") or "").lower() + " "
+    return sum(1 for w in DUTCH_HINTS if w in d) >= 2
+
 
 def fmt_int(n):
     try:
@@ -126,6 +144,7 @@ def parse_item(it):
         "bookmarks": int(stats.get("collectCount") or 0),
         "hashtags": tags,
         "music": music.get("title"),
+        "lang": it.get("textLanguage"),
     }
 
 
@@ -190,6 +209,31 @@ def summarize(tag, detail, videos):
               for v in videos)
     top = sorted(videos, key=lambda v: -v["plays"])[:5]
 
+    # NL slice: Dutch-language videos are a hard NL/Flanders proxy, so we
+    # can measure how trending a tag is IN the Netherlands even though the
+    # tag totals are global.
+    nl_vids = [v for v in videos if is_dutch(v)]
+    nl_recent7 = [v for v in nl_vids
+                  if v["createTime"] and now - v["createTime"] < 7 * 86400]
+    nl_prior30 = [v for v in nl_vids
+                  if v["createTime"]
+                  and 7 * 86400 <= now - v["createTime"] < 37 * 86400]
+    nl_vel_now = len(nl_recent7) / 7
+    nl_vel_prior = len(nl_prior30) / 30 if nl_prior30 else 0
+    nl_share = len(nl_vids) / len(videos) if videos else 0
+    nl = {
+        "videos": len(nl_vids),
+        "share": round(nl_share, 3),
+        "plays": sum(v["plays"] for v in nl_vids),
+        "postsPerDayLast7": round(nl_vel_now, 2),
+        "velocityRatio": (round(nl_vel_now / nl_vel_prior, 2)
+                          if nl_vel_prior else None),
+        # tag totals are global; scale by the Dutch share of the feed for
+        # a rough NL-market view estimate
+        "estNLViews": int((detail.get("viewCount") or 0) * nl_share),
+        "topVideos": sorted(nl_vids, key=lambda v: -v["plays"])[:3],
+    }
+
     return {
         "tag": tag,
         "totalVideos": detail.get("videoCount"),
@@ -203,6 +247,7 @@ def summarize(tag, detail, videos):
         if velocity_prior else None,
         "topCoHashtags": co.most_common(12),
         "topVideos": top,
+        "nl": nl,
         "videos": videos,
     }
 
@@ -279,6 +324,34 @@ def report(results, out_path):
     print("-" * 100)
     print("  posts/d 7d = harvested posts per day, last 7 days | "
           "vs prior = velocity vs the 30 days before that")
+
+    nl_rows = [r for r in results if (r.get("nl") or {}).get("videos")]
+    if nl_rows:
+        print()
+        print("  NL-TRENDING — gemeten op Nederlandstalige video's in de "
+              "feed (harde NL/Vlaanderen-proxy):")
+        print(f"  {'#tag':<22} {'nl-share':>9} {'nl-plays':>10} "
+              f"{'est. NL views':>14} {'nl posts/d':>11} {'nl vs prior':>12}")
+        print("-" * 100)
+        for r in sorted(nl_rows, key=lambda r: -r["nl"]["estNLViews"]):
+            nl = r["nl"]
+            ratio = f"x{nl['velocityRatio']}" if nl["velocityRatio"] else "-"
+            print(f"  #{r['tag']:<21} {nl['share']:>8.0%} "
+                  f"{fmt_int(nl['plays']):>10} "
+                  f"{fmt_int(nl['estNLViews']):>14} "
+                  f"{nl['postsPerDayLast7']:>11} {ratio:>12}")
+        print("-" * 100)
+        print("  est. NL views = tag-totaal x aandeel Nederlandstalige "
+              "video's | nl-plays = plays op NL-video's in de harvest")
+        for r in sorted(nl_rows, key=lambda r: -r["nl"]["plays"])[:5]:
+            tops = r["nl"]["topVideos"]
+            if not tops:
+                continue
+            v = tops[0]
+            age_d = (int((time.time() - v["createTime"]) / 86400)
+                     if v["createTime"] else "?")
+            print(f"    top NL-video #{r['tag']}: {fmt_int(v['plays'])} "
+                  f"plays | @{v['author']} | {age_d}d | {v['desc'][:60]}")
 
     for r in results:
         co = ", ".join(f"#{h}({c})" for h, c in r["topCoHashtags"][:8])

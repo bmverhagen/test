@@ -127,6 +127,23 @@ def matches(text, needles):
     return any(n in t for n in needles)
 
 
+DUTCH_HINTS = (" een ", " het ", " niet ", " voor ", " mijn ", " deze ",
+               " ook ", " maar ", " echt ", " krullen ", " hoofdhuid ",
+               " tegen ", " jouw ", " gebruik ")
+
+
+def is_dutch(v):
+    """NL/Flanders proxy: TikTok's per-video textLanguage ('lang' field),
+    with a Dutch-stopword fallback for unclassified captions."""
+    lang = v.get("lang")
+    if lang == "nl":
+        return True
+    if lang not in (None, "", "un"):
+        return False
+    d = " " + (v.get("desc") or "").lower() + " "
+    return sum(1 for w in DUTCH_HINTS if w in d) >= 2
+
+
 def compute_signals(vids, brand_counter):
     """Second-order leading indicators from the raw harvested videos.
 
@@ -184,6 +201,11 @@ def compute_signals(vids, brand_counter):
     top_brand_share = (brand_counter.most_common(1)[0][1] / total_mentions
                        if total_mentions else 0.0)
 
+    nl_vids = [v for v in vids if is_dutch(v)]
+    nl_recent = [v for v in nl_vids
+                 if v.get("createTime")
+                 and now - v["createTime"] < 30 * 86400]
+
     return {
         "sample_videos": n,
         "save_rate": round(bookmarks / plays, 4) if plays else None,
@@ -197,6 +219,10 @@ def compute_signals(vids, brand_counter):
         "commerce_intent": round(len(commerce) / n, 2),
         "branded_share": round(len(branded) / n, 2),
         "top_brand_share": round(top_brand_share, 2),
+        "nl_videos": len(nl_vids),
+        "nl_share": round(len(nl_vids) / n, 2),
+        "nl_plays": sum(v.get("plays") or 0 for v in nl_vids),
+        "nl_recent_30d": len(nl_recent),
     }
 
 
@@ -259,6 +285,7 @@ def aggregate_attribute(attr, spec, tt_rows):
     """
     aliases = [attr.replace(" ", "")] + spec["tiktok"]
     views = velocity = engagement = posts = 0.0
+    nl_est_views = 0
     brand_counter = Counter()
     evidence = []
     matched_tags = []      # directly harvested tags for this attribute
@@ -281,6 +308,10 @@ def aggregate_attribute(attr, spec, tt_rows):
         if r.get("engagementRate"):
             engagement = max(engagement, r["engagementRate"])
         posts = max(posts, r.get("totalVideos") or 0)
+        # per-tag NL estimate (tag total x Dutch share of THAT tag's feed);
+        # summing per tag avoids crediting a global tag's views to NL just
+        # because a sister tag in the same attribute is Dutch.
+        nl_est_views += (r.get("nl") or {}).get("estNLViews") or 0
         for v in r.get("videos", []):
             vids[v.get("id") or len(vids)] = v
             desc = (v.get("desc") or "")
@@ -311,6 +342,7 @@ def aggregate_attribute(attr, spec, tt_rows):
         "co_occurs_in": co_occurs_in,
         "tiktok_views": int(views),
         "tiktok_posts": int(posts),
+        "nl_est_views": int(nl_est_views),
         "velocity": round(velocity, 2) if velocity else None,
         "engagement": round(engagement, 4) if engagement else None,
         "brands": brand_counter.most_common(5),
@@ -379,6 +411,9 @@ def combined_phase(hype, amazon):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--no-amazon", action="store_true")
+    ap.add_argument("--nl", action="store_true",
+                    help="rank op NL-relevantie (Nederlandstalige video's) "
+                         "i.p.v. globale conviction")
     ap.add_argument("--out", default="data/attributes.json")
     args = ap.parse_args()
 
@@ -406,24 +441,35 @@ def main():
         agg["opportunity"] = opportunity(agg)
         rows.append(agg)
 
-    rows.sort(key=lambda r: -r["conviction"])
+    if args.nl:
+        rows.sort(key=lambda r: -r.get("nl_est_views", 0))
+    else:
+        rows.sort(key=lambda r: -r["conviction"])
 
     print("=" * 100)
-    print("  TIKTOK → AMAZON ATTRIBUTE BRIDGE — trend insights, "
+    title = ("NL-TRENDING" if args.nl else "trend insights")
+    print(f"  TIKTOK → AMAZON ATTRIBUTE BRIDGE — {title}, "
           "joinable to products")
     print("=" * 100)
     print(f"  {'attribute':<18} {'level':<10} {'tiktok views':>12} "
-          f"{'vel':>5} {'conv':>5} {'hype':<26} {'amazon':<14}")
+          f"{'NL views':>9} {'NL%':>4} {'vel':>5} {'conv':>5} "
+          f"{'hype':<24} {'amazon':<13}")
     print("-" * 100)
     for r in rows:
         am = r["amazon"]
-        amtxt = (am["phase"].replace(" →", "").strip()[:13] if am
+        s = r.get("signals") or {}
+        amtxt = (am["phase"].replace(" →", "").strip()[:12] if am
                  else "— (none)")
         vel = f"x{r['velocity']}" if r["velocity"] else "-"
+        nlpct = (f"{s['nl_share']:.0%}" if s.get("nl_share") is not None
+                 else "-")
         print(f"  {r['attribute']:<18} {r['level']:<10} "
-              f"{fmt_int(r['tiktok_views']):>12} {vel:>5} "
-              f"{r['conviction']:>4}% {r['hype_phase']:<26} {amtxt:<14}")
+              f"{fmt_int(r['tiktok_views']):>12} "
+              f"{fmt_int(r['nl_est_views']):>9} {nlpct:>4} {vel:>5} "
+              f"{r['conviction']:>4}% {r['hype_phase']:<24} {amtxt:<13}")
     print("-" * 100)
+    print("  NL views = som van per-tag schattingen (tag-totaal x "
+          "NL-aandeel van die tag) | NL% = NL-aandeel v.d. harvest")
     print("  conv = conviction: hoeveel ONAFHANKELIJKE signalen elkaar "
           "bevestigen (velocity, saves,\n  creator-breedte, koopintentie, "
           "algoritme-push, versheid) — 1 hete metric kan toeval zijn,\n"
@@ -451,6 +497,12 @@ def main():
                   f"breakout {s['breakout_share']:.0%} | "
                   f"koopintentie {s['commerce_intent']:.0%} | "
                   f"<30d {s['fresh_share_30d']:.0%} (plays {boost})")
+            if s.get("nl_videos"):
+                print(f"      NL: {s['nl_videos']} NL-video's "
+                      f"({s['nl_share']:.0%} v.d. feed), "
+                      f"{fmt_int(s['nl_plays'])} plays, "
+                      f"{s['nl_recent_30d']} in laatste 30d "
+                      f"→ ±{fmt_int(r['nl_est_views'])} NL-views")
         print(f"      merken die de trend dragen: {brands}")
         print(f"      → Amazon join op: {r['amazon_needles']}")
         if r["amazon"]:

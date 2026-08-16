@@ -204,6 +204,34 @@ Voorbeeld uit een echte run: *scalp serum* kreeg conviction 69% met
 *heatless curls* met méér views als media-trend werd ontmaskerd
 (47% algoritme-push maar 1% koopintentie).
 
+### NL-trending — hoe trending is het in Nederland (niet global)
+
+De tag-totalen van TikTok zijn globaal, maar TikTok stuurt per video wél
+zijn eigen taalclassificatie mee (`textLanguage`). Nederlandstalige
+video's zijn een harde NL/Vlaanderen-proxy — daarmee meten we per trend
+hoe groot hij ís in Nederland, zonder proxy of login:
+
+- per tag: **nl-share** (aandeel NL-video's in de feed), **nl-plays**,
+  **NL-velocity** (posts/dag laatste 7d vs 30d ervoor, alléén binnen de
+  NL-video's) en **est. NL views** (tag-totaal × NL-aandeel)
+- `tiktok_tags.py` print automatisch een NL-TRENDING-ranking zodra er
+  Nederlandstalige video's in de harvest zitten
+- `attribute_bridge.py --nl` rankt de attributen op geschatte NL-views
+  (som van de per-tag schattingen, zodat een globale Engelse tag nooit
+  NL-views "leent" van een Nederlandse zustertag)
+
+```bash
+python3 tiktok_tags.py --region NL          # NL-watchlist + NL-ranking
+python3 attribute_bridge.py --nl            # attributen op NL-relevantie
+```
+
+Voorbeeld uit een echte run (zonder proxy!): *#krullen* is de grootste
+NL-trend (57% Nederlandstalig, ±580M NL-views, NL-velocity x8.2),
+*#hoofdhuid* is bijna puur NL (82%) en *haaruitval* versnelt hard
+(x6.4). Een NL-residential-proxy blijft een upgrade (dan is ook de
+feed-samenstelling zelf NL-gewogen), maar is niet meer nodig om
+NL-trends te kunnen ranken.
+
 De headline-cijfers komen alleen van direct geoogste tags; attributen die
 alleen als co-hashtag opduiken verschijnen als DISCOVERY-kandidaten voor de
 watchlist (ze erven nooit de views van hun parent-tag).
