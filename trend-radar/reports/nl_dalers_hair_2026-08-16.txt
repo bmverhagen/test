@@ -1,0 +1,39 @@
+DALENDE HAAR-TRENDS IN NEDERLAND — 2026-08-16
+======================================================================
+
+1. DALENDE NL-ZOEKVRAAG (Google Trends geo=NL, 14d vs 30d ervoor):
+  highlights             index  13.2 | momentum x0.21 (79% minder)
+  hairloss               index   6.5 | momentum x0.34 (66% minder)
+  haircare               index   4.9 | momentum x0.59 (41% minder)
+  krultang               index   3.1 | momentum x0.73 (27% minder)
+  extensions             index  16.6 | momentum x0.76 (24% minder)
+  hairgrowth             index   6.8 | momentum x0.76 (24% minder)
+  haarverf               index   8.2 | momentum x0.84 (16% minder)
+  curlyhair              index   5.7 | momentum x0.85 (15% minder)
+  krullen                index  14.0 | momentum x0.89 (11% minder)
+  hoofdhuid              index   7.0 | momentum x0.9 (10% minder)
+
+2. AFKOELEND OP TIKTOK NL (posts/dag 7d vs prior 30d, NL-video's):
+  #krullenbol             vel x0.0   | 74 NL-video's | ±46.3M views
+  #krulpotentie           vel x0.0   | 25 NL-video's | ±2.1M views
+  #krullentiktok          vel x0.0   | 45 NL-video's | ±1.3M views
+  #droogshampoo           vel x0.0   | 42 NL-video's | ±12.6M views
+  #kortkapsel             vel x0.0   | 46 NL-video's | ±0.1M views
+  #krullenzonderhitte     vel x0.0   | 27 NL-video's | ±3.4M views
+  #fohnen                 vel x0.0   | 48 NL-video's | ±3.3M views
+  #krullenkapperrotterdam vel x0.0   | 108 NL-video's | ±4.6M views
+  #haarkleur              vel x0.0   | 15 NL-video's | ±2.7M views
+  #haarkleuren            vel x0.0   | 23 NL-video's | ±2.5M views
+  #krullenbollen          vel x0.0   | 107 NL-video's | ±7.7M views
+  #fohnborstel            vel x0.43  | 89 NL-video's | ±11.6M views
+  #krullenproducten       vel x0.71  | 86 NL-video's | ±18.5M views
+  #kroeshaarproducten     vel x0.86  | 67 NL-video's | ±3.7M views
+
+3. STILGEVALLEN (grote NL-basis, 0 NL-posts in laatste 7 dagen):
+  #krullenbol             74 NL-video's | ±46.3M views
+  #nenescurls             29 NL-video's | ±20.1M views
+  #droogshampoo           42 NL-video's | ±12.6M views
+  #krullenzonderhitte     27 NL-video's | ±3.4M views
+  #fohnen                 48 NL-video's | ±3.3M views
+  #krullenkapperrotterdam 108 NL-video's | ±4.6M views
+  #krullenbollen          107 NL-video's | ±7.7M views

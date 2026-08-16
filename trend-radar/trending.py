@@ -367,6 +367,30 @@ def report(results, leftovers, sector, country_code, country, top,
             print(f"      {fmt_int(v['plays']):>7} plays | @{v['author']} "
                   f"| {age}d | {v['desc'][:65]}")
 
+    cooling = sorted(
+        [r for r in results
+         if r["local"]["velocityRatio"] is not None
+         and r["local"]["velocityRatio"] < 0.9
+         and r["local"]["videos"] >= 15],
+        key=lambda r: r["local"]["velocityRatio"])
+    stalled = [r for r in results
+               if r["local"]["videos"] >= 25 and r["local"]["recent7"] == 0
+               and r["local"]["estViews"] > 3e6
+               and r["local"]["velocityRatio"] is None]
+    if cooling or stalled:
+        print("\n  DALENDE / AFKOELENDE TERMS (lokale post-activiteit "
+              "krimpt):")
+        for r in cooling:
+            loc = r["local"]
+            print(f"    #{r['term']:<22} vel x{loc['velocityRatio']:<5} | "
+                  f"{loc['videos']} lokale video's | "
+                  f"±{fmt_int(loc['estViews'])} views")
+        for r in stalled:
+            loc = r["local"]
+            print(f"    #{r['term']:<22} STILGEVALLEN (0 posts in 7d) | "
+                  f"{loc['videos']} lokale video's | "
+                  f"±{fmt_int(loc['estViews'])} views")
+
     if leftovers:
         print(f"\n  NOG NIET GEOOGSTE LOKALE KANDIDATEN (volgende run): "
               f"{', '.join('#' + t for t in leftovers)}")

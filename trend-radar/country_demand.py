@@ -239,6 +239,19 @@ def main():
           f"  combined = 50% {geo}-zoekvraag x momentum + 50% TikTok "
           f"trend-score")
 
+    decliners = sorted(
+        [r for r in rows
+         if r["momentum"] and r["momentum"] <= 0.9
+         and (r["nl_index"] or 0) >= 2],
+        key=lambda r: r["momentum"])
+    if decliners:
+        print(f"\n  DALERS — zoekvraag in {geo} krimpt (momentum <= 0.9, "
+              f"met relevante omvang):")
+        for r in decliners:
+            print(f"    {r['term']:<24} index {r['nl_index']:>5} | "
+                  f"momentum x{r['momentum']} "
+                  f"({(1 - r['momentum']):.0%} minder dan de 30d ervoor)")
+
     if args.rising:
         top_phrases = [r["phrase"] for r in rows
                        if r["nl_index"] and r["nl_index"] > 2][:8]
