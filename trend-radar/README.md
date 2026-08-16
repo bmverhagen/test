@@ -232,6 +232,43 @@ NL-trend (57% Nederlandstalig, ±580M NL-views, NL-velocity x8.2),
 feed-samenstelling zelf NL-gewogen), maar is niet meer nodig om
 NL-trends te kunnen ranken.
 
+## Sector + land → trending terms (`trending.py`)
+
+Het hoofdcommando: geef een **sector** en een **land**, krijg de meest
+trending terms terug inclusief onderliggende data.
+
+```bash
+python3 trending.py --sector hair --country NL
+python3 trending.py --sector skincare --country DE
+python3 trending.py --sector food --country BE --top 15
+python3 trending.py --sector custom --seeds airfryer,heteluchtfriteuse \
+                    --lexicon airfryer,frituur --country NL
+```
+
+Ingebouwde sectoren: `hair`, `skincare`, `makeup`, `fitness`,
+`cleaning`, `food`, `pets` — elk met seeds per taal (landstaal + de
+Engelse tags die lokale creators ook gebruiken) en een sector-lexicon
+voor discovery. Landen: NL, BE, DE, AT, FR, ES, IT, US, GB.
+
+Per term krijg je:
+- **trend-score 0-100** = 35% lokale versnelling + 25% lokale
+  activiteit (posts/dag laatste 7d) + 25% lokale omvang (est. views)
+  + 15% engagement
+- globale totalen, lokale share/plays/est. views, posts/dag,
+  velocity-ratio, lokale co-hashtags en top lokale video's
+- alle lokale video's ruw in `data/trending_<sector>_<land>.json`
+
+**Discovery** mint co-hashtags uit lokale video's die op het
+sector-lexicon matchen en oogst de beste automatisch mee — zo vind je
+termen die je zelf niet had bedacht. Live voorbeeld (skincare/NL):
+`#huidverbetering` (score 70, x5.7 versnelling, 82% NL) en
+`#huidtherapeut` zaten niet in de seeds maar werden ontdekt en bleken
+respectievelijk #1 en #3 van Nederland.
+
+Kanttekening: voor Engelstalige landen (US/GB) bewijst taal alleen
+"Engels", niet het land — daar is een residential proxy in het doelland
+de upgrade. Voor NL/DE/FR/ES/IT is taal een sterke land-proxy.
+
 De headline-cijfers komen alleen van direct geoogste tags; attributen die
 alleen als co-hashtag opduiken verschijnen als DISCOVERY-kandidaten voor de
 watchlist (ze erven nooit de views van hun parent-tag).
