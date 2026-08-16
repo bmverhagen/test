@@ -333,6 +333,38 @@ top-30 — de video-harvest (`trending.py`) voor de kwaliteitssignalen
 die alleen op video-niveau bestaan (NL-share, save-rate, creators,
 merken, commerce-intentie).
 
+## Video-snapshots (`video_snapshot.py`) — "NL-views per dag", puur TikTok
+
+Zonder externe bronnen (geen Google) komt de NL-groeimeting uit TikTok
+zelf: de play-teller van een Nederlandstalige video groeit vrijwel
+alleen door NL/Vlaamse kijkers. Door dagelijks dezelfde video-id's
+opnieuw vast te leggen is het dag-op-dag verschil exact:
+
+    NL-views/dag per tag = som van Δplays over de NL-video's van die tag
+
+```bash
+python3 video_snapshot.py --from-json data/trending_hair_nl_top200.json
+```
+
+Slaat per (datum, tag, video-id) alle tellers op in
+`data/video_history.db`. Vanaf dag 2 per tag: **NL-views/dag**, totale
+Δplays/dag, nieuwe NL-video's per dag, en de snelst groeiende
+individuele NL-video's (viraliteitscurves).
+
+### De volledige TikTok-only dagelijkse pipeline
+
+```
+07:15  tag_snapshot.py   --from-json <top200>.json    (~4 min)  exacte tag-groei (globaal)
+07:20  trending.py       --sector hair --country NL   (~10-55m) verse harvest + NL-slice
+08:20  video_snapshot.py --from-json <top200>.json    (<1 min)  NL-views/dag per tag + viraliteit
+```
+
+Na een paar dagen heb je drie zuivere TikTok-tijdreeksen: echte
+tag-groei, echte NL-kijkvraag en per-video viraliteit — genoeg om
+stijgers, dalers en evergreens hard te onderscheiden zonder externe
+data. (`country_demand.py` met Google Trends blijft beschikbaar als
+optionele extra bron, maar is voor niets hiervan vereist.)
+
 De headline-cijfers komen alleen van direct geoogste tags; attributen die
 alleen als co-hashtag opduiken verschijnen als DISCOVERY-kandidaten voor de
 watchlist (ze erven nooit de views van hun parent-tag).
