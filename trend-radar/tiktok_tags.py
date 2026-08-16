@@ -17,8 +17,28 @@ comments, shares, bookmarks, co-hashtags and music. Per keyword we
 aggregate: totals, post velocity (posts/day last 7d vs prior 30d), mean
 engagement rate, top co-hashtags and the top videos.
 
+Region-localised harvesting (e.g. the Netherlands)
+--------------------------------------------------
+TikTok's tag feed is geo-aware: the videos returned depend on the
+request's IP. To get NL-localised data, route through a Dutch
+residential proxy and set the region:
+
+    python3 tiktok_tags.py --region NL --proxy http://user:pass@nl-proxy:port
+
+Without a proxy the pipeline still runs, but the feed is localised to
+the exit IP of this machine (not NL). The `--region` flag sets the
+browser locale + timezone and picks a region-appropriate default
+watchlist.
+
+Discovery
+---------
+Pass `--discover` to run one round of co-hashtag mining: after harvesting
+the seed tags, the most frequent hair-relevant co-hashtags that are NOT
+already in the watchlist are harvested too, so the list grows itself.
+
 Usage:
-    python3 tiktok_tags.py                          # default watchlist
+    python3 tiktok_tags.py                          # default (intl hair)
+    python3 tiktok_tags.py --region NL --discover
     python3 tiktok_tags.py --tags rosemaryoil,bondrepair --scrolls 8
 """
 
@@ -38,11 +58,38 @@ UA = (
     "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
 )
 
-# default watchlist = attribute vocabulary of the Amazon hair-care demo
+# international hair-care attribute vocabulary (matches the Amazon demo)
 DEFAULT_TAGS = [
     "rosemaryoil", "bondrepair", "scalpserum", "hairoiling",
     "heatlesscurls", "leaveinconditioner",
 ]
+
+# Dutch hair-care watchlist: NL-language terms + globally used English tags
+# that Dutch beauty creators also use.
+NL_HAIR_TAGS = [
+    "haarverzorging", "haarroutine", "haartok", "haargroei",
+    "rozemarijnolie", "haarolie", "krullen", "krullenverzorging",
+    "hoofdhuid", "haaruitval", "haarmasker", "gladhaar",
+    "beautytipsnl", "haartips", "rosemaryoil", "bondrepair",
+    "scalpcare", "curlygirlmethode",
+]
+
+# region -> (locale, timezone, default watchlist)
+REGION_CONFIG = {
+    "NL": ("nl-NL", "Europe/Amsterdam", NL_HAIR_TAGS),
+    "BE": ("nl-BE", "Europe/Brussels", NL_HAIR_TAGS),
+    "US": ("en-US", "America/New_York", DEFAULT_TAGS),
+    "GB": ("en-GB", "Europe/London", DEFAULT_TAGS),
+    "DE": ("de-DE", "Europe/Berlin", DEFAULT_TAGS),
+}
+
+# lexicon to keep co-hashtag discovery on-topic (hair) and drop generic noise
+HAIR_LEXICON = ("hair", "haar", "curl", "krul", "scalp", "hoofdhuid",
+                "rosemary", "rozemarijn", "oil", "olie", "serum", "bond",
+                "repair", "growth", "groei", "blowout", "frizz", "keratin",
+                "shampoo", "conditioner", "balayage", "kapper", "coupe")
+NOISE_TAGS = {"fyp", "foryou", "foryoupage", "viral", "tiktok", "trending",
+              "fyp\u30b7", "viral\u30b7", "capcut", "duet", "greenscreen"}
 
 
 def fmt_int(n):
@@ -160,21 +207,53 @@ def summarize(tag, detail, videos):
     }
 
 
-async def run(tags, max_scrolls):
+def discover_candidates(results, seeds, limit):
+    """Co-hashtag mining: hair-relevant tags not yet in the watchlist."""
+    seen = {s.lower() for s in seeds}
+    score = Counter()
+    for r in results:
+        for tag, cnt in r["topCoHashtags"]:
+            t = tag.lower()
+            if t in seen or t in NOISE_TAGS:
+                continue
+            if any(k in t for k in HAIR_LEXICON):
+                score[t] += cnt
+    return [t for t, _ in score.most_common(limit)]
+
+
+async def run(tags, max_scrolls, region, proxy, discover):
+    locale, tz, _ = REGION_CONFIG.get(
+        region, ("en-US", "America/New_York", DEFAULT_TAGS))
     results = []
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=True)
+        launch_kwargs = {"headless": True}
+        if proxy:
+            launch_kwargs["proxy"] = {"server": proxy}
+        browser = await pw.chromium.launch(**launch_kwargs)
         ctx = await browser.new_context(
-            user_agent=UA, locale="en-US",
+            user_agent=UA, locale=locale, timezone_id=tz,
             viewport={"width": 1440, "height": 900})
         page = await ctx.new_page()
-        for i, tag in enumerate(tags, 1):
-            print(f"[{i}/{len(tags)}] #{tag} ...", file=sys.stderr)
-            detail, videos = await harvest_tag(page, tag, max_scrolls)
-            print(f"    totals: {fmt_int(detail.get('videoCount'))} videos"
-                  f" / {fmt_int(detail.get('viewCount'))} views | "
-                  f"harvested {len(videos)} videos", file=sys.stderr)
-            results.append(summarize(tag, detail, videos))
+
+        async def harvest_list(taglist, phase):
+            for i, tag in enumerate(taglist, 1):
+                print(f"[{phase} {i}/{len(taglist)}] #{tag} ...",
+                      file=sys.stderr)
+                detail, videos = await harvest_tag(page, tag, max_scrolls)
+                print(f"    totals: {fmt_int(detail.get('videoCount'))} "
+                      f"videos / {fmt_int(detail.get('viewCount'))} views | "
+                      f"harvested {len(videos)} videos", file=sys.stderr)
+                results.append(summarize(tag, detail, videos))
+
+        await harvest_list(tags, "seed")
+
+        if discover:
+            cand = discover_candidates(results, tags, limit=8)
+            if cand:
+                print(f"\n[discover] new hair candidates: {cand}\n",
+                      file=sys.stderr)
+                await harvest_list(cand, "disc")
+
         await browser.close()
     return results
 
@@ -188,7 +267,8 @@ def report(results, out_path):
     print(f"  {'#tag':<22} {'tag total':>18} {'harvest':>8} "
           f"{'eng.rate':>9} {'posts/d 7d':>11} {'vs prior':>9}")
     print("-" * 100)
-    for r in results:
+    ranked = sorted(results, key=lambda r: -(r["totalViews"] or 0))
+    for r in ranked:
         total = (f"{fmt_int(r['totalVideos'])} vid / "
                  f"{fmt_int(r['totalViews'])}")
         ratio = (f"x{r['velocityRatio']}" if r['velocityRatio'] else "-")
@@ -219,14 +299,39 @@ def report(results, out_path):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--tags", default=",".join(DEFAULT_TAGS))
+    ap.add_argument("--tags", default=None,
+                    help="comma-separated watchlist (overrides --region "
+                         "default)")
+    ap.add_argument("--region", default=None,
+                    help="NL, BE, US, GB, DE — sets locale/timezone and "
+                         "default watchlist")
+    ap.add_argument("--proxy", default=None,
+                    help="proxy server, e.g. http://user:pass@nl-host:port "
+                         "(use a Dutch residential proxy for real NL data)")
+    ap.add_argument("--discover", action="store_true",
+                    help="run one co-hashtag mining round for new hair tags")
     ap.add_argument("--scrolls", type=int, default=8,
                     help="max scroll rounds per tag (~30 videos each)")
     ap.add_argument("--out", default="data/tiktok_tags.json")
     args = ap.parse_args()
-    tags = [t.strip().lstrip("#") for t in args.tags.split(",")
-            if t.strip()]
-    results = asyncio.run(run(tags, args.scrolls))
+
+    if args.tags:
+        tags = [t.strip().lstrip("#") for t in args.tags.split(",")
+                if t.strip()]
+    elif args.region and args.region.upper() in REGION_CONFIG:
+        tags = REGION_CONFIG[args.region.upper()][2]
+    else:
+        tags = DEFAULT_TAGS
+
+    region = (args.region or "US").upper()
+    if args.region and not args.proxy:
+        print(f"[warn] --region {region} set but no --proxy: feed will be "
+              f"localised to THIS machine's IP, not {region}. Plug in a "
+              f"{region} residential proxy for true local data.\n",
+              file=sys.stderr)
+
+    results = asyncio.run(
+        run(tags, args.scrolls, region, args.proxy, args.discover))
     report(results, args.out)
 
 

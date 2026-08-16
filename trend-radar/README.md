@@ -90,6 +90,31 @@ Output: console-digest + `data/tiktok_tags.json` (alle video's ruw).
 De co-hashtags voeden de watchlist automatisch met nieuwe kandidaten;
 de velocity-ratio is het vroegste hype-signaal per attribuut.
 
+### Regio-gerichte harvest (bijv. Nederland) + auto-discovery
+
+TikToks tag-feed is geo-afhankelijk (afhankelijk van het IP). Voor
+NL-gelokaliseerde data route je via een Nederlandse residential proxy en
+zet je de regio. `--region NL` gebruikt een Nederlandse hair-watchlist
+(`#haarverzorging`, `#krullen`, `#rozemarijnolie`, `#haaruitval`, ...) en
+zet locale/timezone op NL. `--discover` draait één ronde co-hashtag mining
+(gefilterd op een hair-lexicon) om nieuwe haartags automatisch toe te
+voegen.
+
+```bash
+# echte NL-data (proxy vereist):
+python3 tiktok_tags.py --region NL --discover \
+    --proxy http://user:pass@nl-host:port
+
+# zonder proxy: pijplijn draait, maar feed = IP van deze machine
+python3 tiktok_tags.py --region NL --discover
+```
+
+Zonder proxy zijn de tag-totalen globaal; de Nederlandstalige tags
+brengen alsnog NL-content naar boven. Resultaten worden gesorteerd op
+populariteit (views) met velocity per tag. Merk op: de trending-*chart*
+van Creative Center dekt NL niet (27 landen, NL niet inbegrepen) — daarom
+is deze watchlist + proxy-route de manier om NL-haartrends te krijgen.
+
 ## Wat dit bewijst
 
 - Signalen worden gedetecteerd op **behoefte/format-niveau**, niet op los ASIN-niveau
