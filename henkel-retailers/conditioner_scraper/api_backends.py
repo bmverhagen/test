@@ -528,6 +528,774 @@ def fetch_plein_sitemap(page: int, *, query: str = QUERY, page_size: int = PAGE_
     ]
 
 
+# --- curl_cffi / SPA backends (TLS fingerprint bypass) ---
+
+def _curl_session():
+    from curl_cffi import requests as crequests
+
+    return crequests.Session(impersonate="chrome124")
+
+
+def _jina_fetch(url: str, *, html: bool = False, timeout: int = 120, retries: int = 6) -> str:
+    headers = {"User-Agent": UA}
+    if html:
+        headers["X-Return-Format"] = "html"
+    cache_name = (
+        "jina_"
+        + ("html_" if html else "md_")
+        + re.sub(r"[^a-z0-9]+", "_", url.casefold())[:120]
+        + ".txt"
+    )
+    cached = _load_json_cache(cache_name.replace(".txt", ".json"), max_age_sec=6 * 3600)
+    if isinstance(cached, dict) and cached.get("body"):
+        return cached["body"]
+    # Also try raw text cache
+    cache_path = CACHE_DIR / cache_name
+    if cache_path.exists() and time.time() - cache_path.stat().st_mtime < 6 * 3600:
+        body = cache_path.read_text(encoding="utf-8", errors="ignore")
+        if len(body) > 1000 and "Just a moment" not in body[:2000]:
+            return body
+
+    last_err: Exception | None = None
+    for attempt in range(retries):
+        try:
+            r = requests.get(f"https://r.jina.ai/{url}", headers=headers, timeout=timeout)
+            if r.status_code in {403, 429, 503}:
+                time.sleep(3.0 * (attempt + 1))
+                last_err = RuntimeError(f"jina {r.status_code}")
+                continue
+            r.raise_for_status()
+            if len(r.text) < 500 or "Just a moment" in r.text[:2000]:
+                time.sleep(3.0 * (attempt + 1))
+                last_err = RuntimeError("jina challenge/short")
+                continue
+            CACHE_DIR.mkdir(parents=True, exist_ok=True)
+            cache_path.write_text(r.text, encoding="utf-8")
+            return r.text
+        except Exception as exc:
+            last_err = exc
+            time.sleep(3.0 * (attempt + 1))
+    raise RuntimeError(f"Jina failed for {url}: {last_err}")
+
+
+def _jina_html(url: str, timeout: int = 120) -> str:
+    return _jina_fetch(url, html=True, timeout=timeout)
+
+
+def _jina_md(url: str, timeout: int = 120) -> str:
+    return _jina_fetch(url, html=False, timeout=timeout)
+
+
+def _playwright_html(url: str, wait_ms: int = 8000) -> str:
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, channel="chrome")
+        page = browser.new_page(locale="nl-NL")
+        page.goto(url, wait_until="domcontentloaded", timeout=90000)
+        page.wait_for_timeout(wait_ms)
+        html = page.content()
+        browser.close()
+    if "Just a moment" in html[:3000] or len(html) < 2000:
+        raise RuntimeError(f"Cloudflare challenge for {url}")
+    return html
+
+
+def _fetch_html_resilient(url: str) -> str:
+    """Prefer Jina HTML; fall back to Playwright when blocked."""
+    try:
+        return _jina_html(url)
+    except Exception as jina_err:
+        try:
+            return _playwright_html(url)
+        except Exception as pw_err:
+            raise RuntimeError(f"html fetch failed jina={jina_err}; playwright={pw_err}") from pw_err
+
+
+def fetch_etos_api(page: int, *, query: str = QUERY, page_size: int = 48) -> list[dict]:
+    """Etos Demandware Search-UpdateGrid (cumulative start/sz; slice per page)."""
+    from bs4 import BeautifulSoup
+
+    # Responses are cumulative: start=N returns items 0..(N+sz-1)
+    start = (page - 1) * page_size
+    url = (
+        "https://www.etos.nl/on/demandware.store/Sites-etos-nl-Site/nl_NL/"
+        f"Search-UpdateGrid?q={query}&start={start}&sz={page_size}"
+    )
+    s = _curl_session()
+    r = s.get(url, timeout=45)
+    r.raise_for_status()
+    soup = BeautifulSoup(r.text, "html.parser")
+    out: list[dict] = []
+    seen: set[str] = set()
+    for a in soup.select("a.name-link, a.pdp-link, .pdp-link a, .product-name a"):
+        href = a.get("href") or ""
+        title = re.sub(r"\s+", " ", a.get_text(" ", strip=True)).strip()
+        if not title or "/producten/" not in href:
+            continue
+        full = urljoin("https://www.etos.nl", href.split("?")[0])
+        if full in seen:
+            continue
+        seen.add(full)
+        # Price near tile
+        price = None
+        tile = a.find_parent(attrs={"data-pid": True}) or a.find_parent(class_=re.compile("product"))
+        if tile:
+            m = re.search(r"€\s*[\d.,]+", tile.get_text(" ", strip=True))
+            if m:
+                price = m.group(0).replace(" ", "")
+        out.append(
+            product(
+                rank=0,
+                title=title,
+                url=full,
+                price=price,
+                extra={"api": "etos_demandware_grid"},
+            )
+        )
+    # Grid returns cumulative set; keep only this page's slice
+    return out[:page_size] if start == 0 else out[-page_size:] if len(out) > page_size else out
+
+
+def _hybris_products_from_payload(data: dict | object, *, host: str, page: int) -> list[dict]:
+    """Normalize Hybris productCategorySearchPage (JSON dict or XML Element)."""
+    import xml.etree.ElementTree as ET
+
+    out: list[dict] = []
+    if isinstance(data, dict):
+        pag = data.get("pagination") or {}
+        if pag.get("totalPages") is not None and (page - 1) >= int(pag["totalPages"]):
+            return []
+        items = data.get("products") or []
+        for item in items:
+            title = item.get("name") or ""
+            if not title:
+                continue
+            path = item.get("url") or ""
+            url = urljoin(host, path) if path else None
+            brand = (item.get("masterBrand") or {}).get("name")
+            price = (item.get("price") or {}).get("formattedValue")
+            out.append(
+                product(
+                    rank=0,
+                    title=title,
+                    brand=brand,
+                    url=url,
+                    price=price,
+                    extra={"sku": str(item.get("code") or ""), "api": "hybris_spa"},
+                )
+            )
+        return out
+
+    # XML ElementTree root
+    root = data
+    pag = root.find("pagination")
+    if pag is not None:
+        total_pages = int(pag.findtext("totalPages") or "0")
+        if page - 1 >= total_pages:
+            return []
+    for p in root.findall("products"):
+        title = p.findtext("name") or ""
+        if not title:
+            continue
+        path = p.findtext("url") or ""
+        url = urljoin(host, path) if path else None
+        out.append(
+            product(
+                rank=0,
+                title=title,
+                brand=p.findtext("masterBrand/name") or None,
+                url=url,
+                price=p.findtext("price/formattedValue"),
+                extra={"sku": p.findtext("code") or "", "api": "hybris_spa"},
+            )
+        )
+    return out
+
+
+def fetch_kruidvat_api(page: int, *, query: str = QUERY, page_size: int = PAGE_SIZE) -> list[dict]:
+    """Kruidvat Hybris SPA search (JSON or XML) — conditioner category 30266695."""
+    import xml.etree.ElementTree as ET
+
+    s = _curl_session()
+    r = s.get(
+        "https://api.kruidvat.nl/api/v2/kvn-spa/search",
+        params={
+            "fields": "FULL",
+            "searchType": "PRODUCT",
+            "currentPage": page - 1,
+            "pageSize": page_size,
+            "categoryCode": "30266695",
+            "lang": "nl",
+            "curr": "EUR",
+        },
+        headers={"Referer": "https://www.kruidvat.nl/", "Accept": "*/*"},
+        timeout=45,
+    )
+    r.raise_for_status()
+    text = r.text.lstrip()
+    if text.startswith("{") or text.startswith("["):
+        return _hybris_products_from_payload(
+            r.json(), host="https://www.kruidvat.nl", page=page
+        )
+    return _hybris_products_from_payload(
+        ET.fromstring(r.text), host="https://www.kruidvat.nl", page=page
+    )
+
+
+def fetch_trekpleister_api(page: int, *, query: str = QUERY, page_size: int = PAGE_SIZE) -> list[dict]:
+    """Trekpleister Hybris SPA search (JSON) — conditioner category 30267252."""
+    s = _curl_session()
+    r = s.get(
+        "https://api.trekpleister.nl/api/v2/kvtp/search",
+        params={
+            "fields": "FULL",
+            "searchType": "PRODUCT",
+            "currentPage": page - 1,
+            "pageSize": page_size,
+            "categoryCode": "30267252",
+            "lang": "nl",
+            "curr": "EUR",
+        },
+        headers={
+            "Referer": "https://www.trekpleister.nl/",
+            "Accept": "application/json",
+        },
+        timeout=45,
+    )
+    r.raise_for_status()
+    rows = _hybris_products_from_payload(r.json(), host="https://www.trekpleister.nl", page=page)
+    for row in rows:
+        row.setdefault("extra", {})["api"] = "trekpleister_hybris"
+    return rows
+
+
+def fetch_douglas_api(page: int, *, query: str = QUERY, page_size: int = PAGE_SIZE) -> list[dict]:
+    """Douglas BE jsapi product search (NL domain is blocked; map URLs to douglas.nl)."""
+    s = _curl_session()
+    r = s.get(
+        "https://www.douglas.be/jsapi/v2/products/search",
+        params={
+            "query": query,
+            "currentPage": page - 1,
+            "pageSize": page_size,
+            "fields": "FULL",
+            "lang": "nl_BE",
+            "curr": "EUR",
+        },
+        headers={"Accept": "application/json", "Referer": "https://www.douglas.be/"},
+        timeout=45,
+    )
+    r.raise_for_status()
+    data = r.json()
+    pag = data.get("pagination") or {}
+    if pag.get("totalPages") is not None and (page - 1) >= int(pag["totalPages"]):
+        return []
+    out: list[dict] = []
+    for item in data.get("products") or []:
+        brand = ((item.get("brand") or {}).get("name") or "").strip()
+        line = ((item.get("brandLine") or {}).get("name") or "").strip()
+        base = (item.get("baseProductName") or "").strip()
+        raw_name = (item.get("name") or "").strip()
+        title = " ".join(x for x in (brand, line, base) if x).strip() or raw_name
+        if not title or re.fullmatch(r"\d+\s*ml", title, re.I):
+            title = " ".join(x for x in (brand, base or raw_name) if x).strip()
+        if not title:
+            continue
+        path = item.get("url") or item.get("baseProductUrl") or ""
+        url = urljoin("https://www.douglas.nl", path) if path else None
+        if url:
+            url = url.replace("https://www.douglas.be", "https://www.douglas.nl")
+        price = (item.get("price") or {}).get("formattedValue")
+        out.append(
+            product(
+                rank=0,
+                title=title,
+                brand=brand or None,
+                url=url,
+                price=price,
+                extra={"sku": str(item.get("code") or ""), "api": "douglas_be_jsapi"},
+            )
+        )
+    return out
+
+
+def fetch_zalando_api(page: int, *, query: str = QUERY, page_size: int = PAGE_SIZE) -> list[dict]:
+    """Zalando beauty search HTML via curl_cffi."""
+    from bs4 import BeautifulSoup
+
+    s = _curl_session()
+    r = s.get(
+        "https://www.zalando.nl/beauty/",
+        params={"q": query, "p": page},
+        timeout=45,
+    )
+    r.raise_for_status()
+    soup = BeautifulSoup(r.text, "html.parser")
+    out: list[dict] = []
+    seen: set[str] = set()
+    for a in soup.select("article a[href$='.html'], a[href*='conditioner'][href$='.html']"):
+        href = a.get("href") or ""
+        if not href.endswith(".html"):
+            continue
+        full = urljoin("https://www.zalando.nl", href.split("?")[0])
+        if full in seen:
+            continue
+        title = re.sub(r"\s+", " ", a.get_text(" ", strip=True))
+        title = re.sub(
+            r"^(Deal|Luxury|Reisformaat|Perfecte combinaties|#OnTrend|K-Beauty|heart_outlined)\s*",
+            "",
+            title,
+            flags=re.I,
+        ).strip()
+        # Prefer longer text nodes inside article
+        art = a.find_parent("article")
+        if art:
+            texts = [
+                re.sub(r"\s+", " ", t.strip())
+                for t in art.stripped_strings
+                if len(t.strip()) > 12
+                and "heart_" not in t
+                and t.strip() not in {"Deal", "Luxury", "Meest getoond"}
+            ]
+            for t in texts:
+                if "conditioner" in t.casefold() or len(t) > len(title):
+                    title = re.sub(r"€\s*[\d.,]+.*$", "", t).strip()
+                    break
+        if not title or len(title) < 8:
+            continue
+        if "conditioner" not in title.casefold() and "conditioner" not in full.casefold():
+            continue
+        seen.add(full)
+        price = None
+        m = re.search(r"€\s*[\d.,]+", (art or a).get_text(" ", strip=True))
+        if m:
+            price = m.group(0).replace(" ", "")
+        out.append(
+            product(
+                rank=0,
+                title=title[:200],
+                url=full,
+                price=price,
+                extra={"api": "zalando_beauty_html"},
+            )
+        )
+        if len(out) >= page_size:
+            break
+    return out
+
+
+def fetch_ici_api(page: int, *, query: str = QUERY, page_size: int = PAGE_SIZE) -> list[dict]:
+    """ICI Paris XL conditioner category PLP (0-based currentPage)."""
+    from bs4 import BeautifulSoup
+
+    s = _curl_session()
+    s.get("https://www.iciparisxl.nl/", timeout=30)
+    r = s.get(
+        "https://www.iciparisxl.nl/haar/haarverzorging/conditioner/c/050103",
+        params={"currentPage": page - 1},
+        timeout=45,
+    )
+    r.raise_for_status()
+    soup = BeautifulSoup(r.text, "html.parser")
+    out: list[dict] = []
+    seen: set[str] = set()
+    for a in soup.select('a[href*="/p/"]'):
+        href = a.get("href") or ""
+        title = re.sub(r"\s+", " ", a.get_text(" ", strip=True)).strip()
+        title = re.sub(r"^(Only Online)\s+", "", title, flags=re.I)
+        if len(title) < 8:
+            continue
+        full = urljoin("https://www.iciparisxl.nl", href.split("?")[0])
+        if full in seen:
+            continue
+        seen.add(full)
+        out.append(
+            product(
+                rank=0,
+                title=title[:200],
+                url=full,
+                extra={"api": "ici_category_html"},
+            )
+        )
+        if len(out) >= page_size:
+            break
+    return out
+
+
+_plus_session = None
+_plus_api_version: str | None = None
+_plus_module_version: str | None = None
+
+
+def _plus_bootstrap():
+    """Anonymous OutSystems session + version tokens for Plus PLP DataAction."""
+    global _plus_session, _plus_api_version, _plus_module_version
+    if _plus_session and _plus_api_version and _plus_module_version:
+        return _plus_session, _plus_module_version, _plus_api_version
+
+    s = _curl_session()
+    s.get("https://www.plus.nl/zoekresultaten?SearchTerm=conditioner", timeout=45)
+    mv = requests.get(
+        "https://www.plus.nl/moduleservices/moduleversioninfo",
+        headers={"User-Agent": UA},
+        timeout=30,
+    ).json()["versionToken"]
+    # apiVersion is embedded next to the DataAction name in the PLP MVC script
+    html = s.get("https://www.plus.nl/zoekresultaten?SearchTerm=conditioner", timeout=45).text
+    m = re.search(
+        r"ECP_Composition_CW\.ProductLists\.PLP_Content\.mvc\.js\?([^\"'\s]+)",
+        html,
+    )
+    script_url = (
+        "https://www.plus.nl/scripts/ECP_Composition_CW.ProductLists.PLP_Content.mvc.js"
+        + (f"?{m.group(1)}" if m else "")
+    )
+    js = s.get(script_url, timeout=60).text
+    am = re.search(
+        r'callDataAction\("DataActionGetProductListAndCategoryInfo"[^,]*,[^,]*,\s*"([^"]+)"',
+        js,
+    )
+    if not am:
+        am = re.search(
+            r"DataActionGetProductListAndCategoryInfo\",\s*\"[^\"]+\",\s*\"([^\"]+)\"",
+            js,
+        )
+    av = am.group(1) if am else "cafT+CKg7ockKx+9Kx_BsQ"
+    # Bootstrap anonymous CSRF cookie
+    csrf = "T6C+9iB49TLra4jEsMeSckDMNhQ="
+    headers = {
+        "Content-Type": "application/json; charset=UTF-8",
+        "X-CSRFToken": csrf,
+        "Referer": "https://www.plus.nl/zoekresultaten?SearchTerm=conditioner",
+        "Origin": "https://www.plus.nl",
+        "Accept": "application/json",
+    }
+    ready = {
+        "versionInfo": {"moduleVersion": mv, "apiVersion": "rz5rJWRik75W_E181ghbKQ"},
+        "viewName": "*",
+        "inputParameters": {
+            "OWGUID": "",
+            "FeatureToggle_DataVersion": {
+                "Convert_SyncDataVersion": "1900-01-01T00:00:00",
+                "Attract_SyncDataVersion": "1900-01-01T00:00:00",
+            },
+        },
+    }
+    s.post(
+        "https://www.plus.nl/screenservices/ECOP/ActionOnApplicationReady_Server",
+        json=ready,
+        headers=headers,
+        timeout=45,
+    )
+    _plus_session = s
+    _plus_module_version = mv
+    _plus_api_version = av
+    return s, mv, av
+
+
+def fetch_plus_api(page: int, *, query: str = QUERY, page_size: int = PAGE_SIZE) -> list[dict]:
+    """Plus OutSystems ScreenServices PLP DataAction."""
+    s, mv, av = _plus_bootstrap()
+    headers = {
+        "Content-Type": "application/json; charset=UTF-8",
+        "X-CSRFToken": "T6C+9iB49TLra4jEsMeSckDMNhQ=",
+        "Referer": f"https://www.plus.nl/zoekresultaten?SearchTerm={query}&PageNumber={page}",
+        "Origin": "https://www.plus.nl",
+        "Accept": "application/json",
+    }
+    body = {
+        "versionInfo": {"moduleVersion": mv, "apiVersion": av},
+        "viewName": "MainFlow.SearchPage",
+        "screenData": {
+            "variables": {
+                "SearchKeyword": query,
+                "PageNumber": page,
+                "URLPageNumber": page,
+                "IsSearch": True,
+                "StoreNumber": 0,
+                "StoreChannel": "",
+                "SelectedSort": "",
+                "FilterQueryURL": "",
+                "CategorySlug": "",
+                "LocalCategoryID": 0,
+            }
+        },
+    }
+    r = s.post(
+        "https://www.plus.nl/screenservices/ECP_Composition_CW/ProductLists/"
+        "PLP_Content/DataActionGetProductListAndCategoryInfo",
+        json=body,
+        headers=headers,
+        timeout=45,
+    )
+    r.raise_for_status()
+    data = (r.json() or {}).get("data") or {}
+    total_pages = int(data.get("TotalPages") or 0)
+    if total_pages and page > total_pages:
+        return []
+    out: list[dict] = []
+    for row in ((data.get("ProductList") or {}).get("List") or []):
+        item = row.get("PLP_Str") or row
+        title = item.get("Name") or ""
+        if not title:
+            continue
+        slug = item.get("Slug") or ""
+        url = f"https://www.plus.nl/product/{slug}" if slug else None
+        raw_price = item.get("OriginalPrice") or item.get("NewPrice")
+        price = None
+        try:
+            if raw_price is not None and float(raw_price) > 0:
+                price = _euro(float(raw_price))
+        except (TypeError, ValueError):
+            price = None
+        out.append(
+            product(
+                rank=0,
+                title=title,
+                brand=item.get("Brand") or None,
+                url=url,
+                price=price,
+                extra={"sku": str(item.get("SKU") or ""), "api": "plus_outsystems"},
+            )
+        )
+    return out
+
+
+def _ddg_site_products(
+    domain: str,
+    page: int,
+    *,
+    query: str = QUERY,
+    page_size: int = PAGE_SIZE,
+    path_hint: str | None = None,
+) -> list[dict]:
+    """DuckDuckGo site: search for product URLs when origin/Jina are blocked."""
+    from bs4 import BeautifulSoup
+    from urllib.parse import unquote
+
+    brands = [
+        query,
+        f"{query} syoss",
+        f"{query} gliss",
+        f"{query} schwarzkopf",
+        f"{query} olaplex",
+        f"{query} kerastase",
+        f"{query} elvive",
+        f"{query} klorane",
+        f"{query} andrelon",
+        f"{query} guhl",
+    ]
+    # Rotate brand queries across pages so pagination stays useful
+    q = brands[(page - 1) % len(brands)] + f" site:{domain}"
+    start = ((page - 1) // len(brands)) * 30
+    s = _curl_session()
+    r = s.get(
+        "https://html.duckduckgo.com/html/",
+        params={"q": q, "s": str(start)},
+        timeout=45,
+    )
+    r.raise_for_status()
+    soup = BeautifulSoup(r.text, "html.parser")
+    out: list[dict] = []
+    seen: set[str] = set()
+    for a in soup.select("a.result__a"):
+        title = a.get_text(strip=True)
+        href = a.get("href") or ""
+        if "uddg=" in href:
+            href = unquote(href.split("uddg=")[1].split("&")[0])
+        if domain not in href:
+            continue
+        if any(x in href for x in ("/merk/", "/cat/", "/search", "y.js", "duckduckgo.com")):
+            continue
+        if path_hint and path_hint not in href and query not in href.casefold():
+            # keep product-looking paths
+            if href.rstrip("/").count("/") < 3:
+                continue
+        title = re.sub(rf"\s*[\|\-–]\s*{re.escape(domain.split('.')[0])}.*$", "", title, flags=re.I)
+        title = re.sub(r"\s*\|\s*.*$", "", title).strip()
+        if len(title) < 5:
+            continue
+        if href in seen:
+            continue
+        seen.add(href)
+        out.append(
+            product(
+                rank=0,
+                title=title[:200],
+                url=href,
+                extra={"api": f"ddg_site_{domain}"},
+            )
+        )
+        if len(out) >= page_size:
+            break
+    return out
+
+
+def fetch_notino_api(page: int, *, query: str = QUERY, page_size: int = PAGE_SIZE) -> list[dict]:
+    """Notino search via Jina reader (direct/CF blocked); DDG site fallback."""
+    if page == 1:
+        url = f"https://www.notino.nl/search.asp?exps={query}"
+    else:
+        url = f"https://www.notino.nl/search.asp?exps={query}&f=1-{page}-3649"
+    text = None
+    try:
+        text = _jina_md(url)
+    except Exception:
+        # Reuse previously scraped page cache when available
+        legacy = Path(__file__).resolve().parents[1] / "data" / "raw" / "pages" / "notino.nl" / f"page_{page:02d}.txt"
+        if legacy.exists():
+            text = legacy.read_text(encoding="utf-8", errors="ignore")
+    out: list[dict] = []
+    seen: set[str] = set()
+    if text:
+        for m in re.finditer(
+            r"##\s+([^\n#]+)\s+###\s+([^\n\[]+).*?\]\((https://www\.notino\.nl/[^)]+)\)",
+            text,
+            re.S,
+        ):
+            brand = m.group(1).strip()
+            name = re.sub(r"\s+\d[,\d]*€.*$", "", m.group(2)).strip()
+            name = re.sub(r"\s+\d,\d\(\d+\).*$", "", name).strip()
+            name = re.split(r"\s+van\s+€|\s+Dit product", name)[0].strip()
+            title = f"{brand} {name}".strip()
+            link = m.group(3).split("?")[0]
+            if link in seen:
+                continue
+            if "wimper" in title.casefold() or "lash" in title.casefold():
+                continue
+            seen.add(link)
+            out.append(
+                product(
+                    rank=0,
+                    title=title[:200],
+                    brand=brand,
+                    url=link,
+                    extra={"api": "notino_jina_search"},
+                )
+            )
+        if not out:
+            for link in re.findall(
+                r"\]\((https://www\.notino\.nl/[a-z0-9-]+/[a-z0-9-]+(?:/p-\d+)?/)\)",
+                text,
+            ):
+                if link in seen or "/search" in link:
+                    continue
+                seen.add(link)
+                out.append(
+                    product(
+                        rank=0,
+                        title=_slug_title(link),
+                        url=link,
+                        extra={"api": "notino_jina_search"},
+                    )
+                )
+    if out:
+        return out[:page_size]
+    return _ddg_site_products("notino.nl", page, query=query, page_size=page_size)
+
+
+def fetch_newpharma_api(page: int, *, query: str = QUERY, page_size: int = PAGE_SIZE) -> list[dict]:
+    """Newpharma conditioner category via Jina HTML; DDG site fallback."""
+    from bs4 import BeautifulSoup
+
+    base = (
+        "https://www.newpharma.nl/cat/schoonheids-en-cosmetica/haarverzorging/"
+        "conditioner-verzorging/12-172-1705.html"
+    )
+    url = base if page == 1 else f"{base}?page={page}"
+    out: list[dict] = []
+    seen: set[str] = set()
+    try:
+        soup = BeautifulSoup(_fetch_html_resilient(url), "html.parser")
+        for a in soup.select("a[href]"):
+            href = (a.get("href") or "").split("#")[0]
+            m = re.match(
+                r"https://www\.newpharma\.nl/([a-z0-9-]+)/(\d+)/([a-z0-9-]+)\.html$",
+                href,
+            )
+            if not m:
+                continue
+            title = re.sub(r"\s+", " ", a.get_text(" ", strip=True)).strip()
+            if len(title) < 8:
+                title = m.group(3).replace("-", " ").title()
+            low = title.casefold()
+            if not (
+                "conditioner" in low
+                or "crèmespoeling" in low
+                or "cremespoeling" in low
+                or "spoeling" in low
+                or "balsem" in low
+            ):
+                continue
+            if href in seen:
+                continue
+            seen.add(href)
+            out.append(
+                product(
+                    rank=0,
+                    title=title[:200],
+                    brand=m.group(1).replace("-", " ").title(),
+                    url=href,
+                    extra={"sku": m.group(2), "api": "newpharma_jina_category"},
+                )
+            )
+            if len(out) >= page_size:
+                break
+    except Exception:
+        out = []
+    if out:
+        return out
+    return _ddg_site_products("newpharma.nl", page, query=query, page_size=page_size)
+
+
+def fetch_drogeriedepot_api(page: int, *, query: str = QUERY, page_size: int = PAGE_SIZE) -> list[dict]:
+    """Drogeriedepot conditioner category via Jina HTML; DDG site fallback."""
+    from bs4 import BeautifulSoup
+
+    url = f"https://www.drogeriedepot.nl/c/Haarverzorging-Kleuren/Conditioner/?p={page}"
+    out: list[dict] = []
+    seen: set[str] = set()
+    try:
+        soup = BeautifulSoup(_fetch_html_resilient(url), "html.parser")
+        for a in soup.select('a[href*="/haarverzorging-kleuren/conditioner/"]'):
+            href = (a.get("href") or "").split("?")[0]
+            title = re.sub(r"\s+", " ", a.get_text(" ", strip=True)).strip()
+            if len(title) < 5:
+                continue
+            if href.rstrip("/").endswith("conditioner"):
+                continue
+            full = urljoin("https://www.drogeriedepot.nl", href)
+            if full in seen:
+                continue
+            seen.add(full)
+            out.append(
+                product(
+                    rank=0,
+                    title=title[:200],
+                    url=full,
+                    extra={"api": "drogeriedepot_jina_category"},
+                )
+            )
+            if len(out) >= page_size:
+                break
+    except Exception:
+        out = []
+    if out:
+        return out
+    return _ddg_site_products(
+        "drogeriedepot.nl",
+        page,
+        query="spülung OR conditioner",
+        page_size=page_size,
+    )
+
+
+def fetch_parfumselect_api(page: int, *, query: str = QUERY, page_size: int = PAGE_SIZE) -> list[dict]:
+    """Parfumselect is origin-down (522); DuckDuckGo site index for product URLs."""
+    return _ddg_site_products("parfumselect.nl", page, query=query, page_size=page_size)
+
+
 API_FETCHERS: dict[str, Callable[..., list[dict]]] = {
     "jumbo.com": fetch_jumbo_api,
     "da.nl": fetch_da_api,
@@ -536,6 +1304,17 @@ API_FETCHERS: dict[str, Callable[..., list[dict]]] = {
     "bol.com": fetch_bol_sitemap,
     "dirk.nl": fetch_dirk_sitemap,
     "plein.nl": fetch_plein_sitemap,
+    "etos.nl": fetch_etos_api,
+    "kruidvat.nl": fetch_kruidvat_api,
+    "trekpleister.nl": fetch_trekpleister_api,
+    "douglas.nl": fetch_douglas_api,
+    "zalando.nl": fetch_zalando_api,
+    "iciparisxl.nl": fetch_ici_api,
+    "plus.nl": fetch_plus_api,
+    "notino.nl": fetch_notino_api,
+    "newpharma.nl": fetch_newpharma_api,
+    "drogeriedepot.nl": fetch_drogeriedepot_api,
+    "parfumselect.nl": fetch_parfumselect_api,
 }
 
 

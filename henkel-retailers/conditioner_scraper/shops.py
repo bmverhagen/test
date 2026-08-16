@@ -47,6 +47,7 @@ def page_urls() -> list[ShopConfig]:
             "Notino",
             "notino.nl",
             prefer_jina=True,
+            use_api=True,
             page_url=lambda p: f"https://www.notino.nl/search.asp?exps={q}&f=1-{p}-3649"
             if p > 1
             else f"https://www.notino.nl/search.asp?exps={q}",
@@ -68,6 +69,7 @@ def page_urls() -> list[ShopConfig]:
             "Kruidvat",
             "kruidvat.nl",
             prefer_jina=True,
+            use_api=True,
             page_url=lambda p: f"https://www.kruidvat.nl/verzorging/haarverzorging/conditioner?currentPage={p}",
             parser="kruidvat_jina",
         ),
@@ -75,6 +77,7 @@ def page_urls() -> list[ShopConfig]:
             "Trekpleister",
             "trekpleister.nl",
             prefer_jina=True,
+            use_api=True,
             page_url=lambda p: f"https://www.trekpleister.nl/verzorging/haarverzorging/conditioner?currentPage={p}",
             parser="trekpleister_jina",
         ),
@@ -90,6 +93,7 @@ def page_urls() -> list[ShopConfig]:
             "Etos",
             "etos.nl",
             prefer_jina=True,
+            use_api=True,
             page_url=lambda p: f"https://www.etos.nl/search/?q={q}&page={p}",
             parser="etos_jina",
         ),
@@ -113,6 +117,7 @@ def page_urls() -> list[ShopConfig]:
             "Plus",
             "plus.nl",
             prefer_jina=True,
+            use_api=True,
             page_url=lambda p: f"https://www.plus.nl/zoekresultaten?SearchTerm={q}&PageNumber={p}",
             parser="plus_jina",
         ),
@@ -144,20 +149,26 @@ def page_urls() -> list[ShopConfig]:
             "Drogeriedepot",
             "drogeriedepot.nl",
             prefer_jina=True,
-            page_url=lambda p: f"https://www.drogeriedepot.nl/search?sSearch={q}&p={p}",
+            use_api=True,
+            page_url=lambda p: f"https://www.drogeriedepot.nl/c/Haarverzorging-Kleuren/Conditioner/?p={p}",
             parser="generic_jina",
         ),
         ShopConfig(
             "ICI Paris XL",
             "iciparisxl.nl",
             prefer_jina=True,
-            page_url=lambda p: f"https://www.iciparisxl.nl/search?q={q}&page={p}",
+            use_api=True,
+            page_url=lambda p: (
+                f"https://www.iciparisxl.nl/haar/haarverzorging/conditioner/c/050103"
+                f"?currentPage={p-1}"
+            ),
             parser="generic_jina",
         ),
         ShopConfig(
             "Douglas",
             "douglas.nl",
             prefer_jina=True,
+            use_api=True,
             page_url=lambda p: f"https://www.douglas.nl/nl/search?q={q}&page={p}",
             parser="generic_jina",
         ),
@@ -165,6 +176,7 @@ def page_urls() -> list[ShopConfig]:
             "Parfumselect",
             "parfumselect.nl",
             prefer_jina=True,
+            use_api=True,
             page_url=lambda p: f"https://parfumselect.nl/page/{p}/?s={q}&post_type=product"
             if p > 1
             else f"https://parfumselect.nl/?s={q}&post_type=product",
@@ -174,14 +186,19 @@ def page_urls() -> list[ShopConfig]:
             "Newpharma",
             "newpharma.nl",
             prefer_jina=True,
-            page_url=lambda p: f"https://www.newpharma.nl/search?q={q}&page={p}",
+            use_api=True,
+            page_url=lambda p: (
+                "https://www.newpharma.nl/cat/schoonheids-en-cosmetica/haarverzorging/"
+                f"conditioner-verzorging/12-172-1705.html?page={p}"
+            ),
             parser="generic_jina",
         ),
         ShopConfig(
             "Zalando",
             "zalando.nl",
             prefer_jina=True,
-            page_url=lambda p: f"https://www.zalando.nl/catalog/?q={q}&p={p}",
+            use_api=True,
+            page_url=lambda p: f"https://www.zalando.nl/beauty/?q={q}&p={p}",
             parser="generic_jina",
         ),
     ]
