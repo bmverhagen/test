@@ -1,0 +1,261 @@
+{
+  "generated_at": "2026-08-16",
+  "market": "NL",
+  "scope": "Webshops / omnichannel retailers where Henkel hair products (esp. Syoss, Gliss, Schwarzkopf) are sold",
+  "ranking_note": "Estimated priority by NL mass hair-care relevance + verified public product presence. Not official Henkel sales share.",
+  "henkel_hair_brands": [
+    "Syoss",
+    "Schwarzkopf",
+    "Gliss",
+    "Taft",
+    "got2b",
+    "Palette",
+    "Schauma"
+  ],
+  "shops": [
+    {
+      "rank": 1,
+      "name": "Kruidvat",
+      "domain": "kruidvat.nl",
+      "channel": "drugstore_omnichannel",
+      "has_bsr": false,
+      "brands_seen": ["Syoss"],
+      "evidence_urls": [
+        "https://www.kruidvat.nl/syoss-intense-oleo-deep-conditioner/p/6240617"
+      ],
+      "notes": "Largest NL drugstore chain (AS Watson); core mass channel for Syoss."
+    },
+    {
+      "rank": 2,
+      "name": "Etos",
+      "domain": "etos.nl",
+      "channel": "drugstore_omnichannel",
+      "has_bsr": false,
+      "brands_seen": ["Syoss", "Gliss", "Taft", "got2b", "Schwarzkopf", "Poly Palette"],
+      "evidence_urls": [
+        "https://www.etos.nl/producten/syoss-intense-oleo-deep-conditioner-250-ml-120825525.html",
+        "https://www.etos.nl/producten/gliss-conditioner-ultimate-repair-200-ml-120808611.html"
+      ],
+      "notes": "AH-owned drugstore; frequent multi-brand Henkel promotions."
+    },
+    {
+      "rank": 3,
+      "name": "Bol.com",
+      "domain": "bol.com",
+      "channel": "marketplace",
+      "has_bsr": false,
+      "brands_seen": ["Syoss"],
+      "evidence_urls": [
+        "https://www.bol.com/nl/nl/p/syoss-glaze-conditioner-herstelt-futloos-en-dof-haar-glans-en-zijdezacht-resultaat-zacht-en-makkelijk-doorkambaar-vermindert-pluis-tot-24u-voordeelverpakking-6x250-ml/9300000256875424/"
+      ],
+      "notes": "Largest NL marketplace; mix of bol and 3P sellers."
+    },
+    {
+      "rank": 4,
+      "name": "Amazon.nl",
+      "domain": "amazon.nl",
+      "channel": "marketplace",
+      "has_bsr": true,
+      "brands_seen": ["Syoss", "Schwarzkopf", "Gliss"],
+      "evidence_urls": [
+        "https://www.amazon.nl/s?k=Syoss",
+        "https://www.amazon.nl/s?k=Schwarzkopf",
+        "https://www.amazon.nl/s?k=Gliss"
+      ],
+      "notes": "Only shop in this list with true BSR; priority for rank scraping."
+    },
+    {
+      "rank": 5,
+      "name": "Albert Heijn",
+      "domain": "ah.nl",
+      "channel": "supermarket_omnichannel",
+      "has_bsr": false,
+      "brands_seen": ["Syoss"],
+      "evidence_urls": [
+        "https://www.ah.nl/producten/merk/syoss/4179/conditioner"
+      ],
+      "notes": "Largest NL supermarket; Syoss conditioner category page."
+    },
+    {
+      "rank": 6,
+      "name": "Jumbo",
+      "domain": "jumbo.com",
+      "channel": "supermarket_omnichannel",
+      "has_bsr": false,
+      "brands_seen": ["Syoss"],
+      "evidence_urls": [
+        "https://www.jumbo.com/producten/syoss-deep-conditioner-oleo-250-ml-700618TUB"
+      ],
+      "notes": "Second major supermarket chain with Syoss conditioner SKUs."
+    },
+    {
+      "rank": 7,
+      "name": "Trekpleister",
+      "domain": "trekpleister.nl",
+      "channel": "drugstore_omnichannel",
+      "has_bsr": false,
+      "brands_seen": ["Syoss"],
+      "evidence_urls": [
+        "https://www.folderz.nl/winkels/trekpleister/aanbiedingen/syoss-intense-oleo-deep-conditioner-aanbieding-57647352/"
+      ],
+      "notes": "AS Watson sister chain of Kruidvat; regular Syoss folder promos."
+    },
+    {
+      "rank": 8,
+      "name": "De Online Drogist",
+      "domain": "deonlinedrogist.nl",
+      "channel": "online_drugstore",
+      "has_bsr": false,
+      "brands_seen": ["Syoss"],
+      "evidence_urls": [
+        "https://www.deonlinedrogist.nl/drogist/syoss-intense-oleo-deep-conditioner-9-oil-nourish-complex-250ml.htm"
+      ],
+      "notes": "Large pure-play online drugstore; deep A-brand assortment."
+    },
+    {
+      "rank": 9,
+      "name": "Plein.nl",
+      "domain": "plein.nl",
+      "channel": "online_drugstore",
+      "has_bsr": false,
+      "brands_seen": ["Syoss"],
+      "evidence_urls": [
+        "https://www.plein.nl/syoss-oleo-conditioner-250-ml"
+      ],
+      "notes": "Online drugstore with explicit Henkel Cosmetics manufacturer block."
+    },
+    {
+      "rank": 10,
+      "name": "DA Drogist",
+      "domain": "da.nl",
+      "channel": "drugstore_omnichannel",
+      "has_bsr": false,
+      "brands_seen": ["Syoss", "Schwarzkopf", "Gliss"],
+      "evidence_urls": [
+        "https://www.da.nl/merken/syoss",
+        "https://www.da.nl/merken/schwarzkopf"
+      ],
+      "notes": "Franchise drugstore with dedicated Syoss and Schwarzkopf brand pages."
+    },
+    {
+      "rank": 11,
+      "name": "Notino",
+      "domain": "notino.nl",
+      "channel": "beauty_ecommerce",
+      "has_bsr": false,
+      "brands_seen": ["Schwarzkopf", "Gliss"],
+      "evidence_urls": [
+        "https://www.notino.nl/schwarzkopf/gliss-protein-voedende-masker-met-shea-butter/"
+      ],
+      "notes": "Pan-European beauty pure-play; stronger on Schwarzkopf/Gliss than mass Syoss."
+    },
+    {
+      "rank": 12,
+      "name": "Plus",
+      "domain": "plus.nl",
+      "channel": "supermarket_omnichannel",
+      "has_bsr": false,
+      "brands_seen": ["Syoss"],
+      "evidence_urls": [
+        "https://www.supermarktscanner.nl/product-vergelijken/syoss%20conditioner%20oleo"
+      ],
+      "notes": "Listed among NL supermarkets carrying Syoss conditioner in price scanners."
+    },
+    {
+      "rank": 13,
+      "name": "Dirk",
+      "domain": "dirk.nl",
+      "channel": "supermarket_omnichannel",
+      "has_bsr": false,
+      "brands_seen": ["Syoss"],
+      "evidence_urls": [
+        "https://www.supermarktscanner.nl/product-vergelijken/syoss%20conditioner%20repair"
+      ],
+      "notes": "Discount supermarket channel for mass Syoss SKUs."
+    },
+    {
+      "rank": 14,
+      "name": "KoopjesDrogisterij",
+      "domain": "koopjesdrogisterij.nl",
+      "channel": "online_drugstore",
+      "has_bsr": false,
+      "brands_seen": ["Syoss"],
+      "evidence_urls": [
+        "https://www.koopjesdrogisterij.nl/syoss-conditioner-deep-intense-oleo-250-ml.html"
+      ],
+      "notes": "Price-focused online drugstore with Syoss conditioner stock."
+    },
+    {
+      "rank": 15,
+      "name": "Drogeriedepot",
+      "domain": "drogeriedepot.nl",
+      "channel": "online_drugstore",
+      "has_bsr": false,
+      "brands_seen": ["Syoss", "Schwarzkopf"],
+      "evidence_urls": [
+        "https://www.drogeriedepot.nl/haarverzorging-kleuren/haarspray/haarspray-max-hold-pr-011831"
+      ],
+      "notes": "Online drugstore listing Syoss/Schwarzkopf with Henkel as manufacturer."
+    },
+    {
+      "rank": 16,
+      "name": "ICI Paris XL",
+      "domain": "iciparisxl.nl",
+      "channel": "perfume_beauty_omnichannel",
+      "has_bsr": false,
+      "brands_seen": ["Schwarzkopf"],
+      "evidence_urls": [
+        "https://www.iciparisxl.nl/"
+      ],
+      "notes": "AS Watson beauty specialist; more selective / premium Schwarzkopf than mass Syoss."
+    },
+    {
+      "rank": 17,
+      "name": "Douglas",
+      "domain": "douglas.nl",
+      "channel": "perfume_beauty_omnichannel",
+      "has_bsr": false,
+      "brands_seen": ["Schwarzkopf"],
+      "evidence_urls": [
+        "https://www.douglas.nl/"
+      ],
+      "notes": "Beauty retail; assortment skews premium/professional vs drugstore mass."
+    },
+    {
+      "rank": 18,
+      "name": "Parfumselect",
+      "domain": "parfumselect.nl",
+      "channel": "online_beauty",
+      "has_bsr": false,
+      "brands_seen": ["Syoss"],
+      "evidence_urls": [
+        "https://parfumselect.nl/syoss-oleo-intense-ammonia-free-hair-color-7-58-sand-blonde-5-pz/"
+      ],
+      "notes": "Online beauty shop with Syoss colorants; secondary for conditioner."
+    },
+    {
+      "rank": 19,
+      "name": "Newpharma",
+      "domain": "newpharma.nl",
+      "channel": "online_pharmacy_beauty",
+      "has_bsr": false,
+      "brands_seen": ["Syoss", "Schwarzkopf"],
+      "evidence_urls": [
+        "https://www.newpharma.nl/"
+      ],
+      "notes": "Online pharmacy/beauty with A-brand personal care; verify SKU depth per run."
+    },
+    {
+      "rank": 20,
+      "name": "Zalando",
+      "domain": "zalando.nl",
+      "channel": "fashion_marketplace_beauty",
+      "has_bsr": false,
+      "brands_seen": ["Schwarzkopf"],
+      "evidence_urls": [
+        "https://www.zalando.nl/"
+      ],
+      "notes": "Beauty vertical present; thinner mass drugstore range than Kruidvat/Etos."
+    }
+  ]
+}

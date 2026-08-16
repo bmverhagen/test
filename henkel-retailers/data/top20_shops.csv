@@ -1,0 +1,21 @@
+rank,name,domain,channel,has_bsr,brands_seen,evidence_urls,notes
+1,Kruidvat,kruidvat.nl,drugstore_omnichannel,False,Syoss,https://www.kruidvat.nl/syoss-intense-oleo-deep-conditioner/p/6240617,Largest NL drugstore chain (AS Watson); core mass channel for Syoss.
+2,Etos,etos.nl,drugstore_omnichannel,False,Syoss; Gliss; Taft; got2b; Schwarzkopf; Poly Palette,https://www.etos.nl/producten/syoss-intense-oleo-deep-conditioner-250-ml-120825525.html | https://www.etos.nl/producten/gliss-conditioner-ultimate-repair-200-ml-120808611.html,AH-owned drugstore; frequent multi-brand Henkel promotions.
+3,Bol.com,bol.com,marketplace,False,Syoss,https://www.bol.com/nl/nl/p/syoss-glaze-conditioner-herstelt-futloos-en-dof-haar-glans-en-zijdezacht-resultaat-zacht-en-makkelijk-doorkambaar-vermindert-pluis-tot-24u-voordeelverpakking-6x250-ml/9300000256875424/,Largest NL marketplace; mix of bol and 3P sellers.
+4,Amazon.nl,amazon.nl,marketplace,True,Syoss; Schwarzkopf; Gliss,https://www.amazon.nl/s?k=Syoss | https://www.amazon.nl/s?k=Schwarzkopf | https://www.amazon.nl/s?k=Gliss,Only shop in this list with true BSR; priority for rank scraping.
+5,Albert Heijn,ah.nl,supermarket_omnichannel,False,Syoss,https://www.ah.nl/producten/merk/syoss/4179/conditioner,Largest NL supermarket; Syoss conditioner category page.
+6,Jumbo,jumbo.com,supermarket_omnichannel,False,Syoss,https://www.jumbo.com/producten/syoss-deep-conditioner-oleo-250-ml-700618TUB,Second major supermarket chain with Syoss conditioner SKUs.
+7,Trekpleister,trekpleister.nl,drugstore_omnichannel,False,Syoss,https://www.folderz.nl/winkels/trekpleister/aanbiedingen/syoss-intense-oleo-deep-conditioner-aanbieding-57647352/,AS Watson sister chain of Kruidvat; regular Syoss folder promos.
+8,De Online Drogist,deonlinedrogist.nl,online_drugstore,False,Syoss,https://www.deonlinedrogist.nl/drogist/syoss-intense-oleo-deep-conditioner-9-oil-nourish-complex-250ml.htm,Large pure-play online drugstore; deep A-brand assortment.
+9,Plein.nl,plein.nl,online_drugstore,False,Syoss,https://www.plein.nl/syoss-oleo-conditioner-250-ml,Online drugstore with explicit Henkel Cosmetics manufacturer block.
+10,DA Drogist,da.nl,drugstore_omnichannel,False,Syoss; Schwarzkopf; Gliss,https://www.da.nl/merken/syoss | https://www.da.nl/merken/schwarzkopf,Franchise drugstore with dedicated Syoss and Schwarzkopf brand pages.
+11,Notino,notino.nl,beauty_ecommerce,False,Schwarzkopf; Gliss,https://www.notino.nl/schwarzkopf/gliss-protein-voedende-masker-met-shea-butter/,Pan-European beauty pure-play; stronger on Schwarzkopf/Gliss than mass Syoss.
+12,Plus,plus.nl,supermarket_omnichannel,False,Syoss,https://www.supermarktscanner.nl/product-vergelijken/syoss%20conditioner%20oleo,Listed among NL supermarkets carrying Syoss conditioner in price scanners.
+13,Dirk,dirk.nl,supermarket_omnichannel,False,Syoss,https://www.supermarktscanner.nl/product-vergelijken/syoss%20conditioner%20repair,Discount supermarket channel for mass Syoss SKUs.
+14,KoopjesDrogisterij,koopjesdrogisterij.nl,online_drugstore,False,Syoss,https://www.koopjesdrogisterij.nl/syoss-conditioner-deep-intense-oleo-250-ml.html,Price-focused online drugstore with Syoss conditioner stock.
+15,Drogeriedepot,drogeriedepot.nl,online_drugstore,False,Syoss; Schwarzkopf,https://www.drogeriedepot.nl/haarverzorging-kleuren/haarspray/haarspray-max-hold-pr-011831,Online drugstore listing Syoss/Schwarzkopf with Henkel as manufacturer.
+16,ICI Paris XL,iciparisxl.nl,perfume_beauty_omnichannel,False,Schwarzkopf,https://www.iciparisxl.nl/,AS Watson beauty specialist; more selective / premium Schwarzkopf than mass Syoss.
+17,Douglas,douglas.nl,perfume_beauty_omnichannel,False,Schwarzkopf,https://www.douglas.nl/,Beauty retail; assortment skews premium/professional vs drugstore mass.
+18,Parfumselect,parfumselect.nl,online_beauty,False,Syoss,https://parfumselect.nl/syoss-oleo-intense-ammonia-free-hair-color-7-58-sand-blonde-5-pz/,Online beauty shop with Syoss colorants; secondary for conditioner.
+19,Newpharma,newpharma.nl,online_pharmacy_beauty,False,Syoss; Schwarzkopf,https://www.newpharma.nl/,Online pharmacy/beauty with A-brand personal care; verify SKU depth per run.
+20,Zalando,zalando.nl,fashion_marketplace_beauty,False,Schwarzkopf,https://www.zalando.nl/,Beauty vertical present; thinner mass drugstore range than Kruidvat/Etos.
