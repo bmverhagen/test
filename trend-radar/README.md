@@ -301,6 +301,38 @@ python3 country_demand.py --country NL --terms krullen,olaplex
 
 Vereist `pytrends` (`pip install pytrends`).
 
+## Dagelijkse tag-snapshots (`tag_snapshot.py`) — exacte groei, geen bias
+
+TikTok publiceert per tag twee **cumulatieve tellers** via
+`api/challenge/detail`: `videoCount` en `viewCount`. Die komen mee bij
+het laden van de tag-pagina — geen video-harvest of scrollen nodig
+(~1 sec per tag; 200 tags in ~4 min).
+
+Cumulatieve tellers zijn het zuiverste groeisignaal dat er is: het
+dag-op-dag verschil is de exacte groei van de héle tag. Geen
+feed-sampling, geen recency-bias, geen kleine noemers — de definitieve
+oplossing voor het "x55/x11"-probleem van feed-gebaseerde velocity.
+
+```bash
+python3 tag_snapshot.py --from-json data/trending_hair_nl_top200.json
+python3 tag_snapshot.py --tags krullen,kapper,stijltang
+```
+
+Elke run schrijft (datum, tag, videoCount, viewCount) naar
+`data/tag_history.db`. Vanaf dag 2 print de digest per tag Δviews/dag
+en Δposts/dag; vanaf dag 3 ook de versnelling (Δviews vandaag vs
+gisteren). Zet in cron voor een dagelijkse, onweerlegbare tijdreeks:
+
+```
+15 7 * * * cd /pad/naar/trend-radar && python3 tag_snapshot.py --from-json data/trending_hair_nl_top200.json >> logs/tags.log
+```
+
+Aanbevolen tweelaags strategie: dagelijks deze goedkope tag-pass over
+de hele watchlist (exacte groei), en wekelijks — of dagelijks voor je
+top-30 — de video-harvest (`trending.py`) voor de kwaliteitssignalen
+die alleen op video-niveau bestaan (NL-share, save-rate, creators,
+merken, commerce-intentie).
+
 De headline-cijfers komen alleen van direct geoogste tags; attributen die
 alleen als co-hashtag opduiken verschijnen als DISCOVERY-kandidaten voor de
 watchlist (ze erven nooit de views van hun parent-tag).
