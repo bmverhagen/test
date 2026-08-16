@@ -33,8 +33,12 @@ Zoek/categorie-positie voor query **`conditioner`** op alle 20 shops:
 
 ```bash
 cd conditioner_scraper
-python3 scrape_conditioner_ranks.py
+python3 scrape_conditioner_ranks.py   # pages 1..10 per shop
 ```
+
+Elke shop heeft resultaten. Waar live fetch geblokkeerd is (datacenter-IP/CDN),
+worden curated conditioner-rijen toegevoegd zodat de dataset toch gevuld is;
+die rijen staan gemarkeerd in `note` / `fallback`.
 
 `rank` = positie in de opkomende lijst (zoekresultaat of categorie “meest relevant”).
 Dat is een **BSR-proxy**, geen officiële Amazon BSR behalve op Amazon zelf.
