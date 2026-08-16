@@ -251,17 +251,25 @@ def summarize_term(tag, detail, videos, lang):
 
 
 def trend_score(t):
-    """0-100: hoe trending is deze term in het DOELLAND, nu."""
+    """0-100: hoe trending is deze term in het DOELLAND, nu.
+
+    De velocity-ratio weegt bewust licht (15%): de tag-feed bestaat uit
+    een vers-slot + all-time-hits-slot, waardoor de middenperiode
+    (7-37d) ondervertegenwoordigd is en de ratio structureel te hoog
+    uitvalt. Echte maand-op-maand groei kan alleen uit dagelijkse
+    snapshots komen (daily_radar.py) of uit de Google Trends-momentum
+    (country_demand.py)."""
     loc = t["local"]
 
     def cap(x, lim):
         return min((x or 0) / lim, 1.0)
 
     return int(round(
-        35 * cap(loc["velocityRatio"], 5.0)     # lokale versnelling
-        + 25 * cap(loc["postsPerDay7"], 2.0)    # lokale activiteit nu
-        + 25 * cap(loc["estViews"], 50e6)       # lokale omvang
+        15 * cap(loc["velocityRatio"], 5.0)     # indicatieve versnelling
+        + 30 * cap(loc["postsPerDay7"], 2.0)    # lokale activiteit nu
+        + 30 * cap(loc["estViews"], 50e6)       # lokale omvang
         + 15 * cap(loc["engagementRate"], 0.08)  # lokale engagement
+        + 10 * cap(loc["share"], 0.6)            # hoe lokaal is de term
     ))
 
 
@@ -351,8 +359,12 @@ def report(results, leftovers, sector, country_code, country, top,
               f"{loc['share']:>8.0%} {fmt_int(loc['estViews']):>15} "
               f"{loc['postsPerDay7']:>11} {ratio:>9} {er:>6}")
     print("-" * 100)
-    print("  score = 35% lokale versnelling + 25% lokale activiteit + "
-          "25% lokale omvang + 15% engagement")
+    print("  score = 30% lokale activiteit + 30% lokale omvang + 15% "
+          "engagement + 15% versnelling* + 10% lokale share")
+    print("  * 'vs prior' is INDICATIEF: de feed toont vooral verse "
+          "video's + oude hits, waardoor deze ratio\n    te hoog uitvalt. "
+          "Echte groei meet je met dagelijkse snapshots (daily_radar.py) "
+          "of Google Trends\n    momentum (country_demand.py).")
 
     print("\n  ONDERLIGGENDE DATA (top terms):")
     for r in ranked[:min(top, 8)]:
