@@ -65,6 +65,31 @@ Output: console-tabel + `data/tiktok_trends.json` (incl. ruwe dagcurves).
 Dit is de "hype"-kant van de hype-naar-omzet funnel; de Amazon-engine
 hieronder is de "revenue"-kant.
 
+## TikTok keyword deep-dive (`tiktok_tags.py`)
+
+Waar `tiktok_scrape.py` TikToks eigen top-3 trendlijsten oogst, duikt
+`tiktok_tags.py` diep op een **eigen keyword-watchlist** (het
+attribuut-vocabulaire van de Amazon-engine). Per keyword laadt het
+`tiktok.com/tag/<keyword>` headless en onderschept TikToks interne API's:
+
+- `challenge/detail` → totaal aantal video's + views voor de hashtag
+- `challenge/item_list` → de videofeed, gepagineerd via scrollen
+  (~160-190 video's per tag zonder login)
+
+Per video: caption, publicatiedatum, creator, plays, likes, comments,
+shares, bookmarks, co-hashtags en muziek. Per keyword aggregeert het:
+post-velocity (posts/dag laatste 7d vs 30d ervoor), engagement rate,
+top co-hashtags en top-video's.
+
+```bash
+python3 tiktok_tags.py                              # default watchlist
+python3 tiktok_tags.py --tags rosemaryoil,bondrepair --scrolls 8
+```
+
+Output: console-digest + `data/tiktok_tags.json` (alle video's ruw).
+De co-hashtags voeden de watchlist automatisch met nieuwe kandidaten;
+de velocity-ratio is het vroegste hype-signaal per attribuut.
+
 ## Wat dit bewijst
 
 - Signalen worden gedetecteerd op **behoefte/format-niveau**, niet op los ASIN-niveau
