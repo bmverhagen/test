@@ -364,9 +364,10 @@ def write_outputs(results: list[dict]) -> None:
         "max_pages": MAX_PAGES,
         "rank_definition": (
             "Position across paginated on-site search/category results (pages 1..10), "
-            "used as BSR proxy. Prefer direct backend JSON/GraphQL APIs when available "
-            "(Jumbo GraphQL, DA Magento GraphQL, Koopjes WooCommerce Store API); "
-            "otherwise HTML/Jina. Fallback rows used only when live fetch yields zero products."
+            "used as BSR proxy. Prefer direct backends when available: Jumbo/DA GraphQL, "
+            "Koopjes WooCommerce, AH mobile search API, and Bol/Dirk/Plein public sitemaps "
+            "(Bol HTML is IP-blocked; sitemap catalog is ranked with Henkel brands first). "
+            "Otherwise HTML/Jina. Fallback rows only when live fetch yields zero products."
         ),
         "henkel_brands": HENKEL_BRANDS,
         "scraped_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
