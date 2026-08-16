@@ -1,0 +1,21 @@
+shop,domain,status,source_type,pages_with_results,product_count,henkel_count,henkel_best_rank,note
+Amazon.nl,amazon.nl,ok,search_paginated,7,318,6,38,
+De Online Drogist,deonlinedrogist.nl,ok,search_paginated,7,324,18,1,
+Notino,notino.nl,ok,backend_api,10,106,12,32,
+KoopjesDrogisterij,koopjesdrogisterij.nl,ok,backend_api,10,240,24,84,
+Kruidvat,kruidvat.nl,ok,backend_api,7,150,12,17,page 9: Blocked/challenge for https://www.kruidvat.nl/verzorging/haarverzorging/conditioner?currentPage=9 | page 10: Blocked/challenge for https://www.kruidvat.nl/verzorging/haarverzorging/conditioner?currentPage=10
+Trekpleister,trekpleister.nl,ok,backend_api,5,118,12,13,page 7: Blocked/challenge for https://www.trekpleister.nl/verzorging/haarverzorging/conditioner?currentPage=7 | page 8: Blocked/challenge for https://www.trekpleister.nl/verzorging/haarverzorging/conditioner?currentPage=8 | page 9: Blocked/challenge for https://www.trekpleister.nl/verzorging/haarverzorging/conditioner?currentPage=9 | page 10: Blocked/challenge for https://www.trekpleister.nl/verzorging/haarverzorging/conditioner?currentPage=10
+Bol.com,bol.com,ok,backend_api,10,240,38,1,
+Etos,etos.nl,ok,backend_api,5,195,19,6,
+Albert Heijn,ah.nl,ok,backend_api,7,166,9,3,page 9: Blocked/challenge for https://www.ah.nl/zoeken?query=conditioner&page=9 | page 10: Blocked/challenge for https://www.ah.nl/zoeken?query=conditioner&page=10
+Jumbo,jumbo.com,ok,backend_api,2,39,6,1,
+Plus,plus.nl,ok,backend_api,2,24,0,,
+Dirk,dirk.nl,ok,backend_api,1,12,2,1,
+DA Drogist,da.nl,ok,backend_api,10,240,25,1,
+Plein.nl,plein.nl,ok,backend_api,10,240,24,1,
+Drogeriedepot,drogeriedepot.nl,ok,backend_api,6,122,44,1,page 8: Blocked/challenge for https://www.drogeriedepot.nl/c/Haarverzorging-Kleuren/Conditioner/?p=8 | page 9: Blocked/challenge for https://www.drogeriedepot.nl/c/Haarverzorging-Kleuren/Conditioner/?p=9 | page 10: Blocked/challenge for https://www.drogeriedepot.nl/c/Haarverzorging-Kleuren/Conditioner/?p=10
+ICI Paris XL,iciparisxl.nl,ok,backend_api,2,47,0,,page 4: Blocked/challenge for https://www.iciparisxl.nl/haar/haarverzorging/conditioner/c/050103?currentPage=3 | page 5: Blocked/challenge for https://www.iciparisxl.nl/haar/haarverzorging/conditioner/c/050103?currentPage=4 | page 6: Blocked/challenge for https://www.iciparisxl.nl/haar/haarverzorging/conditioner/c/050103?currentPage=5 | page 7: Blocked/challenge for https://www.iciparisxl.nl/haar/haarverzorging/conditioner/c/050103?currentPage=6 | page 8: Blocked/challenge for https://www.iciparisxl.nl/haar/haarverzorging/conditioner/c/050103?currentPage=7 | page 9: Blocked/challenge for https://www.iciparisxl.nl/haar/haarverzorging/conditioner/c/050103?currentPage=8 | page 10: Blocked/challenge for https://www.iciparisxl.nl/haar/haarverzorging/conditioner/c/050103?currentPage=9
+Douglas,douglas.nl,ok,backend_api,10,480,4,196,
+Parfumselect,parfumselect.nl,ok,backend_api,1,9,0,,page 3: Blocked/challenge for https://parfumselect.nl/page/3/?s=conditioner&post_type=product | page 4: Blocked/challenge for https://parfumselect.nl/page/4/?s=conditioner&post_type=product | page 5: Blocked/challenge for https://parfumselect.nl/page/5/?s=conditioner&post_type=product | page 6: Blocked/challenge for https://parfumselect.nl/page/6/?s=conditioner&post_type=product | page 7: Blocked/challenge for https://parfumselect.nl/page/7/?s=conditioner&post_type=product | page 8: Blocked/challenge for https://parfumselect.nl/page/8/?s=conditioner&post_type=product | page 9: Blocked/challenge for https://parfumselect.nl/page/9/?s=conditioner&post_type=product | page 10: Blocked/challenge for https://parfumselect.nl/page/10/?s=conditioner&post_type=product
+Newpharma,newpharma.nl,ok,backend_api,10,120,4,16,
+Zalando,zalando.nl,ok,backend_api,5,119,3,73,
