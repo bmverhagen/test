@@ -256,11 +256,31 @@ def scrape_shop(cfg, max_pages: int = MAX_PAGES) -> dict:
                         used_api = False
             except Exception as exc:
                 notes.append(f"api page {page}: {exc}")
-                page_stats.append(
-                    {"page": page, "url": url, "status": "api_error", "error": str(exc), "n": 0}
-                )
-                # One failure: fall back to HTML/Jina for this and later pages
-                used_api = False
+                # One retry with fresh session for flaky backends (e.g. Plus OutSystems)
+                try:
+                    time.sleep(1.5)
+                    api_products = fetch_api_page(cfg.domain, page, sleep=0.2)
+                    if api_products:
+                        products = api_products
+                        source = "api"
+                    elif api_products is not None and all_products:
+                        api_exhausted = True
+                        continue
+                    else:
+                        raise exc
+                except Exception as exc2:
+                    notes.append(f"api retry page {page}: {exc2}")
+                    page_stats.append(
+                        {
+                            "page": page,
+                            "url": url,
+                            "status": "api_error",
+                            "error": str(exc2),
+                            "n": 0,
+                        }
+                    )
+                    # One failure: fall back to HTML/Jina for this and later pages
+                    used_api = False
 
         if not products and not (source == "api" and api_exhausted and all_products):
             if not url:

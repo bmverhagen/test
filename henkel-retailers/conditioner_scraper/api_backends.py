@@ -926,140 +926,189 @@ def fetch_ici_api(page: int, *, query: str = QUERY, page_size: int = PAGE_SIZE) 
 _plus_session = None
 _plus_api_version: str | None = None
 _plus_module_version: str | None = None
+_PLUS_ANON_CSRF = "T6C+9iB49TLra4jEsMeSckDMNhQ="
+_PLUS_API_VERSION_FALLBACK = "cafT+CKg7ockKx+9Kx_BsQ"
+_PLUS_READY_API_VERSION = "rz5rJWRik75W_E181ghbKQ"
 
 
-def _plus_bootstrap():
+def _plus_bootstrap(force: bool = False):
     """Anonymous OutSystems session + version tokens for Plus PLP DataAction."""
     global _plus_session, _plus_api_version, _plus_module_version
-    if _plus_session and _plus_api_version and _plus_module_version:
+    if (
+        not force
+        and _plus_session
+        and _plus_api_version
+        and _plus_module_version
+    ):
         return _plus_session, _plus_module_version, _plus_api_version
 
-    s = _curl_session()
-    s.get("https://www.plus.nl/zoekresultaten?SearchTerm=conditioner", timeout=45)
-    mv = requests.get(
-        "https://www.plus.nl/moduleservices/moduleversioninfo",
-        headers={"User-Agent": UA},
-        timeout=30,
-    ).json()["versionToken"]
-    # apiVersion is embedded next to the DataAction name in the PLP MVC script
-    html = s.get("https://www.plus.nl/zoekresultaten?SearchTerm=conditioner", timeout=45).text
-    m = re.search(
-        r"ECP_Composition_CW\.ProductLists\.PLP_Content\.mvc\.js\?([^\"'\s]+)",
-        html,
-    )
-    script_url = (
-        "https://www.plus.nl/scripts/ECP_Composition_CW.ProductLists.PLP_Content.mvc.js"
-        + (f"?{m.group(1)}" if m else "")
-    )
-    js = s.get(script_url, timeout=60).text
-    am = re.search(
-        r'callDataAction\("DataActionGetProductListAndCategoryInfo"[^,]*,[^,]*,\s*"([^"]+)"',
-        js,
-    )
-    if not am:
-        am = re.search(
-            r"DataActionGetProductListAndCategoryInfo\",\s*\"[^\"]+\",\s*\"([^\"]+)\"",
-            js,
-        )
-    av = am.group(1) if am else "cafT+CKg7ockKx+9Kx_BsQ"
-    # Bootstrap anonymous CSRF cookie
-    csrf = "T6C+9iB49TLra4jEsMeSckDMNhQ="
-    headers = {
-        "Content-Type": "application/json; charset=UTF-8",
-        "X-CSRFToken": csrf,
-        "Referer": "https://www.plus.nl/zoekresultaten?SearchTerm=conditioner",
-        "Origin": "https://www.plus.nl",
-        "Accept": "application/json",
-    }
-    ready = {
-        "versionInfo": {"moduleVersion": mv, "apiVersion": "rz5rJWRik75W_E181ghbKQ"},
-        "viewName": "*",
-        "inputParameters": {
-            "OWGUID": "",
-            "FeatureToggle_DataVersion": {
-                "Convert_SyncDataVersion": "1900-01-01T00:00:00",
-                "Attract_SyncDataVersion": "1900-01-01T00:00:00",
-            },
-        },
-    }
-    s.post(
-        "https://www.plus.nl/screenservices/ECOP/ActionOnApplicationReady_Server",
-        json=ready,
-        headers=headers,
-        timeout=45,
-    )
-    _plus_session = s
-    _plus_module_version = mv
-    _plus_api_version = av
-    return s, mv, av
+    last_err: Exception | None = None
+    for attempt in range(4):
+        try:
+            s = _curl_session()
+            s.get(
+                "https://www.plus.nl/zoekresultaten?SearchTerm=conditioner",
+                timeout=45,
+            )
+            # Prefer curl session for version token (same TLS fingerprint)
+            vr = s.get(
+                "https://www.plus.nl/moduleservices/moduleversioninfo",
+                timeout=30,
+            )
+            if not vr.text or not vr.text.strip().startswith("{"):
+                # fallback plain requests
+                vr = requests.get(
+                    "https://www.plus.nl/moduleservices/moduleversioninfo",
+                    headers={"User-Agent": UA},
+                    timeout=30,
+                )
+            mv = vr.json()["versionToken"]
+            html = s.get(
+                "https://www.plus.nl/zoekresultaten?SearchTerm=conditioner",
+                timeout=45,
+            ).text
+            m = re.search(
+                r"ECP_Composition_CW\.ProductLists\.PLP_Content\.mvc\.js\?([^\"'\s]+)",
+                html,
+            )
+            script_url = (
+                "https://www.plus.nl/scripts/"
+                "ECP_Composition_CW.ProductLists.PLP_Content.mvc.js"
+                + (f"?{m.group(1)}" if m else "")
+            )
+            js = s.get(script_url, timeout=60).text
+            am = re.search(
+                r'callDataAction\("DataActionGetProductListAndCategoryInfo"'
+                r'[^,]*,[^,]*,\s*"([^"]+)"',
+                js,
+            )
+            if not am:
+                am = re.search(
+                    r"DataActionGetProductListAndCategoryInfo\",\s*\"[^\"]+\",\s*\"([^\"]+)\"",
+                    js,
+                )
+            av = am.group(1) if am else _PLUS_API_VERSION_FALLBACK
+            headers = {
+                "Content-Type": "application/json; charset=UTF-8",
+                "X-CSRFToken": _PLUS_ANON_CSRF,
+                "Referer": "https://www.plus.nl/zoekresultaten?SearchTerm=conditioner",
+                "Origin": "https://www.plus.nl",
+                "Accept": "application/json",
+            }
+            ready = {
+                "versionInfo": {
+                    "moduleVersion": mv,
+                    "apiVersion": _PLUS_READY_API_VERSION,
+                },
+                "viewName": "*",
+                "inputParameters": {
+                    "OWGUID": "",
+                    "FeatureToggle_DataVersion": {
+                        "Convert_SyncDataVersion": "1900-01-01T00:00:00",
+                        "Attract_SyncDataVersion": "1900-01-01T00:00:00",
+                    },
+                },
+            }
+            rr = s.post(
+                "https://www.plus.nl/screenservices/ECOP/ActionOnApplicationReady_Server",
+                json=ready,
+                headers=headers,
+                timeout=45,
+            )
+            if rr.status_code >= 400:
+                raise RuntimeError(f"Plus ready {rr.status_code}: {rr.text[:120]}")
+            _plus_session = s
+            _plus_module_version = mv
+            _plus_api_version = av
+            return s, mv, av
+        except Exception as exc:
+            last_err = exc
+            time.sleep(1.5 * (attempt + 1))
+    raise RuntimeError(f"Plus bootstrap failed: {last_err}")
 
 
 def fetch_plus_api(page: int, *, query: str = QUERY, page_size: int = PAGE_SIZE) -> list[dict]:
     """Plus OutSystems ScreenServices PLP DataAction."""
-    s, mv, av = _plus_bootstrap()
-    headers = {
-        "Content-Type": "application/json; charset=UTF-8",
-        "X-CSRFToken": "T6C+9iB49TLra4jEsMeSckDMNhQ=",
-        "Referer": f"https://www.plus.nl/zoekresultaten?SearchTerm={query}&PageNumber={page}",
-        "Origin": "https://www.plus.nl",
-        "Accept": "application/json",
-    }
-    body = {
-        "versionInfo": {"moduleVersion": mv, "apiVersion": av},
-        "viewName": "MainFlow.SearchPage",
-        "screenData": {
-            "variables": {
-                "SearchKeyword": query,
-                "PageNumber": page,
-                "URLPageNumber": page,
-                "IsSearch": True,
-                "StoreNumber": 0,
-                "StoreChannel": "",
-                "SelectedSort": "",
-                "FilterQueryURL": "",
-                "CategorySlug": "",
-                "LocalCategoryID": 0,
-            }
-        },
-    }
-    r = s.post(
-        "https://www.plus.nl/screenservices/ECP_Composition_CW/ProductLists/"
-        "PLP_Content/DataActionGetProductListAndCategoryInfo",
-        json=body,
-        headers=headers,
-        timeout=45,
-    )
-    r.raise_for_status()
-    data = (r.json() or {}).get("data") or {}
-    total_pages = int(data.get("TotalPages") or 0)
-    if total_pages and page > total_pages:
-        return []
-    out: list[dict] = []
-    for row in ((data.get("ProductList") or {}).get("List") or []):
-        item = row.get("PLP_Str") or row
-        title = item.get("Name") or ""
-        if not title:
-            continue
-        slug = item.get("Slug") or ""
-        url = f"https://www.plus.nl/product/{slug}" if slug else None
-        raw_price = item.get("OriginalPrice") or item.get("NewPrice")
-        price = None
+    last_err: Exception | None = None
+    for attempt in range(3):
         try:
-            if raw_price is not None and float(raw_price) > 0:
-                price = _euro(float(raw_price))
-        except (TypeError, ValueError):
-            price = None
-        out.append(
-            product(
-                rank=0,
-                title=title,
-                brand=item.get("Brand") or None,
-                url=url,
-                price=price,
-                extra={"sku": str(item.get("SKU") or ""), "api": "plus_outsystems"},
+            s, mv, av = _plus_bootstrap(force=attempt > 0)
+            headers = {
+                "Content-Type": "application/json; charset=UTF-8",
+                "X-CSRFToken": _PLUS_ANON_CSRF,
+                "Referer": (
+                    f"https://www.plus.nl/zoekresultaten?SearchTerm={query}"
+                    f"&PageNumber={page}"
+                ),
+                "Origin": "https://www.plus.nl",
+                "Accept": "application/json",
+            }
+            body = {
+                "versionInfo": {"moduleVersion": mv, "apiVersion": av},
+                "viewName": "MainFlow.SearchPage",
+                "screenData": {
+                    "variables": {
+                        "SearchKeyword": query,
+                        "PageNumber": page,
+                        "URLPageNumber": page,
+                        "IsSearch": True,
+                        "StoreNumber": 0,
+                        "StoreChannel": "",
+                        "SelectedSort": "",
+                        "FilterQueryURL": "",
+                        "CategorySlug": "",
+                        "LocalCategoryID": 0,
+                    }
+                },
+            }
+            r = s.post(
+                "https://www.plus.nl/screenservices/ECP_Composition_CW/ProductLists/"
+                "PLP_Content/DataActionGetProductListAndCategoryInfo",
+                json=body,
+                headers=headers,
+                timeout=45,
             )
-        )
-    return out
+            if not r.text or not r.text.strip().startswith("{"):
+                raise RuntimeError(f"Plus PLP empty/non-json ({r.status_code})")
+            r.raise_for_status()
+            data = (r.json() or {}).get("data") or {}
+            total_pages = int(data.get("TotalPages") or 0)
+            if total_pages and page > total_pages:
+                return []
+            out: list[dict] = []
+            for row in ((data.get("ProductList") or {}).get("List") or []):
+                item = row.get("PLP_Str") or row
+                title = item.get("Name") or ""
+                if not title:
+                    continue
+                slug = item.get("Slug") or ""
+                url = f"https://www.plus.nl/product/{slug}" if slug else None
+                raw_price = item.get("OriginalPrice") or item.get("NewPrice")
+                price = None
+                try:
+                    if raw_price is not None and float(raw_price) > 0:
+                        price = _euro(float(raw_price))
+                except (TypeError, ValueError):
+                    price = None
+                out.append(
+                    product(
+                        rank=0,
+                        title=title,
+                        brand=item.get("Brand") or None,
+                        url=url,
+                        price=price,
+                        extra={"sku": str(item.get("SKU") or ""), "api": "plus_outsystems"},
+                    )
+                )
+            return out
+        except Exception as exc:
+            last_err = exc
+            global _plus_session, _plus_api_version, _plus_module_version
+            _plus_session = None
+            _plus_api_version = None
+            _plus_module_version = None
+            time.sleep(1.2 * (attempt + 1))
+    raise RuntimeError(f"Plus API failed: {last_err}")
 
 
 def _ddg_site_products(
