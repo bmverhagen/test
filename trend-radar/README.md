@@ -115,6 +115,46 @@ populariteit (views) met velocity per tag. Merk op: de trending-*chart*
 van Creative Center dekt NL niet (27 landen, NL niet inbegrepen) — daarom
 is deze watchlist + proxy-route de manier om NL-haartrends te krijgen.
 
+## Dagelijkse radar (`daily_radar.py`) — "elke dag alle trends"
+
+Bindt beide scrapers samen tot een dagelijkse pijplijn met een
+**tijdreeks-geheugen** (SQLite), zodat je niet alleen een momentopname
+krijgt maar bewéging: wat is NIEUW vandaag, wat ACCELEREERT, wat KOELT AF.
+
+```
+1. tiktok_scrape.py  -> trending hashtag-chart (alle regio's)
+2. tiktok_tags.py    -> jouw keyword-watchlist (+ co-hashtag discovery)
+3. ingest in SQLite  -> één rij per key per dag
+4. diff vandaag vs vorige run:
+     NEW          = keys die vandaag nieuw zijn
+     ACCELERATING = momentum/velocity hoger dan gisteren (2e afgeleide)
+     COOLING      = momentum/velocity lager dan gisteren
+5. dagelijkse digest, nieuwste & snelst stijgende bovenaan
+```
+
+De SQLite-historie is wat échte trenddetectie mogelijk maakt: momentum is
+een 1e afgeleide, **acceleration** (verandering van momentum t.o.v.
+gisteren) is de 2e afgeleide en het vroegste betrouwbare doorbraaksignaal.
+
+```bash
+# volledige dagelijkse run (scrape + ingest + digest):
+python3 daily_radar.py --regions US,GB,DE,NL --periods 7,30 \
+    --tags-region NL --discover
+
+# opnieuw analyseren zonder scrapen (gebruikt laatste snapshots):
+python3 daily_radar.py --skip-scrape
+```
+
+Dagelijks laten draaien via cron (elke ochtend 06:00):
+
+```cron
+0 6 * * * cd /pad/naar/trend-radar && python3 daily_radar.py \
+    --regions US,GB,DE,NL --tags-region NL --discover >> data/radar.log 2>&1
+```
+
+De tijdreeks staat in `data/trend_history.db`; na de tweede run verschijnen
+de ACCELERATING/COOLING-secties automatisch.
+
 ## Wat dit bewijst
 
 - Signalen worden gedetecteerd op **behoefte/format-niveau**, niet op los ASIN-niveau
