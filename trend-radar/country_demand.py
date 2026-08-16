@@ -211,9 +211,20 @@ def main():
             g = min(g, 100)
             combined = (round(0.5 * g + 0.5 * tt) if tt is not None
                         else round(g))
+        # groot + vlak = evergreen (bv. "kapper"): altijd veel gezocht,
+        # maar geen trend — nooit als stijger presenteren.
+        if idx is not None and idx >= 30 and mom and 0.85 <= mom <= 1.15:
+            label = "EVERGREEN"
+        elif mom and mom > 1.15:
+            label = "STIJGER"
+        elif mom and mom < 0.85:
+            label = "DALER"
+        else:
+            label = "stabiel" if idx else "-"
         rows.append({"term": tag, "phrase": s["phrase"],
                      "nl_index": idx, "momentum": mom,
-                     "tiktok_score": tt, "combined": combined})
+                     "tiktok_score": tt, "combined": combined,
+                     "label": label})
     rows.sort(key=lambda r: -(r["combined"] or -1))
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
@@ -222,8 +233,8 @@ def main():
     print(f"  ECHTE {geo}-VRAAG PER TERM — Google Trends geo={geo} "
           f"(taal-onafhankelijk) | anker: {args.anchor} | {now}")
     print("=" * 96)
-    print(f"  {'#':>3} {'term':<24} {'zoekterm':<24} {'index':>6} "
-          f"{'momentum':>9} {'tiktok':>7} {'combined':>9}")
+    print(f"  {'#':>3} {'term':<24} {'zoekterm':<22} {'index':>6} "
+          f"{'momentum':>9} {'tiktok':>7} {'combined':>9} {'label':<10}")
     print("-" * 96)
     for i, r in enumerate(rows, 1):
         idx = f"{r['nl_index']:.0f}" if r["nl_index"] is not None else "-"
@@ -231,8 +242,8 @@ def main():
         tt = f"{r['tiktok_score']}%" if r["tiktok_score"] is not None \
             else "-"
         cb = f"{r['combined']}%" if r["combined"] is not None else "-"
-        print(f"  {i:>3} #{r['term']:<23} {r['phrase']:<24} {idx:>6} "
-              f"{mom:>9} {tt:>7} {cb:>9}")
+        print(f"  {i:>3} #{r['term']:<23} {r['phrase']:<22} {idx:>6} "
+              f"{mom:>9} {tt:>7} {cb:>9} {r['label']:<10}")
     print("-" * 96)
     print(f"  index = zoekvolume in {geo} t.o.v. '{args.anchor}' (=100), "
           f"laatste 14d | momentum = 14d vs 30d ervoor\n"
@@ -274,10 +285,11 @@ def main():
     with open(csv_path, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow(["rank", "term", "zoekterm", f"{geo.lower()}_index",
-                    "momentum", "tiktok_score", "combined"])
+                    "momentum", "tiktok_score", "combined", "label"])
         for i, r in enumerate(rows, 1):
             w.writerow([i, r["term"], r["phrase"], r["nl_index"],
-                        r["momentum"], r["tiktok_score"], r["combined"]])
+                        r["momentum"], r["tiktok_score"], r["combined"],
+                        r["label"]])
     print(f"\n  data -> {out} + {os.path.basename(csv_path)}")
 
 

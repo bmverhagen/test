@@ -227,7 +227,8 @@ def summarize(tag, detail, videos):
         "plays": sum(v["plays"] for v in nl_vids),
         "postsPerDayLast7": round(nl_vel_now, 2),
         "velocityRatio": (round(nl_vel_now / nl_vel_prior, 2)
-                          if nl_vel_prior else None),
+                          if nl_vel_prior and len(nl_prior30) >= 5
+                          else None),
         # tag totals are global; scale by the Dutch share of the feed for
         # a rough NL-market view estimate
         "estNLViews": int((detail.get("viewCount") or 0) * nl_share),
@@ -243,8 +244,10 @@ def summarize(tag, detail, videos):
         "engagementRate": round(eng / plays, 4) if plays else None,
         "postsPerDayLast7": round(velocity_now, 1),
         "postsPerDayPrior30": round(velocity_prior, 1),
+        # min. 5 video's in het prior-venster, anders is de ratio ruis
+        # (feed van mega-tags is recency-biased -> lege noemer)
         "velocityRatio": round(velocity_now / velocity_prior, 2)
-        if velocity_prior else None,
+        if velocity_prior and len(prior30) >= 5 else None,
         "topCoHashtags": co.most_common(12),
         "topVideos": top,
         "nl": nl,

@@ -1,4 +1,4 @@
-DALENDE HAAR-TRENDS IN NEDERLAND — 2026-08-16
+DALENDE HAAR-TRENDS IN NEDERLAND — 2026-08-16 (gecorrigeerde velocity)
 ======================================================================
 
 1. DALENDE NL-ZOEKVRAAG (Google Trends geo=NL, 14d vs 30d ervoor):
@@ -13,18 +13,7 @@ DALENDE HAAR-TRENDS IN NEDERLAND — 2026-08-16
   krullen                index  14.0 | momentum x0.89 (11% minder)
   hoofdhuid              index   7.0 | momentum x0.9 (10% minder)
 
-2. AFKOELEND OP TIKTOK NL (posts/dag 7d vs prior 30d, NL-video's):
-  #krullenbol             vel x0.0   | 74 NL-video's | ±46.3M views
-  #krulpotentie           vel x0.0   | 25 NL-video's | ±2.1M views
-  #krullentiktok          vel x0.0   | 45 NL-video's | ±1.3M views
-  #droogshampoo           vel x0.0   | 42 NL-video's | ±12.6M views
-  #kortkapsel             vel x0.0   | 46 NL-video's | ±0.1M views
-  #krullenzonderhitte     vel x0.0   | 27 NL-video's | ±3.4M views
-  #fohnen                 vel x0.0   | 48 NL-video's | ±3.3M views
-  #krullenkapperrotterdam vel x0.0   | 108 NL-video's | ±4.6M views
-  #haarkleur              vel x0.0   | 15 NL-video's | ±2.7M views
-  #haarkleuren            vel x0.0   | 23 NL-video's | ±2.5M views
-  #krullenbollen          vel x0.0   | 107 NL-video's | ±7.7M views
+2. AFKOELEND OP TIKTOK NL (velocity < 0.9, betrouwbaar gemeten):
   #fohnborstel            vel x0.43  | 89 NL-video's | ±11.6M views
   #krullenproducten       vel x0.71  | 86 NL-video's | ±18.5M views
   #kroeshaarproducten     vel x0.86  | 67 NL-video's | ±3.7M views

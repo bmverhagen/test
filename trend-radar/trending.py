@@ -204,6 +204,11 @@ def summarize_term(tag, detail, videos, lang):
     l7, l_prior = window(local, 0, 7), window(local, 7, 37)
     vel_now = len(l7) / 7
     vel_prior = len(l_prior) / 30 if l_prior else 0
+    # Velocity is alleen betrouwbaar met genoeg massa in het
+    # vergelijkingsvenster. De feed van mega-tags (bv. #kapper) is
+    # recency-biased: bijna alles is <7d oud, dus het prior-venster
+    # bevat soms maar 1 video -> ratio's als x55 die niets betekenen.
+    vel_reliable = len(l_prior) >= 5
 
     co = Counter()
     for v in local:
@@ -234,7 +239,8 @@ def summarize_term(tag, detail, videos, lang):
             "estViews": int((detail.get("viewCount") or 0) * share),
             "postsPerDay7": round(vel_now, 2),
             "velocityRatio": (round(vel_now / vel_prior, 2)
-                              if vel_prior else None),
+                              if vel_prior and vel_reliable else None),
+            "priorSample": len(l_prior),
             "recent7": len(l7),
             "topCoHashtags": co.most_common(10),
             "topVideos": sorted(local, key=lambda v: -v["plays"])[:3],

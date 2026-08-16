@@ -1,115 +1,115 @@
 
 ====================================================================================================
-  MEEST TRENDING TERMS — sector: HAIR | land: Nederland (NL) | 2026-08-16 11:03 UTC
+  MEEST TRENDING TERMS — sector: HAIR | land: Nederland (NL) | 2026-08-16 11:33 UTC
 ====================================================================================================
     # term                    score lok.share est. lok. views lok.posts/d  vs prior    eng
 ----------------------------------------------------------------------------------------------------
     1 #krullen                  94%      57%          582.8M        2.57    x11.02   4.9%
-    2 #kapper                   93%      40%          464.8M        1.86    x55.71   5.4%
-    3 #krullenkapper            87%      67%          181.8M        1.57     x7.86   3.9%
-    4 #krullendhaar             83%      48%          117.7M        1.43     x5.36   2.6%
-    5 #kappers                  79%      27%           19.3M        1.57    x47.14  16.6%
-    6 #permanentkrullen         74%      29%           88.8M        0.57     x5.71   3.8%
-    7 #gezondhaar               67%      26%           37.2M        0.71     x4.29   5.0%
-    8 #hoofdhuid                65%      37%            4.0M        1.71     x8.57   3.6%
-    9 #stijltang                65%      86%           18.2M        1.43     x3.57   7.2%
-   10 #krultang                 63%      54%           13.1M        1.14    x17.14   3.7%
-   11 #drooghaar                63%      51%            4.3M        1.71     x8.57   2.3%
-   12 #krullentips              62%      74%           95.4M        0.57     x3.43   3.3%
-   13 #krullenkwekerij          59%      82%            6.4M        0.57    x17.14   7.2%
-   14 #haarstijl                59%      19%            8.0M        0.43    x12.86  18.2%
-   15 #krullenkapperbelgië      57%      74%            2.9M        1.14    x17.14   3.3%
-   16 #rozemarijnolie           55%      49%            2.9M        0.29     x8.57   8.6%
-   17 #gladhaar                 55%      50%            232K        1.43    x10.71   1.3%
-   18 #krullenkapperherentals    55%      81%            335K         1.0     x10.0   4.1%
-   19 #krullentutorial          55%      52%            3.9M        0.71     x5.36   4.8%
-   20 #krullenkweken            54%      92%          133.7M        0.14     x2.14   6.4%
-   21 #krullenknippen           54%      74%           16.2M        0.43     x4.29   5.3%
-   22 #vlechtjes                53%      59%            6.4M         1.0     x3.75   5.9%
-   23 #haarverf                 53%      25%           16.3M        0.29     x4.29   5.8%
-   24 #haarkrullen              53%      60%            8.1M         1.0     x3.75   5.4%
-   25 #krullenspecialist        52%      37%           20.0M        0.29     x4.29   4.6%
-   26 #hoofdhuidverzorging      51%      52%            754K        1.29     x4.82   0.5%
-   27 #haartip                  51%      12%            1.1M        0.43     x6.43   5.6%
-   28 #haargroeitips            50%      19%            6.1M        0.29     x4.29   7.0%
-   29 #krullenkapperutrecht     50%      85%           57.1M        0.14     x2.14   4.3%
-   30 #vethaar                  50%      30%            6.0M        0.29     x8.57   4.2%
-   31 #haarolie                 49%      38%           11.7M        0.71     x4.29   2.2%
-   32 #haarverzorging           48%      23%           21.1M        0.29     x4.29   2.1%
-   33 #pluizighaar              48%      58%           11.5M        0.71     x4.29   1.9%
-   34 #haarvitamines            47%       6%             12K        0.71    x10.71   1.8%
-   35 #krullenkapperkempen      46%      73%             74K        0.57     x4.29   4.6%
-   36 #haargroei                45%      20%           16.1M        0.43     x3.21   4.9%
-   37 #haarmasker               44%      13%            2.2M        0.14     x4.29   5.9%
-   38 #kappertips               44%      35%            1.9M        0.29     x4.29   5.0%
-   39 #langhaar                 43%       6%            7.6M        0.29     x4.29   2.7%
-   40 #kappersopleiding         43%      72%           19.8M        0.43     x3.21   2.9%
-   41 #krullendhaarroutine      42%      18%           15.2M        0.29     x2.86   6.0%
-   42 #vlecht                   42%      56%            6.6M        0.86     x2.57   5.1%
-   43 #slapenmetkrullen         42%      20%             83K        0.14     x4.29   5.4%
-   44 #haarproducten            40%      15%            4.5M        0.14     x4.29   3.4%
-   45 #haartransformatie        39%       8%            2.1M        0.14     x4.29   3.2%
-   46 #hairtok                  39%       1%           2.21B         0.0         -   7.7%
-   47 #haartutorial             39%       3%           43.6M        0.14         -   9.4%
-   48 #zilvershampoo            37%      14%            750K        0.14     x4.29   2.8%
-   49 #krullenroutine           36%      38%           28.5M        0.29     x1.71   3.1%
-   50 #kroeshaar                36%      72%           28.0M        0.29     x0.95   6.5%
-   51 #balayage                 35%       1%          201.5M         0.0         -   5.2%
-   52 #krullenmaken             34%      53%           14.5M        0.29     x2.14   4.4%
-   53 #kroeshaarkapper          33%      83%            245K        0.57     x2.45   4.9%
-   54 #vethaartips              32%      18%            496K        0.29     x2.14   7.1%
-   55 #tipsvoorgezondhaar       32%      32%            908K        0.43     x3.21   2.0%
-   56 #haaruitval               31%      54%           49.4M        0.43         -   0.6%
-   57 #hairhack                 31%       1%          263.6M         0.0         -   3.1%
-   58 #haarverven               30%      57%           19.7M        0.14     x1.43   4.4%
-   59 #keratinebehandeling      29%      14%            2.8M        0.14     x2.14   6.0%
-   60 #kroeshaartips            27%      48%            1.4M        0.29     x1.43   6.8%
-   61 #invlechten               26%      24%            794K        0.14     x2.14   4.7%
-   62 #krullentip               26%      57%            2.3M        0.29     x2.14   3.4%
-   63 #krullenstyling           26%      31%            291K        0.14     x2.14   4.7%
-   64 #krullenbol               25%      54%           46.3M         0.0         -   1.1%
-   65 #haartips                 24%      10%           11.6M        0.14     x0.86   5.8%
-   66 #kapsel                   23%      11%           22.2M        0.14         -   5.4%
-   67 #krullenproducten         23%      58%           18.5M        0.14     x0.71   3.8%
-   68 #kroeshaarproducten       23%      46%            3.7M        0.14     x0.86   7.3%
-   69 #kroeshaarverzorging      23%      68%            4.9M        0.29     x0.95   5.7%
-   70 #kroeshaartiktok          23%      31%            683K        0.14     x1.07   7.1%
-   71 #beschadigdhaar           22%      28%            2.9M        0.14     x2.14   2.1%
-   72 #haar                     21%       2%           21.3M         0.0         -   5.4%
-   73 #vlechten                 20%      31%            9.2M        0.29         -   6.1%
-   74 #gezondhaartips           20%      21%            3.8M        0.14     x2.14   0.9%
-   75 #krullenkop               20%      48%           25.6M        0.29         -   1.9%
-   76 #haarroutine              18%       4%           12.1M         0.0         -   6.4%
-   77 #nenescurls               18%      27%           20.1M         0.0         -   4.2%
-   78 #krulpotentie             15%      23%            2.1M         0.0         -   7.5%
-   79 #krullentiktok            15%      31%            1.3M         0.0         -   7.4%
-   80 #fohnborstel              15%      62%           11.6M        0.14     x0.43   2.2%
-   81 #fohn                     14%      11%            4.5M         0.0         -   6.5%
-   82 #haartok                  12%       7%            7.5M        0.14         -   3.7%
-   83 #droogshampoo             12%      31%           12.6M         0.0         -   3.1%
-   84 #kortkapsel               12%      55%            148K         0.0         -   6.1%
-   85 #krullenzonderhitte       12%      19%            3.4M         0.0         -   5.5%
-   86 #type4haarverzorging      12%       7%             93K         0.0         -   6.3%
-   87 #haarserum                11%       2%            1.4M        0.29         -   3.4%
-   88 #fohnen                   11%      34%            3.3M         0.0         -   5.1%
-   89 #knotje                   11%      14%            217K         0.0         -   5.7%
-   90 #permanentkrullenjongens    11%      15%           10.0M         0.0         -   3.4%
-   91 #blondhaar                10%       3%            542K         0.0         -   5.0%
-   92 #krullenkapperrotterdam    10%      73%            4.6M         0.0         -   4.2%
-   93 #haarkrullenzonderhitte    10%      10%            281K         0.0         -   5.2%
-   94 #curacurls                10%       7%             25K        0.14         -   4.4%
-   95 #hittebescherming          9%      12%            156K         0.0         -   4.7%
-   96 #haarkleur                 9%      10%            2.7M         0.0         -   4.0%
-   97 #pluishaar                 9%      27%            1.2M        0.14         -   3.7%
-   98 #lianurehaircare           9%       9%             15K         0.0         -   4.7%
-   99 #haarkleuren               9%      22%            2.5M         0.0         -   4.2%
-  100 #golvendhaar               8%      18%            3.6M        0.29         -   1.3%
-  101 #krullenverzorging         7%      67%            3.2M        0.14         -   2.1%
-  102 #haarstyling               7%       1%            3.9M        0.14         -   1.8%
-  103 #krullenbollen             7%      73%            7.7M         0.0         -   1.9%
-  104 #kappernoorderwijk         7%      32%             34K         0.0         -   3.7%
-  105 #haarbotox                 6%       3%            243K         0.0         -   2.9%
-  106 #curlfident                6%       5%             16K         0.0         -   3.3%
+    2 #krullenkapper            87%      67%          181.8M        1.57     x7.86   3.9%
+    3 #krullendhaar             83%      48%          117.7M        1.43     x5.36   2.6%
+    4 #gezondhaar               67%      26%           37.2M        0.71     x4.29   5.0%
+    5 #hoofdhuid                65%      37%            4.0M        1.71     x6.73   3.6%
+    6 #stijltang                65%      86%           18.2M        1.43     x3.57   7.2%
+    7 #drooghaar                63%      51%            4.3M        1.71     x8.57   2.3%
+    8 #krullentips              62%      74%           95.4M        0.57     x3.43   3.3%
+    9 #kapper                   58%      40%          464.8M        1.86         -   5.4%
+   10 #vlechtjes                53%      59%            6.4M         1.0     x3.75   5.9%
+   11 #haarkrullen              53%      60%            8.1M         1.0     x3.75   5.4%
+   12 #haarolie                 49%      38%           11.7M        0.71     x4.29   2.2%
+   13 #pluizighaar              48%      58%           11.5M        0.71     x4.29   1.9%
+   14 #kappers                  44%      27%           19.3M        1.57         -  16.6%
+   15 #hoofdhuidverzorging      44%      52%            754K        1.29     x3.81   0.5%
+   16 #vlecht                   44%      56%            6.6M        0.86     x2.86   5.1%
+   17 #permanentkrullen         39%      29%           88.8M        0.57         -   3.8%
+   18 #krullenkweken            39%      92%          133.7M        0.14         -   6.4%
+   19 #hairtok                  39%       1%           2.21B         0.0         -   7.7%
+   20 #haartutorial             39%       3%           43.6M        0.14         -   9.4%
+   21 #krullenroutine           36%      38%           28.5M        0.29     x1.71   3.1%
+   22 #kroeshaar                36%      72%           28.0M        0.29     x0.95   6.5%
+   23 #krullenkapperutrecht     35%      85%           57.1M        0.14         -   4.3%
+   24 #balayage                 35%       1%          201.5M         0.0         -   5.2%
+   25 #kroeshaarkapper          33%      83%            245K        0.57     x2.45   4.9%
+   26 #haaruitval               31%      54%           49.4M        0.43         -   0.6%
+   27 #hairhack                 31%       1%          263.6M         0.0         -   3.1%
+   28 #krultang                 28%      54%           13.1M        1.14         -   3.7%
+   29 #kroeshaartips            27%      48%            1.4M        0.29     x1.43   6.8%
+   30 #krullenbol               25%      54%           46.3M         0.0         -   1.1%
+   31 #krullenkwekerij          24%      82%            6.4M        0.57         -   7.2%
+   32 #haarstijl                24%      19%            8.0M        0.43         -  18.2%
+   33 #krullenknippen           24%      74%           16.2M        0.43         -   5.3%
+   34 #haartips                 24%      10%           11.6M        0.14     x0.86   5.8%
+   35 #haarverf                 23%      25%           16.3M        0.29         -   5.8%
+   36 #haargroei                23%      20%           16.1M        0.43         -   4.9%
+   37 #kapsel                   23%      11%           22.2M        0.14         -   5.4%
+   38 #krullenproducten         23%      58%           18.5M        0.14     x0.71   3.8%
+   39 #kroeshaarproducten       23%      46%            3.7M        0.14     x0.86   7.3%
+   40 #kroeshaarverzorging      23%      68%            4.9M        0.29     x0.95   5.7%
+   41 #krullenkapperbelgië      22%      74%            2.9M        1.14         -   3.3%
+   42 #krullenspecialist        22%      37%           20.0M        0.29         -   4.6%
+   43 #krullendhaarroutine      22%      18%           15.2M        0.29         -   6.0%
+   44 #kappersopleiding         21%      72%           19.8M        0.43         -   2.9%
+   45 #haar                     21%       2%           21.3M         0.0         -   5.4%
+   46 #rozemarijnolie           20%      49%            2.9M        0.29         -   8.6%
+   47 #gladhaar                 20%      50%            232K        1.43         -   1.3%
+   48 #krullenkapperherentals    20%      81%            335K         1.0         -   4.1%
+   49 #krullentutorial          20%      52%            3.9M        0.71         -   4.8%
+   50 #haargroeitips            20%      19%            6.1M        0.29         -   7.0%
+   51 #haarverven               20%      57%           19.7M        0.14         -   4.4%
+   52 #vlechten                 20%      31%            9.2M        0.29         -   6.1%
+   53 #krullenkop               20%      48%           25.6M        0.29         -   1.9%
+   54 #krullenmaken             19%      53%           14.5M        0.29         -   4.4%
+   55 #haarverzorging           18%      23%           21.1M        0.29         -   2.1%
+   56 #haarroutine              18%       4%           12.1M         0.0         -   6.4%
+   57 #nenescurls               18%      27%           20.1M         0.0         -   4.2%
+   58 #vethaartips              17%      18%            496K        0.29         -   7.1%
+   59 #haartip                  16%      12%            1.1M        0.43         -   5.6%
+   60 #krullenkapperkempen      16%      73%             74K        0.57         -   4.6%
+   61 #vethaar                  15%      30%            6.0M        0.29         -   4.2%
+   62 #kroeshaartiktok          15%      31%            683K        0.14         -   7.1%
+   63 #krulpotentie             15%      23%            2.1M         0.0         -   7.5%
+   64 #krullentiktok            15%      31%            1.3M         0.0         -   7.4%
+   65 #fohnborstel              15%      62%           11.6M        0.14     x0.43   2.2%
+   66 #haarmasker               14%      13%            2.2M        0.14         -   5.9%
+   67 #kappertips               14%      35%            1.9M        0.29         -   5.0%
+   68 #keratinebehandeling      14%      14%            2.8M        0.14         -   6.0%
+   69 #fohn                     14%      11%            4.5M         0.0         -   6.5%
+   70 #haarvitamines            12%       6%             12K        0.71         -   1.8%
+   71 #langhaar                 12%       6%            7.6M        0.29         -   2.7%
+   72 #slapenmetkrullen         12%      20%             83K        0.14         -   5.4%
+   73 #haartok                  12%       7%            7.5M        0.14         -   3.7%
+   74 #droogshampoo             12%      31%           12.6M         0.0         -   3.1%
+   75 #kortkapsel               12%      55%            148K         0.0         -   6.1%
+   76 #krullenzonderhitte       12%      19%            3.4M         0.0         -   5.5%
+   77 #type4haarverzorging      12%       7%             93K         0.0         -   6.3%
+   78 #invlechten               11%      24%            794K        0.14         -   4.7%
+   79 #krullentip               11%      57%            2.3M        0.29         -   3.4%
+   80 #krullenstyling           11%      31%            291K        0.14         -   4.7%
+   81 #haarserum                11%       2%            1.4M        0.29         -   3.4%
+   82 #fohnen                   11%      34%            3.3M         0.0         -   5.1%
+   83 #knotje                   11%      14%            217K         0.0         -   5.7%
+   84 #permanentkrullenjongens    11%      15%           10.0M         0.0         -   3.4%
+   85 #haarproducten            10%      15%            4.5M        0.14         -   3.4%
+   86 #tipsvoorgezondhaar       10%      32%            908K        0.43         -   2.0%
+   87 #blondhaar                10%       3%            542K         0.0         -   5.0%
+   88 #krullenkapperrotterdam    10%      73%            4.6M         0.0         -   4.2%
+   89 #haarkrullenzonderhitte    10%      10%            281K         0.0         -   5.2%
+   90 #curacurls                10%       7%             25K        0.14         -   4.4%
+   91 #haartransformatie         9%       8%            2.1M        0.14         -   3.2%
+   92 #hittebescherming          9%      12%            156K         0.0         -   4.7%
+   93 #haarkleur                 9%      10%            2.7M         0.0         -   4.0%
+   94 #pluishaar                 9%      27%            1.2M        0.14         -   3.7%
+   95 #lianurehaircare           9%       9%             15K         0.0         -   4.7%
+   96 #haarkleuren               9%      22%            2.5M         0.0         -   4.2%
+   97 #golvendhaar               8%      18%            3.6M        0.29         -   1.3%
+   98 #zilvershampoo             7%      14%            750K        0.14         -   2.8%
+   99 #beschadigdhaar            7%      28%            2.9M        0.14         -   2.1%
+  100 #krullenverzorging         7%      67%            3.2M        0.14         -   2.1%
+  101 #haarstyling               7%       1%            3.9M        0.14         -   1.8%
+  102 #krullenbollen             7%      73%            7.7M         0.0         -   1.9%
+  103 #kappernoorderwijk         7%      32%             34K         0.0         -   3.7%
+  104 #haarbotox                 6%       3%            243K         0.0         -   2.9%
+  105 #curlfident                6%       5%             16K         0.0         -   3.3%
+  106 #gezondhaartips            5%      21%            3.8M        0.14         -   0.9%
   107 #hairby2                   5%       8%             87K         0.0         -   2.6%
   108 #keratine                  0%       0%               0         0.0         -      -
   109 #olaplex                   0%       0%               0         0.0         -      -
@@ -215,12 +215,6 @@
          5.5M plays | @amber.leemans | 298d | Zo bescherm jij jouw krullen tegen de kou en droge lucht 🧣🌨️ your
          1.8M plays | @millyrosax | 1267d | Replying to @Isra Boztoprak krullen kweken maar & TAG mij! 🫶🏽✨➰ #
 
-  • #KAPPER — score 93%
-      globaal: 1.15B views / 79K video's | lokaal: 58 video's (40%), 9.0M plays, ±464.8M views, 13 posts in 7d
-      lokale co-hashtags: #barber(18), #barbershop(5), #haircut(4), #krullen(4), #voorjou(4), #fade(4)
-         2.2M plays | @art_realtalk | 129d | Geef jullie oprecht mening??? #toxic #vrouw #viralvideos #relatie
-         859K plays | @iliasvietto17 | 487d | Standaard ook filmen als ze klaar zijn 😂 #fyp #foryou #kapper #ba
-
   • #KRULLENKAPPER — score 87%
       globaal: 270.8M views / 17K video's | lokaal: 98 video's (67%), 14.2M plays, ±181.8M views, 11 posts in 7d
       lokale co-hashtags: #krullen(60), #curlyhair(27), #voorjou(23), #krullendhaar(20), #curlyhairtutorial(12), #krullentips(11)
@@ -232,18 +226,6 @@
       lokale co-hashtags: #krullen(22), #curlyhair(15), #krullentips(13), #krullendhaarroutine(12), #krullenkweken(11), #krullenkapper(9)
         10.8M plays | @ohlala.keriting | 513d | ad Breng m’n krullen weer tot leven met de @Garnier nl Loving Ble
          1.8M plays | @millyrosax | 1267d | Replying to @Isra Boztoprak krullen kweken maar & TAG mij! 🫶🏽✨➰ #
-
-  • #KAPPERS — score 79%
-      globaal: 72.5M views / 6K video's | lokaal: 38 video's (27%), 26.5M plays, ±19.3M views, 11 posts in 7d
-      lokale co-hashtags: #kapper(18), #barber(10), #voorjou(5), #suriname🇸🇷(4), #barbershop(4), #surinametiktokers🇸🇷🇸🇷🇸🇷(3)
-        21.7M plays | @gillianodeekman | 793d | De meest onserieuze kapper🤣 @DKSIXONE🐺 @JE🍀 @jrcas61._  @guirmo @
-         2.1M plays | @raulgroenen_ | 21d | Ff snel naar de kapper… #humor 
-
-  • #PERMANENTKRULLEN — score 74%
-      globaal: 302.7M views / 682 video's | lokaal: 39 video's (29%), 5.9M plays, ±88.8M views, 4 posts in 7d
-      lokale co-hashtags: #perm(21), #krullen(12), #permanent(9), #curly(7), #permanentkrullenjongens(6), #spiraalpermanent(5)
-         2.2M plays | @vipabdullah | 1173d | Permanent krullen voor boys #fyp #yourpage #fy #foryoupage #fypシ゚
-         1.1M plays | @vipabdullah | 1024d | Na 6 maanden weer permanent krullen #permanentkrullenboys #perman
 
   • #GEZONDHAAR — score 67%
       globaal: 140.8M views / 5K video's | lokaal: 38 video's (26%), 1.8M plays, ±37.2M views, 5 posts in 7d
@@ -257,6 +239,34 @@
          1.4M plays | @jeanneor | 118d | ad/de verzorging van je haren begint bij je hoofdhuid @Dove #beau
          383K plays | @valeryriemens | 113d | De laatste tijd focus ik meer op m’n hoofdhuid, and it shows. De 
 
-  NOG NIET GEOOGSTE LOKALE KANDIDATEN (volgende run): #krullentrainen, #heatlesscurlsovernight, #hairproducts, #kapperstiktok, #vanstijlnaarkrullen, #kinkyhair, #permanenetkrullenboys, #hairgrowthtips, #shampoo, #haartransformation
+  • #STIJLTANG — score 65%
+      globaal: 21.0M views / 1K video's | lokaal: 109 video's (86%), 62.0M plays, ±18.2M views, 10 posts in 7d
+      lokale co-hashtags: #hairtutorial(18), #remington(15), #hairstyling(13), #hairtok(13), #curls(9), #haar(7)
+        40.2M plays | @selenabosscha | 1244d | Hoe geweldig is deze stijltang van CHI! Binnenkort geef ik er 2 w
+        14.5M plays | @quintymirjam | 2021d | #aanhechten met @trinnittyy__ Verschillende krullen met een stijl
+
+  • #DROOGHAAR — score 63%
+      globaal: 8.5M views / 589 video's | lokaal: 67 video's (51%), 13.4M plays, ±4.3M views, 12 posts in 7d
+      lokale co-hashtags: #droogshampoo(9), #hairtok(8), #hair(6), #vethaar(5), #gezondhaar(4), #hairtips(4)
+         8.7M plays | @dominicvleer | 221d | Mijn tip voor  droog haar!  Gebruik het Metal Detox haarmasker.  
+         846K plays | @hidde.compagne | 95d | root spray + droog shampoo = goud 💇 #haartransplantatie #haar #ha
+
+  • #KRULLENTIPS — score 62%
+      globaal: 129.0M views / 3K video's | lokaal: 102 video's (74%), 34.8M plays, ±95.4M views, 4 posts in 7d
+      lokale co-hashtags: #krullen(53), #curlyhair(26), #krullenkweken(20), #krullendhaar(19), #curlyhairtutorial(18), #hairtok(18)
+        10.8M plays | @ohlala.keriting | 513d | ad Breng m’n krullen weer tot leven met de @Garnier nl Loving Ble
+         4.3M plays | @nenescurls | 1006d | HIJAB PROOF 🧕✅salon voor krullen👩‍🦱  #cgmethodenederland #curlyha
+
+  DALENDE / AFKOELENDE TERMS (lokale post-activiteit krimpt):
+    #fohnborstel            vel x0.43  | 89 lokale video's | ±11.6M views
+    #krullenproducten       vel x0.71  | 86 lokale video's | ±18.5M views
+    #kroeshaarproducten     vel x0.86  | 67 lokale video's | ±3.7M views
+    #krullenbol             STILGEVALLEN (0 posts in 7d) | 74 lokale video's | ±46.3M views
+    #nenescurls             STILGEVALLEN (0 posts in 7d) | 29 lokale video's | ±20.1M views
+    #droogshampoo           STILGEVALLEN (0 posts in 7d) | 42 lokale video's | ±12.6M views
+    #krullenzonderhitte     STILGEVALLEN (0 posts in 7d) | 27 lokale video's | ±3.4M views
+    #fohnen                 STILGEVALLEN (0 posts in 7d) | 48 lokale video's | ±3.3M views
+    #krullenkapperrotterdam STILGEVALLEN (0 posts in 7d) | 108 lokale video's | ±4.6M views
+    #krullenbollen          STILGEVALLEN (0 posts in 7d) | 107 lokale video's | ±7.7M views
 
   volledige onderliggende data -> data/trending_hair_nl_top200.json
