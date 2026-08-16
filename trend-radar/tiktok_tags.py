@@ -99,8 +99,12 @@ DUTCH_HINTS = (" een ", " het ", " niet ", " voor ", " mijn ", " deze ",
 
 
 def is_dutch(v):
-    """NL/Flanders proxy: TikTok's per-video language classification,
-    with a Dutch-stopword fallback for unclassified captions."""
+    """NL/Flanders proxy: expliciete locatie-tag (POI) wint, daarna
+    TikTok's per-video taalclassificatie, met Nederlandse-stopwoorden
+    als fallback voor ongeclassificeerde captions."""
+    poi = (v.get("poiAddress") or "").lower()
+    if "netherlands" in poi or "nederland" in poi or "belgi" in poi:
+        return True
     lang = v.get("lang")
     if lang == "nl":
         return True
@@ -128,6 +132,7 @@ def parse_item(it):
     stats = it.get("statsV2") or it.get("stats") or {}
     author = it.get("author") or {}
     music = it.get("music") or {}
+    poi = it.get("poi") or {}
     tags = [t.get("hashtagName") for t in (it.get("textExtra") or [])
             if t.get("hashtagName")]
     return {
@@ -146,6 +151,9 @@ def parse_item(it):
         "music": music.get("title"),
         "musicId": music.get("id"),
         "musicOriginal": bool(music.get("original")),
+        "poiId": poi.get("id"),
+        "poiName": poi.get("name"),
+        "poiAddress": poi.get("address"),
         "lang": it.get("textLanguage"),
     }
 

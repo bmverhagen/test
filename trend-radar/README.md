@@ -379,9 +379,51 @@ scrapebaar bevonden (elk getest zonder login):
 | **Creator-profiel** | `tiktok.com/@user` | SSR `webapp.user-detail`: volledige `stats` (volgers, hearts, videoCount) | Volgersgroei van NL-creators snapshotten = welke creators breken door |
 | **oEmbed** | `tiktok.com/oembed?url=…` | kale JSON zonder browser: titel, auteur, thumbnail | Gratis health-check of video's nog bestaan (verwijderd → error), zonder Playwright |
 
-Niet bruikbaar zonder login: de comment-API (leeg bij anoniem), de
-Creative Center hashtag-detailgrafiek, en het industry-filter in
-Creative Center. NL ontbreekt sowieso in de Creative Center-landenlijst.
+Tweede zoekronde leverde nog vijf ingangen op (alle anoniem getest):
+
+| Ingang | URL / API | Data | Waarde |
+|---|---|---|---|
+| **Plaats-pagina (POI)** | `tiktok.com/place/x-<id>` → `api/poi/detail` + `api/poi/item_list` | video-feed per locatie (stad t/m één kapperszaak), zelfde itemStruct | **Meest expliciete NL-bron**: video getagd op NL-locatie is NL-gebonden ongeacht taal → `poi_feed.py` |
+| **ASR-transcripts** | `video.subtitleInfos` op de detailpagina → WebVTT direct downloadbaar | volledige gesproken tekst per video, per taal | Merk-/productnamen die in spraak vallen maar niet in de caption staan → `transcripts.py` |
+| **For You-feed** | `tiktok.com/` → `api/recommend/item_list` | de anonieme FYP, IP-gepersonaliseerd | Met NL-proxy: de rauwe NL-kijkersfeed, taal-onafhankelijk |
+| **Zoek-suggesties** | `api/search/suggest/guide?…` (vuurt op de zoekpagina) | TikToks eigen gerelateerde zoektermen per keyword ("haarolie" → "rosemary hair oil", …) | Vraag-gedreven keyword-discovery, direct joinbaar met Amazon-zoektermen |
+| **Live-feed** | `tiktok.com/live` → webcast feed-API | actieve streams per categorie | nichesignaal (bijv. NL-kappers die live gaan) |
+
+De tag-feed items bleken bovendien een **`poi`-veld** te dragen: bij
+#kapper had 11/60 video's een volledig NL-adres (Leiden, Zoetermeer,
+Amsterdam…). `parse_item` legt nu `poiId`/`poiName`/`poiAddress` per
+video vast en `is_dutch()` telt een NL/BE-adres als hard NL-bewijs —
+sterker dan het taal-signaal.
+
+Niet bruikbaar zonder login of bot-gated: de comment-API (leeg bij
+anoniem), zoek-resultaten (`/search` heeft een login-muur; alleen de
+suggest-API werkt), de Creative Center hashtag-detailgrafiek en het
+industry-filter, en de EU-advertentiebibliotheek (library.tiktok.com —
+ondersteunt NL en is per land doorzoekbaar, maar de zoek-API weigert
+headless verkeer; handmatig in de browser wél bruikbaar). NL ontbreekt
+sowieso in de Creative Center-landenlijst.
+
+### Locatie-feeds (`poi_feed.py`)
+
+```bash
+python3 poi_feed.py --from-json data/trending_hair_nl_top200.json  # POI's uit je harvest
+python3 poi_feed.py --ids 22535865202914970                        # Amsterdam
+```
+
+Per locatie: naam/adres + de video-feed (~30 per scroll-ronde). Test op
+de Amsterdam-POI: 60 video's, 519M plays, top-video's Engelstalig —
+precies de "Engelse video's met NL-binding" die taalfilters missen.
+
+### Gesproken tekst (`transcripts.py`)
+
+```bash
+python3 transcripts.py --from-json data/trending_hair_nl_top200.json --nl
+python3 transcripts.py --videos @zackouda/7674338575718141216
+```
+
+Downloadt per video de ASR-ondertiteltrack (WebVTT) en destilleert de
+gesproken tekst + meest genoemde termen. Testvoorbeeld ving "je kunt
+'m op TikTok Shop halen" — koopintentie die alleen in spraak zat.
 
 ### Sound-trends (`sound_snapshot.py`)
 
