@@ -395,13 +395,39 @@ Amsterdam…). `parse_item` legt nu `poiId`/`poiName`/`poiAddress` per
 video vast en `is_dutch()` telt een NL/BE-adres als hard NL-bewijs —
 sterker dan het taal-signaal.
 
+Derde zoekronde — de snelste ingang tot nu toe:
+
+| Ingang | URL / API | Data | Waarde |
+|---|---|---|---|
+| **Embed-pagina** | `tiktok.com/embed/v2/<video-id>` — **kale HTTP, geen browser** | tellers, createTime, caption, `isAd`/`isECVideo`, **`locationCreated`**, author + volgers, sound, hashtags, sticker-tekst, `viewerRegion` | Bulk-verrijking op HTTP-snelheid: ~570 video's/min (60 in 6,3 s getest, 0 fouten) → `embed_enrich.py` |
+| **Sitemap tag-lijst** | `tiktok.com/tos/node/sitemaps/sitemap.xml` | 1.136 door TikTok gecureerde tag-URL's (+207 creator-, 41 music-pagina's) | gratis seed-lijst van tags die TikTok zelf SEO-waardig vindt |
+
+`viewerRegion` in de embed-payload is een gratis proxy-verificatie:
+draai je via een NL-IP, dan hoort daar "NL" te staan.
+
 Niet bruikbaar zonder login of bot-gated: de comment-API (leeg bij
 anoniem), zoek-resultaten (`/search` heeft een login-muur; alleen de
-suggest-API werkt), de Creative Center hashtag-detailgrafiek en het
-industry-filter, en de EU-advertentiebibliotheek (library.tiktok.com —
-ondersteunt NL en is per land doorzoekbaar, maar de zoek-API weigert
-headless verkeer; handmatig in de browser wél bruikbaar). NL ontbreekt
-sowieso in de Creative Center-landenlijst.
+suggest-API werkt), `api/item/detail` (leeg bij anoniem — gebruik de
+embed-pagina), de mobiele app-API (`api16….tiktokv.com` → ratelimit),
+de Creative Center hashtag-detailgrafiek en het industry-filter (de
+nieuwe "TikTok One Creative Suite" stopt ook songs/creators/video's
+achter een app-shell), en de EU-advertentiebibliotheek
+(library.tiktok.com — ondersteunt NL en is per land doorzoekbaar, maar
+de zoek-API weigert headless verkeer; handmatig in de browser wél
+bruikbaar). NL ontbreekt sowieso in de Creative Center-landenlijst.
+
+### Bulk-verrijking zonder browser (`embed_enrich.py`)
+
+```bash
+python3 embed_enrich.py --from-json data/trending_hair_nl_top200.json --limit 500
+python3 embed_enrich.py --ids 7595385142798060830
+```
+
+Parallelle HTTP-GET's naar embed-pagina's; per video o.a. herkomstland,
+ad/e-commerce-vlaggen, sound en sticker-tekst. Gebruik dit als eerste
+verrijkingslaag over elke harvest; `geo_probe.py` blijft nodig voor de
+drie velden die alleen op de detailpagina staan (bookmarks,
+diversificationLabels, suggestedWords).
 
 ### Locatie-feeds (`poi_feed.py`)
 
