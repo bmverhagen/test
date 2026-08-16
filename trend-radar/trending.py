@@ -75,8 +75,14 @@ SECTORS = {
         "lexicon": ["hair", "haar", "curl", "krul", "locken", "scalp",
                     "hoofdhuid", "kopfhaut", "olie", "öl", "serum", "bond",
                     "repair", "growth", "groei", "wachstum", "frizz",
-                    "keratin", "shampoo", "conditioner", "blowout",
-                    "kapper", "friseur", "mask"],
+                    "keratin", "keratine", "shampoo", "conditioner",
+                    "blowout", "kapper", "friseur", "mask", "vlecht",
+                    "braid", "kapsel", "coupe", "balayage", "highlight",
+                    "blond", "brunette", "extension", "pruik", "wig",
+                    "föhn", "fohn", "stijltang", "krultang", "heatless",
+                    "wolfcut", "gloss", "glans", "toner", "olaplex",
+                    "k18", "botox", "slickback", "ponytail", "bun",
+                    "knotje", "hairstyle", "haircut"],
         "seeds": {
             "en": ["hairtok", "haircare", "hairgrowth", "rosemaryoil",
                    "bondrepair", "scalpcare", "curlyhair", "hairoil",
@@ -253,10 +259,9 @@ def trend_score(t):
     ))
 
 
-def discover(results, seeds, lexicon, lang, limit):
+def discover(results, seen, lexicon, lang, limit):
     """Nieuwe kandidaat-termen: co-hashtags uit LOKALE video's die op het
     sector-lexicon matchen en nog niet geoogst zijn."""
-    seen = {s.lower() for s in seeds}
     cand = Counter()
     for r in results:
         for v in r["localVideos"]:
@@ -269,9 +274,10 @@ def discover(results, seeds, lexicon, lang, limit):
     return [t for t, c in cand.most_common(limit) if c >= 2]
 
 
-async def run(seeds, lexicon, lang, locale, tz, scrolls, do_discover,
-              proxy):
+async def run(seeds, lexicon, lang, locale, tz, scrolls, rounds,
+              max_terms, proxy):
     results = []
+    seen = {s.lower() for s in seeds}
     async with async_playwright() as pw:
         launch_kwargs = {"headless": True}
         if proxy:
@@ -295,14 +301,20 @@ async def run(seeds, lexicon, lang, locale, tz, scrolls, do_discover,
 
         await harvest_list(seeds, "seed")
         leftovers = []
-        if do_discover:
-            cand = discover(results, seeds, lexicon, lang, limit=10)
-            new = cand[:6]
-            leftovers = cand[6:]
-            if new:
-                print(f"\n[discovery] lokale kandidaten: {new}\n",
-                      file=sys.stderr)
-                await harvest_list(new, "disc")
+        for rnd in range(1, rounds + 1):
+            room = max_terms - len(results)
+            if room <= 0:
+                break
+            cand = discover(results, seen, lexicon, lang,
+                            limit=min(40, room) + 10)
+            new = cand[:min(40, room)]
+            leftovers = cand[len(new):]
+            if not new:
+                break
+            seen.update(new)
+            print(f"\n[discovery ronde {rnd}] {len(new)} lokale "
+                  f"kandidaten: {new}\n", file=sys.stderr)
+            await harvest_list(new, f"disc{rnd}")
         await browser.close()
     return results, leftovers
 
@@ -379,6 +391,10 @@ def main():
                     help="komma-gescheiden discovery-woorden (custom)")
     ap.add_argument("--scrolls", type=int, default=5)
     ap.add_argument("--top", type=int, default=25)
+    ap.add_argument("--rounds", type=int, default=1,
+                    help="aantal discovery-rondes (co-hashtag mining)")
+    ap.add_argument("--max-terms", type=int, default=60,
+                    help="maximaal aantal te oogsten termen")
     ap.add_argument("--no-discover", action="store_true")
     ap.add_argument("--proxy", default=None,
                     help="residential proxy in het doelland (optioneel, "
@@ -400,7 +416,12 @@ def main():
                    if args.lexicon else [])
     elif sector in SECTORS:
         cfg = SECTORS[sector]
-        seeds = build_seeds(cfg, country["lang"])
+        # --seeds mag de watchlist ook bij een bekende sector overriden;
+        # het sector-lexicon blijft dan gelden voor discovery.
+        if args.seeds:
+            seeds = [t.strip().lstrip("#") for t in args.seeds.split(",")]
+        else:
+            seeds = build_seeds(cfg, country["lang"])
         lexicon = cfg["lexicon"]
     else:
         sys.exit(f"Onbekende sector '{sector}'. Kies uit: "
@@ -412,9 +433,11 @@ def main():
               file=sys.stderr)
 
     out = args.out or f"data/trending_{sector}_{cc.lower()}.json"
+    rounds = 0 if args.no_discover else args.rounds
     results, leftovers = asyncio.run(
         run(seeds, lexicon, country["lang"], country["locale"],
-            country["tz"], args.scrolls, not args.no_discover, args.proxy))
+            country["tz"], args.scrolls, rounds, args.max_terms,
+            args.proxy))
     report(results, leftovers, sector, cc, country, args.top, out)
 
 
