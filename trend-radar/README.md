@@ -365,6 +365,40 @@ stijgers, dalers en evergreens hard te onderscheiden zonder externe
 data. (`country_demand.py` met Google Trends blijft beschikbaar als
 optionele extra bron, maar is voor niets hiervan vereist.)
 
+## Engelstalige video's die Nederlanders kijken (`geo_probe.py`)
+
+Taalfiltering mist per definitie de buitenlandse content die NL'ers
+consumeren. Kijkers-geografie per video is niet publiek (en de
+comment-API — comments dragen een taalcode — is anoniem afgeschermd),
+maar er zijn drie mechanismen die het gat samen dichten:
+
+1. **`locationCreated` per video** — de video-detailpagina bevat in de
+   SSR-blob het land waar de video gemaakt is. `geo_probe.py` verrijkt
+   geharveste video's hiermee (~2 s per video) en vangt zo de grootste
+   gemiste groep: NL/BE-creators die in het Engels posten voor bereik —
+   hun publiek is alsnog overwegend Nederlands. Eerste testrun vond
+   direct een BE-video met 96,7M plays (taal "un") die het taalfilter
+   volledig miste. Bonus: per video ook TikToks eigen categorielabels
+   (`diversificationLabels`) en gesuggereerde zoektermen.
+
+```bash
+python3 geo_probe.py --from-json data/trending_hair_nl_top200.json --limit 40
+python3 geo_probe.py --videos @maggiemh/7044722712388046126
+```
+
+2. **NL-IP feed (residential proxy)** — de tag-feed zelf is
+   geo-gepersonaliseerd: wat je via een Nederlands IP binnenkrijgt is
+   per definitie wat TikTok de NL-markt voorschotelt, óók Engelstalig.
+   Draai `trending.py`/`tiktok_tags.py` met `--proxy` op een
+   NL-residential-IP en de hele harvest wordt een NL-kijkersfeed;
+   Engelse video's die daar hoog staan, worden door NL'ers bekeken.
+
+3. **NL-adoptie als volgsignaal** — als een Engelse trend in NL
+   aanslaat, gaan Nederlandse creators erop reageren (eigen video's,
+   duets, dezelfde tags). De bestaande `nl_share`/NL-metrics per tag
+   meten precies dat: een globale Engelse tag met stijgende NL-share is
+   een Engelse trend die de NL-markt in trekt.
+
 De headline-cijfers komen alleen van direct geoogste tags; attributen die
 alleen als co-hashtag opduiken verschijnen als DISCOVERY-kandidaten voor de
 watchlist (ze erven nooit de views van hun parent-tag).
