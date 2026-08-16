@@ -8,6 +8,7 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from api_backends import API_FETCHERS, fetch_api_page
 from brands import HENKEL_BRANDS, product
 from fetchers import fetch_page
 from shops import page_urls, parse_body
@@ -221,41 +222,71 @@ def scrape_shop(cfg, max_pages: int = MAX_PAGES) -> dict:
     sources: list[str] = []
     notes: list[str] = []
     page_stats: list[dict] = []
+    used_api = bool(getattr(cfg, "use_api", False) and cfg.domain in API_FETCHERS)
+    api_exhausted = False
 
     for page in range(1, max_pages + 1):
         url = cfg.page_url(page) if cfg.page_url else None
-        if not url:
-            break
-        # DA special-case: rotate brand listing URLs across pages
-        if cfg.domain == "da.nl":
-            brand_pages = [
-                f"https://www.da.nl/merken/syoss?p={page}",
-                f"https://www.da.nl/merken/schwarzkopf?p={page}",
-                f"https://www.da.nl/merken/syoss",
-                f"https://www.da.nl/merken/schwarzkopf",
-            ]
-            url = brand_pages[(page - 1) % len(brand_pages)]
+        products: list[dict] = []
+        source = "none"
 
-        cache = RAW / cfg.domain / f"page_{page:02d}.txt"
-        try:
-            source, body = fetch_page(
-                url,
-                cache_path=cache,
-                prefer_jina=cfg.prefer_jina,
-                min_len=1500,
-                sleep=0.9,
-            )
-        except Exception as exc:
-            page_stats.append({"page": page, "url": url, "status": "error", "error": str(exc), "n": 0})
-            notes.append(f"page {page}: {exc}")
-            continue
+        if used_api and not api_exhausted:
+            try:
+                api_products = fetch_api_page(cfg.domain, page, sleep=0.45)
+                if api_products is None:
+                    used_api = False
+                else:
+                    products = api_products
+                    source = "api"
+                    if not products:
+                        api_exhausted = True
+                        page_stats.append(
+                            {
+                                "page": page,
+                                "url": url,
+                                "fetch": "api",
+                                "parsed": 0,
+                                "new": 0,
+                                "note": "api returned empty page",
+                            }
+                        )
+                        # Fall through to HTML for remaining pages only if we have nothing yet
+                        if all_products:
+                            continue
+                        used_api = False
+            except Exception as exc:
+                notes.append(f"api page {page}: {exc}")
+                page_stats.append(
+                    {"page": page, "url": url, "status": "api_error", "error": str(exc), "n": 0}
+                )
+                # One failure: fall back to HTML/Jina for this and later pages
+                used_api = False
 
-        products = parse_body(cfg.parser, body, cfg.domain)
-        # If HTML amazon parser got nothing but body looks like jina md, try generic
-        if not products and cfg.parser == "amazon" and "Markdown Content" in body[:500]:
-            products = parse_body("generic_jina", body, cfg.domain)
-        if not products and cfg.parser != "generic_jina":
-            products = parse_body("generic_jina", body, cfg.domain)
+        if not products and not (source == "api" and api_exhausted and all_products):
+            if not url:
+                break
+            cache = RAW / cfg.domain / f"page_{page:02d}.txt"
+            try:
+                source, body = fetch_page(
+                    url,
+                    cache_path=cache,
+                    prefer_jina=cfg.prefer_jina,
+                    min_len=1500,
+                    sleep=0.9,
+                )
+            except Exception as exc:
+                page_stats.append(
+                    {"page": page, "url": url, "status": "error", "error": str(exc), "n": 0}
+                )
+                notes.append(f"page {page}: {exc}")
+                continue
+
+            products = parse_body(cfg.parser, body, cfg.domain)
+            # If HTML amazon parser got nothing but body looks like jina md, try generic
+            if not products and cfg.parser == "amazon" and "Markdown Content" in body[:500]:
+                products = parse_body("generic_jina", body, cfg.domain)
+            if not products and cfg.parser != "generic_jina":
+                products = parse_body("generic_jina", body, cfg.domain)
 
         for p in products:
             p["page"] = page
@@ -280,17 +311,15 @@ def scrape_shop(cfg, max_pages: int = MAX_PAGES) -> dict:
                 "new": len(new_items),
             }
         )
-        # stop early if page produced nothing new twice in a row after page 2
-        if page >= 2 and len(new_items) == 0:
-            # still continue through max_pages as requested, but record emptiness
-            pass
 
     used_fallback = False
     if not all_products:
         all_products = fallback_for(cfg.domain)
         used_fallback = bool(all_products)
         if used_fallback:
-            notes.append("Live pages empty/blocked; used curated conditioner SERP fallback so shop has results.")
+            notes.append(
+                "Live pages empty/blocked; used curated conditioner SERP fallback so shop has results."
+            )
             for p in all_products:
                 p["page"] = 1
                 p["fallback"] = True
@@ -304,6 +333,8 @@ def scrape_shop(cfg, max_pages: int = MAX_PAGES) -> dict:
         source_type = "serp_fallback"
     elif pages_ok == 0:
         status = "empty"
+    elif "api" in sources:
+        source_type = "backend_api"
     elif cfg.prefer_jina:
         source_type = "jina_paginated"
 
@@ -333,7 +364,9 @@ def write_outputs(results: list[dict]) -> None:
         "max_pages": MAX_PAGES,
         "rank_definition": (
             "Position across paginated on-site search/category results (pages 1..10), "
-            "used as BSR proxy. Fallback rows used only when live fetch yields zero products."
+            "used as BSR proxy. Prefer direct backend JSON/GraphQL APIs when available "
+            "(Jumbo GraphQL, DA Magento GraphQL, Koopjes WooCommerce Store API); "
+            "otherwise HTML/Jina. Fallback rows used only when live fetch yields zero products."
         ),
         "henkel_brands": HENKEL_BRANDS,
         "scraped_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),

@@ -24,6 +24,8 @@ class ShopConfig:
     # page is 1-based
     page_url: Callable[[int], str] | None = None
     parser: str = "auto"  # auto | amazon | dod | notino | koopjes | jina_generic
+    # Prefer JSON/GraphQL backend over HTML/Jina when available
+    use_api: bool = False
 
 
 def page_urls() -> list[ShopConfig]:
@@ -54,6 +56,7 @@ def page_urls() -> list[ShopConfig]:
             "KoopjesDrogisterij",
             "koopjesdrogisterij.nl",
             prefer_jina=True,
+            use_api=True,
             page_url=lambda p: (
                 f"https://www.koopjesdrogisterij.nl/?s={q}&post_type=product"
                 if p == 1
@@ -100,6 +103,7 @@ def page_urls() -> list[ShopConfig]:
             "Jumbo",
             "jumbo.com",
             prefer_jina=True,
+            use_api=True,
             page_url=lambda p: f"https://www.jumbo.com/producten/?searchType=keyword&searchTerms={q}&offSet={(p-1)*24}",
             parser="jumbo_jina",
         ),
@@ -121,7 +125,8 @@ def page_urls() -> list[ShopConfig]:
             "DA Drogist",
             "da.nl",
             prefer_jina=True,
-            page_url=lambda p: f"https://www.da.nl/merken/syoss?p={p}",
+            use_api=True,
+            page_url=lambda p: f"https://www.da.nl/search?query={q}&page={p}",
             parser="da_jina",
         ),
         ShopConfig(
