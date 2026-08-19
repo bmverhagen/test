@@ -538,7 +538,15 @@ Eerste testrun op 20 shampoos van kruidvat.nl (aug 2026):
 
 ```bash
 python3 kruidvat_bestsellers.py
+python3 kruidvat_bestsellers.py --query shampoo --brand "Head & Shoulders"
 ```
+
+Het merkprofiel per zoekterm is het C-suite-format: vraag-aandeel
+(reviews) vs schap-aandeel (SKU-slots), plus waar élke SKU van het
+merk staat. ONDERSCHAPT = klanten kopen je meer dan het schap toont;
+OVERSCHAPT = Kruidvat duwt je harder dan de vraag; HUISMERK-DRUK =
+private label op de goede plekken. Zelfde run op «krullen»,
+«anti-roos», «rozemarijn» geeft het zoekterm-portfolio.
 
 Dit is een rang, geen Nielsen-units. Winkelverkoop ontbreekt; herhaal
 wekelijks dezelfde cohort voor velocity. Seed: `kruidvat_shampoo_seed.json`.

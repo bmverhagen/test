@@ -112,7 +112,52 @@ def score_items(items, velocity):
     return out
 
 
-def report(ranked, today, prev):
+def brand_profiles(ranked):
+    """Digital-shelf profiel per merk binnen deze zoekterm/categorie."""
+    total_rev = sum(r.get("reviews") or 0 for r in ranked) or 1
+    n = len(ranked) or 1
+    by = {}
+    for r in ranked:
+        b = r.get("brand") or "?"
+        t = by.setdefault(b, {"skus": [], "reviews": 0, "shelf_sum": 0,
+                              "page1": 0, "best_rank": 99, "best_shelf": 99,
+                              "house": False})
+        t["skus"].append(r)
+        t["reviews"] += r.get("reviews") or 0
+        sh = r.get("shelf") or 99
+        t["shelf_sum"] += sh
+        t["page1"] += 1 if sh <= 20 else 0
+        t["best_rank"] = min(t["best_rank"], r.get("rank") or 99)
+        t["best_shelf"] = min(t["best_shelf"], sh)
+        t["house"] = t["house"] or bool(r.get("houseBrand"))
+    out = []
+    for b, t in by.items():
+        k = len(t["skus"])
+        review_share = 100.0 * t["reviews"] / total_rev
+        shelf_share = 100.0 * k / n
+        gap = review_share - shelf_share
+        if gap >= 8:
+            verdict = "ONDERSCHAPT"   # meer vraag dan schap
+        elif gap <= -8:
+            verdict = "OVERSCHAPT"    # meer schap dan vraag
+        else:
+            verdict = "IN BALANS"
+        if t["house"]:
+            verdict = "HUISMERK-DRUK"
+        out.append({
+            "brand": b, "skus": k, "reviews": t["reviews"],
+            "reviewShare": round(review_share, 1),
+            "shelfShare": round(shelf_share, 1),
+            "avgShelf": round(t["shelf_sum"] / k, 1),
+            "bestRank": t["best_rank"], "bestShelf": t["best_shelf"],
+            "gap": round(gap, 1), "verdict": verdict,
+            "topSku": t["skus"][0]["name"],
+        })
+    out.sort(key=lambda x: -x["reviewShare"])
+    return out
+
+
+def report(ranked, today, prev, query="shampoo", focus=None):
     print()
     print("=" * 96)
     print(f"  KRUIDVAT BESTSELLER-SCHATTING  {today}  "
@@ -152,11 +197,54 @@ def report(ranked, today, prev):
         print("  Eerste snapshot: velocity nog leeg. Draai volgende week "
               "opnieuw met verse review-tellingen.")
 
+    profiles = brand_profiles(ranked)
+    print()
+    print("=" * 96)
+    print(f"  MERKPROFIEL op zoekterm/categorie «{query}»  "
+          f"— waar staat welk merk, en klopt het schap met de vraag?")
+    print("=" * 96)
+    print(f"  {'merk':<22} {'SKU':>3} {'reviews':>8} {'vraag%':>7} "
+          f"{'schap%':>7} {'beste rk':>8} {'beste schap':>11}  oordeel")
+    print("-" * 96)
+    for p in profiles:
+        print(f"  {p['brand']:<22} {p['skus']:>3} {p['reviews']:>8} "
+              f"{p['reviewShare']:>6.1f}% {p['shelfShare']:>6.1f}% "
+              f"{p['bestRank']:>8} {p['bestShelf']:>11}  {p['verdict']}")
+    print("-" * 96)
+    print("  vraag% = aandeel van alle reviews in deze lijst (online-koopproxy). "
+          "schap% = aandeel SKU's in de cohort.\n  ONDERSCHAPT = meer vraag dan "
+          "schap (verborgen seller). OVERSCHAPT = retailer duwt je harder dan "
+          "klanten kopen.")
+
+    if focus:
+        hit = next((p for p in profiles
+                    if p["brand"].lower() == focus.lower()), None)
+        print()
+        if not hit:
+            print(f"  Merk «{focus}» staat niet in deze zoekterm.")
+        else:
+            print(f"  WAAR STAAT {hit['brand'].upper()} op «{query}»")
+            print(f"    {hit['skus']} SKU's · beste geschatte rank #{hit['bestRank']} "
+                  f"· beste schapplaats {hit['bestShelf']}")
+            print(f"    {hit['reviewShare']:.1f}% van de online-vraag vs "
+                  f"{hit['shelfShare']:.1f}% van het schap → {hit['verdict']}")
+            print(f"    top-SKU: {hit['topSku']}")
+            yours = [r for r in ranked
+                     if (r.get("brand") or "").lower() == focus.lower()]
+            for r in yours:
+                print(f"      schap {r.get('shelf'):>2} → geschatte #{r['rank']:<2}  "
+                      f"{r['label']:<20} {r['name'][:42]}")
+    return profiles
+
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--from-json", default=SEED)
     ap.add_argument("--db", default=DB)
+    ap.add_argument("--query", default="shampoo",
+                    help="zoekterm/categorie-label voor het merkprofiel")
+    ap.add_argument("--brand", default=None,
+                    help="eigen merk: print 'waar sta ik' op deze zoekterm")
     args = ap.parse_args()
 
     path = args.from_json if os.path.isabs(args.from_json) \
@@ -180,11 +268,12 @@ def main():
                 velocity[key] = (p.get("reviews") or 0) - old[key]
 
     ranked = score_items(items, velocity)
-    report(ranked, today, prev)
+    profiles = report(ranked, today, prev, query=args.query, focus=args.brand)
     out = os.path.join(HERE, "data", "kruidvat_bestsellers.json")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
-        json.dump(ranked, f, ensure_ascii=False, indent=1)
+        json.dump({"query": args.query, "ranked": ranked,
+                   "brands": profiles}, f, ensure_ascii=False, indent=1)
 
 
 if __name__ == "__main__":
