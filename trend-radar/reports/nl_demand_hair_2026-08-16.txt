@@ -1,0 +1,121 @@
+[gtrends 1/20] ['krullen', 'kapper', 'krullenkapper', 'krullendhaar']
+[gtrends 2/20] ['kappers', 'permanentkrullen', 'gezondhaar', 'hoofdhuid']
+[gtrends 3/20] ['stijltang', 'krultang', 'drooghaar', 'krullentips']
+[gtrends 4/20] ['krullenkwekerij', 'haarstijl', 'krullenkapperbelgië', 'rozemarijnolie']
+[gtrends 5/20] ['gladhaar', 'krullenkapperherentals', 'krullentutorial', 'krullenkweken']
+[gtrends 6/20] ['krullenknippen', 'vlechtjes', 'haarverf', 'haarkrullen']
+[gtrends 7/20] ['krullenspecialist', 'hoofdhuidverzorging', 'haartip', 'haargroeitips']
+[gtrends 8/20] ['krullenkapperutrecht', 'vethaar', 'haarolie', 'haarverzorging']
+[gtrends 9/20] ['pluizighaar', 'haarvitamines', 'krullenkapperkempen', 'haargroei']
+[gtrends 10/20] ['haarmasker', 'kappertips', 'langhaar', 'kappersopleiding']
+[gtrends 11/20] ['krullendhaarroutine', 'vlecht', 'slapenmetkrullen', 'haarproducten']
+[gtrends 12/20] ['haartransformatie', 'hairtok', 'haartutorial', 'zilvershampoo']
+[gtrends 13/20] ['krullenroutine', 'kroeshaar', 'balayage', 'krullenmaken']
+[gtrends 14/20] ['kroeshaarkapper', 'vethaartips', 'keratine', 'olaplex']
+[gtrends 15/20] ['haarextensions', 'extensions', 'tape extensions', 'curly girl methode']
+[gtrends 16/20] ['blowout', 'heatless curls', 'slick back', 'slick back bun']
+[gtrends 17/20] ['highlights', 'wolf cut', 'haartrends', 'hair care']
+[gtrends 18/20] ['hair growth', 'rosemaryoil', 'bond repair', 'scalp care']
+[gtrends 19/20] ['curly hair', 'hair oil', 'hair mask', 'hair tutorial']
+[gtrends 20/20] ['hairhacks', 'hair loss', 'hair', 'curls']
+
+================================================================================================
+  ECHTE NL-VRAAG PER TERM — Google Trends geo=NL (taal-onafhankelijk) | anker: shampoo | 2026-08-16 11:16 UTC
+================================================================================================
+    # term                     zoekterm                  index  momentum  tiktok  combined
+------------------------------------------------------------------------------------------------
+    1 #kapper                  kapper                       95      x1.0     93%       94%
+    2 #krullen                 krullen                      14     x0.89     94%       53%
+    3 #kappers                 kappers                      20     x0.95     79%       49%
+    4 #krullenkapper           krullenkapper                 3      x2.5     87%       47%
+    5 #hair                    hair                        220     x0.94      0%       47%
+    6 #krullendhaar            krullendhaar                  0         -     83%       42%
+    7 #permanentkrullen        permanentkrullen              0         -     74%       37%
+    8 #hoofdhuid               hoofdhuid                     7      x0.9     65%       36%
+    9 #stijltang               stijltang                     5     x0.95     65%       35%
+   10 #gezondhaar              gezondhaar                    0         -     67%       34%
+   11 #krultang                krultang                      3     x0.73     63%       33%
+   12 #drooghaar               drooghaar                     0         -     63%       32%
+   13 #krullentips             krullentips                   0         -     62%       31%
+   14 #krullenkwekerij         krullenkwekerij               0         -     59%       30%
+   15 #haarstijl               haarstijl                     0         -     59%       30%
+   16 #haarverf                haarverf                      8     x0.84     53%       30%
+   17 #krullenkapperbelgië     krullenkapperbelgië           0         -     57%       28%
+   18 #rozemarijnolie          rozemarijnolie                0         -     55%       28%
+   19 #gladhaar                gladhaar                      0         -     55%       28%
+   20 #krullenkapperherentals  krullenkapperherentals        0         -     55%       28%
+   21 #krullentutorial         krullentutorial               0         -     55%       28%
+   22 #haarolie                haarolie                      3      x7.5     49%       28%
+   23 #krullenkweken           krullenkweken                 0         -     54%       27%
+   24 #krullenknippen          krullenknippen                0         -     54%       27%
+   25 #vlechtjes               vlechtjes                     0         -     53%       26%
+   26 #haarkrullen             haarkrullen                   0         -     53%       26%
+   27 #krullenspecialist       krullenspecialist             0         -     52%       26%
+   28 #hoofdhuidverzorging     hoofdhuidverzorging           0         -     51%       26%
+   29 #haartip                 haartip                       0         -     51%       26%
+   30 #haargroeitips           haargroeitips                 0         -     50%       25%
+   31 #krullenkapperutrecht    krullenkapperutrecht          0         -     50%       25%
+   32 #vethaar                 vethaar                       0         -     50%       25%
+   33 #haargroei               haargroei                     3     x1.88     45%       25%
+   34 #haarverzorging          haarverzorging                0         -     48%       24%
+   35 #pluizighaar             pluizighaar                   0         -     48%       24%
+   36 #haarvitamines           haarvitamines                 0         -     47%       24%
+   37 #vlecht                  vlecht                        3      x2.0     42%       24%
+   38 #krullenkapperkempen     krullenkapperkempen           0         -     46%       23%
+   39 #haarmasker              haarmasker                    3     x1.07     44%       23%
+   40 #kappertips              kappertips                    0         -     44%       22%
+   41 #langhaar                langhaar                      1     x1.61     43%       22%
+   42 #kappersopleiding        kappersopleiding              0         -     43%       22%
+   43 #haarproducten           haarproducten                 1    x12.86     40%       22%
+   44 #zilvershampoo           zilvershampoo                 2     x3.48     37%       22%
+   45 #krullendhaarroutine     krullendhaarroutine           0         -     42%       21%
+   46 #slapenmetkrullen        slapenmetkrullen              0         -     42%       21%
+   47 #haartransformatie       haartransformatie             0         -     39%       20%
+   48 #hairtok                 hairtok                       0         -     39%       20%
+   49 #haartutorial            haartutorial                  0         -     39%       20%
+   50 #balayage                balayage                      3     x1.36     35%       19%
+   51 #krullenroutine          krullenroutine                0         -     36%       18%
+   52 #kroeshaar               kroeshaar                     0         -     36%       18%
+   53 #krullenmaken            krullenmaken                  0         -     34%       17%
+   54 #kroeshaarkapper         kroeshaarkapper               0         -     33%       16%
+   55 #vethaartips             vethaartips                   0         -     32%       16%
+   56 #curls                   curls                        12     x1.15      0%        7%
+   57 #olaplex                 olaplex                       8     x1.37      0%        6%
+   58 #extensions              extensions                   17     x0.76      0%        6%
+   59 #hairmask                hair mask                     7     x1.64      0%        6%
+   60 #hairoil                 hair oil                     10     x1.04      0%        5%
+   61 #keratine                keratine                      3     x3.33      0%        4%
+   62 #blowout                 blowout                       2     x2.14      0%        3%
+   63 #hairgrowth              hair growth                   7     x0.76      0%        3%
+   64 #bondrepair              bond repair                   2    x10.71      0%        3%
+   65 #curlyhair               curly hair                    6     x0.85      0%        2%
+   66 #tapeextensions          tape extensions               1     x3.21      0%        1%
+   67 #highlights              highlights                   13     x0.21      0%        1%
+   68 #haircare                hair care                     5     x0.59      0%        1%
+   69 #scalpcare               scalp care                    1     x3.21      0%        1%
+   70 #hairloss                hair loss                     6     x0.34      0%        1%
+   71 #haarextensions          haarextensions                0         -      0%        0%
+   72 #curlygirlmethode        curly girl methode            0         -      0%        0%
+   73 #heatlesscurls           heatless curls                0         -      0%        0%
+   74 #slickback               slick back                    0         -      0%        0%
+   75 #slickbackbun            slick back bun                0         -      0%        0%
+   76 #wolfcut                 wolf cut                      0     x2.14      0%        0%
+   77 #haartrends              haartrends                    0         -      0%        0%
+   78 #rosemaryoil             rosemaryoil                   0         -      0%        0%
+   79 #hairtutorial            hair tutorial                 0         -      0%        0%
+   80 #hairhacks               hairhacks                     0         -      0%        0%
+------------------------------------------------------------------------------------------------
+  index = zoekvolume in NL t.o.v. 'shampoo' (=100), laatste 14d | momentum = 14d vs 30d ervoor
+  combined = 50% NL-zoekvraag x momentum + 50% TikTok trend-score
+
+  RISING/BREAKOUT ZOEKOPDRACHTEN IN NL (Google's eigen stijgers, alle talen):
+    kapper: kapper bedum (+100%), kapper leersum (+100%), kapper joop (+90%), kapper oud beijerland (+50%), kapper epe (+50%), kapper elst (+50%)
+    krullen: plopdoek krullen (BREAKOUT), krullen crème kruidvat (+140%), krullen kapper den haag (+100%), leave-in conditioner krullen (+80%), beste diffuser voor krullen (+80%), krullen en spullen (+70%)
+    kappers: ami kappers prijzen (BREAKOUT), team kappers nijmegen (BREAKOUT), ami kappers winterswijk (BREAKOUT), ched kappers (BREAKOUT), arena kappers eersel (+300%), h&e kappers (+300%)
+    krullenkapper: krullenkapper limburg (BREAKOUT), krullenkapper diessen (BREAKOUT), krullenkapper amersfoort (+170%), krullenkapper valkenburg (+120%), krullenkapper breda (+60%), krullenkapper apeldoorn (+60%)
+    hair: how to remove pet hair from carpet (+2300%), haaland short hair (+750%), hizi hair hilversum (+200%), k18 leave-in molecular repair hair mask (+190%), total hair (+110%), minoxidil (+100%)
+    hoofdhuid: jeukende hoofdhuid en haaruitval (BREAKOUT), hoofdhuid verbrand door zon (+2100%), zonnebrand poeder hoofdhuid (+450%), hoofdhuid zonnebrand (+300%), zonnebrand voor hoofdhuid (+250%), hoofdhuid verbrand (+250%)
+    stijltang: hoe maak je krullen met een stijltang (+4150%), babyliss pro stijltang (+350%), dyson stijltang aanbieding (+250%), oplaadbare stijltang (+180%), goede stijltang (+80%), mag stijltang in handbagage (+70%)
+    krultang: stijltang en krultang in 1 (BREAKOUT), krultang blokker (BREAKOUT), mini krultang voor kort haar (BREAKOUT), krultang automatisch (+550%), wave krultang (+100%), waver krultang (+90%)
+
+  data -> data/demand_nl_hair.json + demand_nl_hair.csv

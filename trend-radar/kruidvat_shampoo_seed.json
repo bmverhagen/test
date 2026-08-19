@@ -1,0 +1,22 @@
+[
+  {"name": "Head & Shoulders Intense Hydration Antiroosshampoo 250ml", "brand": "Head & Shoulders", "ean": "8006540778472", "reviews": 3288, "rating": 4.6, "shelf": 9, "promo": true, "houseBrand": false, "bolTop10": false},
+  {"name": "Andrélon Iedere Dag Shampoo 400ml", "brand": "Andrélon", "ean": "8710447275803", "reviews": 266, "rating": 4.5, "shelf": 4, "promo": true, "houseBrand": false, "bolTop10": true},
+  {"name": "Garnier Loving Blends Honing Goud Shampoo 300ml", "brand": "Garnier", "ean": "3600541253678", "reviews": 235, "rating": 4.5, "shelf": 5, "promo": false, "houseBrand": false, "bolTop10": false},
+  {"name": "Head & Shoulders Classic Antiroosshampoo 250ml", "brand": "Head & Shoulders", "ean": "8006530004107", "reviews": 179, "rating": 4.63, "shelf": 2, "promo": true, "houseBrand": false, "bolTop10": false},
+  {"name": "Head & Shoulders Classic Antiroosshampoo 400ml", "brand": "Head & Shoulders", "ean": "8006540000000", "reviews": 179, "rating": 4.6, "shelf": 10, "promo": true, "houseBrand": false, "bolTop10": false},
+  {"name": "L'Oréal Paris Elvive Color Vive Shampoo 250ml", "brand": "L'Oréal Paris", "ean": "3600523954375", "reviews": 145, "rating": 4.4, "shelf": 16, "promo": false, "houseBrand": false, "bolTop10": false},
+  {"name": "L'Oréal Paris Elvive Dream Lengths Shampoo 250ml", "brand": "L'Oréal Paris", "ean": "3600523201244", "reviews": 139, "rating": 4.4, "shelf": 7, "promo": false, "houseBrand": false, "bolTop10": false},
+  {"name": "L'Oréal Paris Elvive Hydra Hyaluronic Shampoo 250ml", "brand": "L'Oréal Paris", "ean": "3600523954405", "reviews": 131, "rating": 4.4, "shelf": 17, "promo": false, "houseBrand": false, "bolTop10": true},
+  {"name": "Syoss Intense Keratin Deep Caring Shampoo 440ml", "brand": "Syoss", "ean": "4015100200000", "reviews": 121, "rating": 4.3, "shelf": 1, "promo": true, "houseBrand": false, "bolTop10": true},
+  {"name": "Andrélon Perfecte Krul Verzorgende Shampoo 250ml", "brand": "Andrélon", "ean": "8710447331400", "reviews": 110, "rating": 4.4, "shelf": 11, "promo": true, "houseBrand": false, "bolTop10": false},
+  {"name": "Syoss Intense Repair Deep Caring Shampoo 440ml", "brand": "Syoss", "ean": "4015100200001", "reviews": 106, "rating": 4.3, "shelf": 15, "promo": true, "houseBrand": false, "bolTop10": false},
+  {"name": "Andrélon Oil & Care Voedende Shampoo 250ml", "brand": "Andrélon", "ean": "8710447275810", "reviews": 98, "rating": 4.5, "shelf": 8, "promo": true, "houseBrand": false, "bolTop10": true},
+  {"name": "Neutral 0% Parfumvrije Shampoo 250ml", "brand": "Neutral", "ean": "8710847900000", "reviews": 91, "rating": 4.4, "shelf": 13, "promo": false, "houseBrand": false, "bolTop10": false},
+  {"name": "Kruidvat Daily Mild Shampoo 500ml", "brand": "Kruidvat", "ean": "8720674000000", "reviews": 85, "rating": 4.2, "shelf": 3, "promo": false, "houseBrand": true, "bolTop10": false},
+  {"name": "Kruidvat Active Fresh Men 2-in-1 500ml", "brand": "Kruidvat", "ean": "8720674000001", "reviews": 80, "rating": 4.1, "shelf": 6, "promo": false, "houseBrand": true, "bolTop10": false},
+  {"name": "DermaXPro by Head & Shoulders Kalmeert 250ml", "brand": "Head & Shoulders", "ean": "8006540778000", "reviews": 76, "rating": 4.3, "shelf": 19, "promo": true, "houseBrand": false, "bolTop10": false},
+  {"name": "Head & Shoulders Jeukende Hoofdhuid 2-in-1 250ml", "brand": "Head & Shoulders", "ean": "8006540778001", "reviews": 59, "rating": 4.3, "shelf": 18, "promo": true, "houseBrand": false, "bolTop10": false},
+  {"name": "L'Oréal Paris Elvive Hyaluron Pure Shampoo 250ml", "brand": "L'Oréal Paris", "ean": "3600523954412", "reviews": 54, "rating": 4.3, "shelf": 14, "promo": false, "houseBrand": false, "bolTop10": false},
+  {"name": "Andrélon 2-in-1 Shampoo en Conditioner 400ml", "brand": "Andrélon", "ean": "8710447275827", "reviews": 36, "rating": 4.2, "shelf": 20, "promo": true, "houseBrand": false, "bolTop10": false},
+  {"name": "Dove Scalp + Hair Therapy Density & Growth Shampoo 400ml", "brand": "Dove", "ean": "8712561610000", "reviews": 5, "rating": 4.0, "shelf": 12, "promo": true, "houseBrand": false, "bolTop10": false}
+]
