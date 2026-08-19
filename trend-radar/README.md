@@ -515,6 +515,34 @@ python3 attribute_bridge.py --no-amazon   # alleen de TikTok-kant
 Output: console-digest + `data/attributes.json` — de joinbare
 attribuut-tabel (join-key = attribuutnaam, gelijk aan `engine.SIGNALS`).
 
+## Kruidvat-bestsellers schatten (`kruidvat_bestsellers.py`)
+
+Kruidvat geeft geen units en geen sales-rank; de schapvolgorde is
+merchandising. Toch een bruikbaar antwoord: een **relatieve rank
+binnen één categorie**, uit drie publieke proxies.
+
+| Signaal | Waarom | Gewicht |
+|---|---|---|
+| **log(aantal reviews)** | Review alleen na online aankoop (mail na 14 dagen) → trage webshop-verkoopproxy | 70% |
+| **Δreviews week-op-week** | Snapshot van dezelfde SKU's; velocity i.p.v. cumulatief | 15% (vanaf week 2) |
+| **Bol.com top-10 "best verkocht"** | Bol publiceert wél een verkooplijst; overlap op dezelfde lijn = NL-bevestiging | 10% |
+| **Sterren** | Tie-breaker | 5% |
+| **Anti-push** | Schap ≤15 én <25 reviews → label PUSH/LAUNCH, score ×0,25 | — |
+
+Eerste testrun op 20 shampoos van kruidvat.nl (aug 2026):
+
+- **#1 Head & Shoulders Intense Hydration** (3.288 reviews) — staat op schap 9, niet vooraan. Dat is de verborgen seller.
+- **#2 Andrélon Iedere Dag** — hoog review-volume én Bol-top-10 → CONFIRMED SELLER.
+- **Dove Density & Growth** — schap 12, 5 reviews → PUSH/LAUNCH (nieuwe lijn, geen seller).
+- **Kruidvat Daily Mild** — schap 3 (huismerk-boost) valt terug naar geschatte #14.
+
+```bash
+python3 kruidvat_bestsellers.py
+```
+
+Dit is een rang, geen Nielsen-units. Winkelverkoop ontbreekt; herhaal
+wekelijks dezelfde cohort voor velocity. Seed: `kruidvat_shampoo_seed.json`.
+
 ## Wat dit bewijst
 
 - Signalen worden gedetecteerd op **behoefte/format-niveau**, niet op los ASIN-niveau
