@@ -1,0 +1,13 @@
+{
+  "folders": [
+    {
+      "name": "verbouwing",
+      "path": "verbouwing"
+    }
+  ],
+  "settings": {
+    "files.exclude": {
+      "**/.DS_Store": true
+    }
+  }
+}
