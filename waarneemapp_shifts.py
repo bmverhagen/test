@@ -22,6 +22,7 @@ Outlook weigert het gewone Hotmail-wachtwoord voor SMTP.
 
 from __future__ import annotations
 
+import html
 import json
 import smtplib
 import ssl
@@ -232,26 +233,103 @@ def save_seen(shift_ids: set[int]) -> None:
     SEEN_PATH.chmod(0o600)
 
 
-def render_report(rows: list[tuple[str, ...]], footer: str) -> str:
-    headers = ("Wanneer", "Dienst", "Aangeboden door", "Aangeboden op", "Status", "Reacties")
-    widths = [len(header) for header in headers]
-    for row in rows:
-        for index, cell in enumerate(row):
-            widths[index] = max(widths[index], len(cell))
+def describe(client: Client, shift: dict) -> dict[str, str]:
+    code = code_of(shift)
+    department = (code.get("department") or {}).get("name") or "Leiderdorp"
+    assigned = ((shift.get("vacancy") or {}).get("assigned_user") or {}).get("name") or "—"
+    offered_by, offered_on, responses = offer_info(client, shift["id"])
+    return {
+        "when": format_when(shift),
+        "code": code.get("code") or "—",
+        "name": code.get("name") or "—",
+        "department": department,
+        "status": str(shift.get("_status") or "—"),
+        "assigned": assigned,
+        "offered_by": offered_by,
+        "offered_on": offered_on,
+        "responses": str(responses),
+        "hours": str(shift.get("wa_shift_diff_in_hours") or "—"),
+        "id": str(shift.get("id") or "—"),
+    }
 
-    def line(cells: tuple[str, ...]) -> str:
-        return "  ".join(cell.ljust(widths[index]) for index, cell in enumerate(cells)).rstrip()
 
-    lines = [line(headers), line(tuple("-" * width for width in widths))]
+def detail_pairs(row: dict[str, str]) -> list[tuple[str, str]]:
+    return [
+        ("Wanneer", row["when"]),
+        ("Code", row["code"]),
+        ("Dienst", row["name"]),
+        ("Afdeling", row["department"]),
+        ("Status", row["status"]),
+        ("Ingevuld door", row["assigned"]),
+        ("Aangeboden door", row["offered_by"]),
+        ("Aangeboden op", row["offered_on"]),
+        ("Duur", row["hours"]),
+        ("Reacties", row["responses"]),
+        ("Dienstnummer", row["id"]),
+    ]
+
+
+def render_report(rows: list[dict[str, str]], footer: str) -> str:
     if not rows:
-        lines.append("Geen diensten buiten de nachten.")
-    lines.extend(line(row) for row in rows)
-    lines.append("")
-    lines.append(footer)
-    return "\n".join(lines)
+        return f"Geen diensten buiten de nachten.\n\n{footer}"
+    blocks = []
+    for row in rows:
+        blocks.append(f"{row['code']}  {row['name']}")
+        blocks.extend(f"  {label}: {value}" for label, value in detail_pairs(row))
+        blocks.append("")
+    blocks.append(footer)
+    return "\n".join(blocks)
 
 
-def send_report(report: str, subject: str) -> bool:
+def render_html(rows: list[dict[str, str]], footer: str) -> str:
+    cards = []
+    for row in rows:
+        title = html.escape(f"{row['code']}  {row['name']}")
+        body = []
+        for label, value in detail_pairs(row):
+            body.append(
+                "<tr>"
+                f"<td style=\"padding:8px 14px;color:#52606d;width:38%;border-top:1px solid #e6ebf0;\">{html.escape(label)}</td>"
+                f"<td style=\"padding:8px 14px;border-top:1px solid #e6ebf0;\">{html.escape(value)}</td>"
+                "</tr>"
+            )
+        cards.append(
+            "<table role=\"presentation\" width=\"100%\" cellspacing=\"0\" cellpadding=\"0\" "
+            "style=\"background:#ffffff;border:1px solid #d9e2ec;border-radius:10px;"
+            "margin:0 0 16px;border-collapse:separate;overflow:hidden;\">"
+            f"<tr><td colspan=\"2\" style=\"background:#163a5f;color:#ffffff;padding:14px 16px;"
+            f"font-size:16px;font-weight:bold;\">{title}</td></tr>"
+            f"{''.join(body)}</table>"
+        )
+    if not cards:
+        cards.append("<p style=\"margin:0;\">Geen diensten buiten de nachten.</p>")
+    return (
+        "<!DOCTYPE html><html><body style=\"margin:0;background:#f4f7fb;"
+        "font-family:Arial,Helvetica,sans-serif;color:#1c2430;\">"
+        "<div style=\"max-width:640px;margin:0 auto;padding:28px 16px;\">"
+        "<p style=\"margin:0 0 6px;font-size:13px;letter-spacing:.04em;color:#52606d;\">"
+        "WAARNEEMAPP · LEIDERDORP</p>"
+        "<h1 style=\"margin:0 0 8px;font-size:22px;\">Aangeboden diensten</h1>"
+        f"<p style=\"margin:0 0 20px;color:#52606d;\">{html.escape(footer)}</p>"
+        f"{''.join(cards)}"
+        "</div></body></html>"
+    )
+
+
+def subject_for(rows: list[dict[str, str]], *, new: bool, run_number: int | None = None) -> str:
+    if not rows:
+        listed = "geen diensten"
+    elif new and len(rows) == 1:
+        row = rows[0]
+        return f"Nieuwe dienst: {row['code']} {row['name']}, {row['when']}"
+    else:
+        listed = "; ".join(f"{row['code']} {row['when']}" for row in rows)
+    if new:
+        return f"Nieuwe diensten: {listed}"
+    return f"Testoverzicht {run_number}/{TEST_RUNS}: {listed}"
+
+
+def send_report(rows: list[dict[str, str]], footer: str, subject: str) -> bool:
     if not SMTP_PASSWORD:
         print(
             "SMTP_PASSWORD is leeg, mail niet verstuurd. Vul bovenaan een "
@@ -262,7 +340,8 @@ def send_report(report: str, subject: str) -> bool:
     message["Subject"] = subject
     message["From"] = MAIL_FROM
     message["To"] = MAIL_TO
-    message.set_content(report)
+    message.set_content(render_report(rows, footer))
+    message.add_alternative(render_html(rows, footer), subtype="html")
     context = ssl.create_default_context()
     with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as smtp:
         smtp.ehlo()
@@ -283,19 +362,6 @@ def collect_shifts(client: Client) -> list[dict]:
     return kept
 
 
-def row_for(client: Client, shift: dict) -> tuple[str, ...]:
-    code = code_of(shift)
-    offered_by, offered_on, responses = offer_info(client, shift["id"])
-    return (
-        format_when(shift),
-        f"{code.get('code') or ''} {code.get('name') or ''}".strip(),
-        offered_by,
-        offered_on,
-        str(shift.get("_status")),
-        str(responses),
-    )
-
-
 def run_once(client: Client, run_number: int) -> None:
     now = datetime.now(AMSTERDAM).strftime("%Y-%m-%d %H:%M:%S")
     kept = collect_shifts(client)
@@ -307,15 +373,14 @@ def run_once(client: Client, run_number: int) -> None:
         print("Testfase klaar. Het script blijft elke minuut draaien en mailt alleen nieuwe diensten.")
 
     if run_number <= TEST_RUNS:
-        rows = [row_for(client, shift) for shift in kept]
+        rows = [describe(client, shift) for shift in kept]
         footer = (
             f"Testmail {run_number} van {TEST_RUNS}. "
             f"Volledig overzicht: {len(rows)} dienst(en), nachten weggelaten."
         )
-        report = render_report(rows, footer)
-        print(report)
-        subject = f"Testoverzicht aangeboden diensten Leiderdorp ({run_number}/{TEST_RUNS})"
-        if send_report(report, subject):
+        print(render_report(rows, footer))
+        subject = subject_for(rows, new=False, run_number=run_number)
+        if send_report(rows, footer, subject):
             print(f"Gemaild naar {MAIL_TO}: volledig overzicht, run {run_number}/{TEST_RUNS}.")
         save_seen(current_ids)
         return
@@ -332,13 +397,12 @@ def run_once(client: Client, run_number: int) -> None:
         print(f"{now} Geen nieuwe diensten ({len(current_ids)} bekend).")
         return
 
-    rows = [row_for(client, shift) for shift in new_shifts]
+    rows = [describe(client, shift) for shift in new_shifts]
     count = len(rows)
     footer = f"{count} nieuwe dienst(en) sinds de vorige controle. Nachten blijven buiten beeld."
-    report = render_report(rows, footer)
-    print(report)
-    subject = "Nieuwe aangeboden dienst Leiderdorp" if count == 1 else f"{count} nieuwe aangeboden diensten Leiderdorp"
-    if send_report(report, subject):
+    print(render_report(rows, footer))
+    subject = subject_for(rows, new=True)
+    if send_report(rows, footer, subject):
         save_seen(current_ids)
         print(f"Gemaild naar {MAIL_TO}: {count} nieuwe dienst(en).")
         return
