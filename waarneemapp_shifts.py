@@ -1,48 +1,51 @@
 #!/usr/bin/env python3
-"""Haal aangeboden diensten op (status 16 en 26) en laat nachten weg.
+"""Zelfstandig script: aangeboden diensten ophalen en mailen.
 
-Van de huidige maand tot en met december 2027, voor Leiderdorp.
-Het overzicht wordt ook gemaild.
+Haalt status 16 en 26 op voor Leiderdorp, van deze maand t/m december 2027,
+laat nachten weg, print het overzicht en mailt het.
 
-Gebruik:
-  WA_EMAIL=... WA_PASSWORD=... \\
-  WA_SMTP_USER=... WA_SMTP_PASSWORD=... \\
+Start:
   python3 waarneemapp_shifts.py
 
-WA_SMTP_HOST staat standaard op smtp.gmail.com, poort 587.
-Het ontvangeradres is bas.m.verhagen@gmail.com, tenzij WA_MAIL_TO anders is.
+Vul hieronder de twee wachtwoorden in. Het SMTP-wachtwoord is een
+Gmail-appwachtwoord van het account dat de mail verstuurt
+(https://myaccount.google.com/apppasswords), niet het WaarneemApp-wachtwoord.
+Outlook weigert het gewone Hotmail-wachtwoord voor SMTP.
 """
 
 from __future__ import annotations
 
 import json
-import os
 import smtplib
+import ssl
 import urllib.error
 import urllib.request
 from datetime import datetime
 from email.message import EmailMessage
 from zoneinfo import ZoneInfo
 
+# --- instellingen -----------------------------------------------------------
+
+WA_EMAIL = "annejet.warmenhoven@hotmail.com"
+WA_PASSWORD = ""  # WaarneemApp-wachtwoord
+
+SMTP_HOST = "smtp.gmail.com"
+SMTP_PORT = 587
+SMTP_USER = "bas.m.verhagen@gmail.com"
+SMTP_PASSWORD = ""  # Gmail-appwachtwoord van SMTP_USER
+MAIL_FROM = SMTP_USER
+MAIL_TO = "bas.m.verhagen@gmail.com"
+
+# ---------------------------------------------------------------------------
+
 API = "https://waarneemapp.nl/api"
 COMPANY_ID = 8127
 DEPARTMENT_ID = 8355
 STATUSES = (16, 26)
-MAIL_TO = "bas.m.verhagen@gmail.com"
 AMSTERDAM = ZoneInfo("Europe/Amsterdam")
 MONTHS_NL = (
-    "jan",
-    "feb",
-    "mrt",
-    "apr",
-    "mei",
-    "jun",
-    "jul",
-    "aug",
-    "sep",
-    "okt",
-    "nov",
-    "dec",
+    "jan", "feb", "mrt", "apr", "mei", "jun",
+    "jul", "aug", "sep", "okt", "nov", "dec",
 )
 WEEKDAYS_NL = ("ma", "di", "wo", "do", "vr", "za", "zo")
 
@@ -173,41 +176,32 @@ def render_report(rows: list[tuple[str, ...]]) -> str:
     return "\n".join(lines)
 
 
-def send_report(report: str) -> str:
-    recipient = os.environ.get("WA_MAIL_TO", MAIL_TO).strip() or MAIL_TO
-    host = os.environ.get("WA_SMTP_HOST", "smtp.gmail.com").strip()
-    port = int(os.environ.get("WA_SMTP_PORT", "587"))
-    user = os.environ.get("WA_SMTP_USER", "").strip()
-    password = os.environ.get("WA_SMTP_PASSWORD", "")
-    sender = os.environ.get("WA_SMTP_FROM", user).strip()
-    if not user or not password or not sender:
+def send_report(report: str) -> None:
+    if not SMTP_PASSWORD:
         raise SystemExit(
-            "De mail is niet verstuurd. Zet WA_SMTP_USER en WA_SMTP_PASSWORD "
-            "(een Gmail-appwachtwoord) en draai het script opnieuw."
+            "SMTP_PASSWORD is leeg. Vul bovenaan een Gmail-appwachtwoord in van "
+            f"{SMTP_USER}. Het WaarneemApp-wachtwoord kan deze mail niet versturen: "
+            "Outlook weigert dat wachtwoord voor SMTP."
         )
-
     message = EmailMessage()
     message["Subject"] = "Aangeboden diensten Leiderdorp, zonder nachten"
-    message["From"] = sender
-    message["To"] = recipient
+    message["From"] = MAIL_FROM
+    message["To"] = MAIL_TO
     message.set_content(report)
-
-    with smtplib.SMTP(host, port, timeout=30) as smtp:
+    context = ssl.create_default_context()
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as smtp:
         smtp.ehlo()
-        smtp.starttls()
+        smtp.starttls(context=context)
         smtp.ehlo()
-        smtp.login(user, password)
+        smtp.login(SMTP_USER, SMTP_PASSWORD)
         smtp.send_message(message)
-    return recipient
 
 
 def main() -> None:
-    email = os.environ.get("WA_EMAIL", "").strip()
-    password = os.environ.get("WA_PASSWORD", "")
-    if not email or not password:
-        raise SystemExit("Zet WA_EMAIL en WA_PASSWORD in de omgeving en draai het script opnieuw.")
+    if not WA_PASSWORD:
+        raise SystemExit("WA_PASSWORD is leeg. Vul het WaarneemApp-wachtwoord bovenaan het script in.")
 
-    token = login(email, password)
+    token = login(WA_EMAIL, WA_PASSWORD)
     shifts = []
     for year, month in month_range(datetime.now(AMSTERDAM)):
         for status in STATUSES:
@@ -233,8 +227,8 @@ def main() -> None:
 
     report = render_report(rows)
     print(report)
-    recipient = send_report(report)
-    print(f"Gemaild naar {recipient}.")
+    send_report(report)
+    print(f"Gemaild naar {MAIL_TO}.")
 
 
 if __name__ == "__main__":
