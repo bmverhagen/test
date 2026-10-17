@@ -362,15 +362,20 @@ def collect_shifts(client: Client) -> list[dict]:
     return kept
 
 
+def log(message: str) -> None:
+    stamp = datetime.now(AMSTERDAM).strftime("%Y-%m-%d %H:%M:%S")
+    print(f"{stamp} {message}", flush=True)
+
+
 def run_once(client: Client, run_number: int) -> None:
-    now = datetime.now(AMSTERDAM).strftime("%Y-%m-%d %H:%M:%S")
+    log(f"Run {run_number}: controle gestart.")
     kept = collect_shifts(client)
     if client.token and not client.logged_in and not client.token_ok_reported:
-        print("Bestaande token is geldig, niet opnieuw ingelogd.")
+        log("Bestaande token is geldig, niet opnieuw ingelogd.")
         client.token_ok_reported = True
     current_ids = {shift["id"] for shift in kept}
     if run_number == TEST_RUNS + 1:
-        print("Testfase klaar. Het script blijft elke minuut draaien en mailt alleen nieuwe diensten.")
+        log("Testfase klaar. Het script blijft elke minuut draaien en mailt alleen nieuwe diensten.")
 
     if run_number <= TEST_RUNS:
         rows = [describe(client, shift) for shift in kept]
@@ -378,35 +383,38 @@ def run_once(client: Client, run_number: int) -> None:
             f"Testmail {run_number} van {TEST_RUNS}. "
             f"Volledig overzicht: {len(rows)} dienst(en), nachten weggelaten."
         )
-        print(render_report(rows, footer))
+        print(render_report(rows, footer), flush=True)
         subject = subject_for(rows, new=False, run_number=run_number)
-        if send_report(rows, footer, subject):
-            print(f"Gemaild naar {MAIL_TO}: volledig overzicht, run {run_number}/{TEST_RUNS}.")
+        mailed = send_report(rows, footer, subject)
+        if mailed:
+            log(f"Run {run_number}: klaar, testmail verstuurd naar {MAIL_TO}, {len(rows)} diensten.")
+        else:
+            log(f"Run {run_number}: klaar, testmail niet verstuurd, {len(rows)} diensten.")
         save_seen(current_ids)
         return
 
     previous = load_seen()
     if previous is None:
         save_seen(current_ids)
-        print(f"{now} Geen eerdere stand. {len(current_ids)} diensten vastgelegd, geen mail.")
+        log(f"Run {run_number}: klaar, geen eerdere stand, {len(current_ids)} diensten vastgelegd, geen mail.")
         return
 
     new_shifts = [shift for shift in kept if shift["id"] not in previous]
     if not new_shifts:
         save_seen(current_ids)
-        print(f"{now} Geen nieuwe diensten ({len(current_ids)} bekend).")
+        log(f"Run {run_number}: klaar, geen nieuwe diensten, {len(current_ids)} bekend.")
         return
 
     rows = [describe(client, shift) for shift in new_shifts]
     count = len(rows)
     footer = f"{count} nieuwe dienst(en) sinds de vorige controle. Nachten blijven buiten beeld."
-    print(render_report(rows, footer))
+    print(render_report(rows, footer), flush=True)
     subject = subject_for(rows, new=True)
     if send_report(rows, footer, subject):
         save_seen(current_ids)
-        print(f"Gemaild naar {MAIL_TO}: {count} nieuwe dienst(en).")
+        log(f"Run {run_number}: klaar, mail verstuurd naar {MAIL_TO}, {count} nieuwe dienst(en).")
         return
-    print("De nieuwe diensten blijven nieuw tot de mail lukt.")
+    log(f"Run {run_number}: klaar, {count} nieuwe dienst(en), mail niet verstuurd.")
 
 
 def main() -> None:
@@ -422,7 +430,7 @@ def main() -> None:
         except SystemExit:
             raise
         except Exception as error:
-            print(f"Fout tijdens controle: {error}")
+            log(f"Run {run_number}: fout tijdens controle: {error}")
         remaining = INTERVAL_SECONDS - (time.monotonic() - started)
         if remaining > 0:
             time.sleep(remaining)
