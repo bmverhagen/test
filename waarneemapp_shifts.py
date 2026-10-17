@@ -2,25 +2,33 @@
 """Haal aangeboden diensten op (status 16 en 26) en laat nachten weg.
 
 Van de huidige maand tot en met december 2027, voor Leiderdorp.
+Het overzicht wordt ook gemaild.
 
 Gebruik:
-  WA_EMAIL=... WA_PASSWORD=... python3 waarneemapp_shifts.py
+  WA_EMAIL=... WA_PASSWORD=... \\
+  WA_SMTP_USER=... WA_SMTP_PASSWORD=... \\
+  python3 waarneemapp_shifts.py
+
+WA_SMTP_HOST staat standaard op smtp.gmail.com, poort 587.
+Het ontvangeradres is bas.m.verhagen@gmail.com, tenzij WA_MAIL_TO anders is.
 """
 
 from __future__ import annotations
 
 import json
 import os
-import sys
+import smtplib
 import urllib.error
 import urllib.request
 from datetime import datetime
+from email.message import EmailMessage
 from zoneinfo import ZoneInfo
 
 API = "https://waarneemapp.nl/api"
 COMPANY_ID = 8127
 DEPARTMENT_ID = 8355
 STATUSES = (16, 26)
+MAIL_TO = "bas.m.verhagen@gmail.com"
 AMSTERDAM = ZoneInfo("Europe/Amsterdam")
 MONTHS_NL = (
     "jan",
@@ -146,6 +154,53 @@ def format_when(shift: dict) -> str:
     )
 
 
+def render_report(rows: list[tuple[str, ...]]) -> str:
+    headers = ("Wanneer", "Dienst", "Aangeboden door", "Aangeboden op", "Status", "Reacties")
+    widths = [len(header) for header in headers]
+    for row in rows:
+        for index, cell in enumerate(row):
+            widths[index] = max(widths[index], len(cell))
+
+    def line(cells: tuple[str, ...]) -> str:
+        return "  ".join(cell.ljust(widths[index]) for index, cell in enumerate(cells)).rstrip()
+
+    lines = [line(headers), line(tuple("-" * width for width in widths))]
+    if not rows:
+        lines.append("Geen diensten buiten de nachten.")
+    lines.extend(line(row) for row in rows)
+    lines.append("")
+    lines.append(f"{len(rows)} diensten, nachten weggelaten. Periode: deze maand t/m december 2027.")
+    return "\n".join(lines)
+
+
+def send_report(report: str) -> str:
+    recipient = os.environ.get("WA_MAIL_TO", MAIL_TO).strip() or MAIL_TO
+    host = os.environ.get("WA_SMTP_HOST", "smtp.gmail.com").strip()
+    port = int(os.environ.get("WA_SMTP_PORT", "587"))
+    user = os.environ.get("WA_SMTP_USER", "").strip()
+    password = os.environ.get("WA_SMTP_PASSWORD", "")
+    sender = os.environ.get("WA_SMTP_FROM", user).strip()
+    if not user or not password or not sender:
+        raise SystemExit(
+            "De mail is niet verstuurd. Zet WA_SMTP_USER en WA_SMTP_PASSWORD "
+            "(een Gmail-appwachtwoord) en draai het script opnieuw."
+        )
+
+    message = EmailMessage()
+    message["Subject"] = "Aangeboden diensten Leiderdorp, zonder nachten"
+    message["From"] = sender
+    message["To"] = recipient
+    message.set_content(report)
+
+    with smtplib.SMTP(host, port, timeout=30) as smtp:
+        smtp.ehlo()
+        smtp.starttls()
+        smtp.ehlo()
+        smtp.login(user, password)
+        smtp.send_message(message)
+    return recipient
+
+
 def main() -> None:
     email = os.environ.get("WA_EMAIL", "").strip()
     password = os.environ.get("WA_PASSWORD", "")
@@ -176,23 +231,10 @@ def main() -> None:
             )
         )
 
-    headers = ("Wanneer", "Dienst", "Aangeboden door", "Aangeboden op", "Status", "Reacties")
-    widths = [len(header) for header in headers]
-    for row in rows:
-        for index, cell in enumerate(row):
-            widths[index] = max(widths[index], len(cell))
-
-    def line(cells: tuple[str, ...]) -> str:
-        return "  ".join(cell.ljust(widths[index]) for index, cell in enumerate(cells)).rstrip()
-
-    print(line(headers))
-    print(line(tuple("-" * width for width in widths)))
-    if not rows:
-        print("Geen diensten buiten de nachten.")
-    for row in rows:
-        print(line(row))
-    print()
-    print(f"{len(rows)} diensten, nachten weggelaten. Periode: deze maand t/m december 2027.")
+    report = render_report(rows)
+    print(report)
+    recipient = send_report(report)
+    print(f"Gemaild naar {recipient}.")
 
 
 if __name__ == "__main__":
