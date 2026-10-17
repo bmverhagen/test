@@ -303,6 +303,9 @@ def run_once(client: Client, run_number: int) -> None:
         print("Bestaande token is geldig, niet opnieuw ingelogd.")
         client.token_ok_reported = True
     current_ids = {shift["id"] for shift in kept}
+    if run_number == TEST_RUNS + 1:
+        print("Testfase klaar. Het script blijft elke minuut draaien en mailt alleen nieuwe diensten.")
+
     if run_number <= TEST_RUNS:
         rows = [row_for(client, shift) for shift in kept]
         footer = (
