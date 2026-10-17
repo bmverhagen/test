@@ -4,6 +4,9 @@
 Haalt status 16 en 26 op voor Leiderdorp, van deze maand t/m december 2027,
 laat nachten weg, print het overzicht en mailt het.
 
+Een geldige token staat in .waarneemapp_token.json naast dit script.
+Het script logt alleen opnieuw in als die token ontbreekt of door de API wordt geweigerd.
+
 Start:
   python3 waarneemapp_shifts.py
 
@@ -22,6 +25,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime
 from email.message import EmailMessage
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 # --- instellingen -----------------------------------------------------------
@@ -42,12 +46,17 @@ API = "https://waarneemapp.nl/api"
 COMPANY_ID = 8127
 DEPARTMENT_ID = 8355
 STATUSES = (16, 26)
+TOKEN_PATH = Path(__file__).with_name(".waarneemapp_token.json")
 AMSTERDAM = ZoneInfo("Europe/Amsterdam")
 MONTHS_NL = (
     "jan", "feb", "mrt", "apr", "mei", "jun",
     "jul", "aug", "sep", "okt", "nov", "dec",
 )
 WEEKDAYS_NL = ("ma", "di", "wo", "do", "vr", "za", "zo")
+
+
+class AuthError(Exception):
+    pass
 
 
 def request(url: str, token: str | None = None, body: dict | None = None, method: str | None = None):
@@ -64,10 +73,31 @@ def request(url: str, token: str | None = None, body: dict | None = None, method
             return json.load(response)
     except urllib.error.HTTPError as error:
         detail = error.read().decode(errors="replace")[:300]
+        if error.code == 401 and token:
+            raise AuthError(detail)
         raise SystemExit(f"HTTP {error.code} voor {url}\n{detail}") from error
 
 
+def load_saved_token() -> str | None:
+    try:
+        payload = json.loads(TOKEN_PATH.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+    token = payload.get("access_token") if isinstance(payload, dict) else None
+    return token or None
+
+
+def save_token(token: str) -> None:
+    TOKEN_PATH.write_text(json.dumps({"access_token": token}))
+    TOKEN_PATH.chmod(0o600)
+
+
 def login(email: str, password: str) -> str:
+    if not password:
+        raise SystemExit(
+            "De opgeslagen token werkt niet meer en WA_PASSWORD is leeg. "
+            "Vul het WaarneemApp-wachtwoord bovenaan het script in."
+        )
     payload = request(
         f"{API}/login",
         body={"email": email, "password": password},
@@ -76,7 +106,28 @@ def login(email: str, password: str) -> str:
     token = payload.get("access_token")
     if not token:
         raise SystemExit("Login gelukt, maar er kwam geen access_token terug.")
+    save_token(token)
     return token
+
+
+class Client:
+    def __init__(self) -> None:
+        self.token = load_saved_token()
+        self.logged_in = False
+
+    def relogin(self) -> None:
+        self.token = login(WA_EMAIL, WA_PASSWORD)
+        self.logged_in = True
+        print("Opnieuw ingelogd, token opgeslagen.")
+
+    def get(self, url: str):
+        if not self.token:
+            self.relogin()
+        try:
+            return request(url, token=self.token)
+        except AuthError:
+            self.relogin()
+            return request(url, token=self.token)
 
 
 def month_range(today: datetime):
@@ -88,7 +139,7 @@ def month_range(today: datetime):
             year, month = year + 1, 1
 
 
-def fetch_month(token: str, year: int, month: int, status: int) -> list[dict]:
+def fetch_month(client: Client, year: int, month: int, status: int) -> list[dict]:
     rows: list[dict] = []
     page = 1
     while page <= 10:
@@ -101,7 +152,7 @@ def fetch_month(token: str, year: int, month: int, status: int) -> list[dict]:
             f"&departments={DEPARTMENT_ID}&companies&company_period_id&is_hidden"
             "&user_labels&shift_labels&virtual_assigned_group_ids&company_rate_label_ids"
         )
-        batch = request(url, token=token).get("data") or []
+        batch = client.get(url).get("data") or []
         for shift in batch:
             shift["_status"] = status
         rows.extend(batch)
@@ -131,8 +182,8 @@ def is_night(shift: dict) -> bool:
     return bool(start and end and end.date() > start.date())
 
 
-def offer_info(token: str, shift_id: int) -> tuple[str, str, int]:
-    detail = request(f"{API}/wa/companies/{COMPANY_ID}/schedules/shifts/{shift_id}", token=token)
+def offer_info(client: Client, shift_id: int) -> tuple[str, str, int]:
+    detail = client.get(f"{API}/wa/companies/{COMPANY_ID}/schedules/shifts/{shift_id}")
     vacancies = (detail.get("vacancy") or {}).get("corporate_schedule_vacancies") or []
     names = []
     dates = []
@@ -198,14 +249,15 @@ def send_report(report: str) -> None:
 
 
 def main() -> None:
-    if not WA_PASSWORD:
-        raise SystemExit("WA_PASSWORD is leeg. Vul het WaarneemApp-wachtwoord bovenaan het script in.")
-
-    token = login(WA_EMAIL, WA_PASSWORD)
+    client = Client()
+    if client.token:
+        print("Opgeslagen token gevonden, eerst die gebruiken.")
     shifts = []
     for year, month in month_range(datetime.now(AMSTERDAM)):
         for status in STATUSES:
-            shifts.extend(fetch_month(token, year, month, status))
+            shifts.extend(fetch_month(client, year, month, status))
+    if client.token and not client.logged_in:
+        print("Bestaande token is geldig, niet opnieuw ingelogd.")
 
     kept = [shift for shift in shifts if not is_night(shift)]
     kept.sort(key=lambda shift: shift.get("start_time") or "")
@@ -213,7 +265,7 @@ def main() -> None:
     rows = []
     for shift in kept:
         code = code_of(shift)
-        offered_by, offered_on, responses = offer_info(token, shift["id"])
+        offered_by, offered_on, responses = offer_info(client, shift["id"])
         rows.append(
             (
                 format_when(shift),
