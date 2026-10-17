@@ -2,9 +2,10 @@
 """Zelfstandig script: aangeboden diensten bewaken en nieuwe diensten mailen.
 
 Haalt elke minuut status 16 en 26 op voor Leiderdorp, van deze maand t/m
-december 2027, en laat nachten weg. Een mail gaat alleen de deur uit als er
-diensten bij zijn gekomen sinds de vorige run. In die mail staan alleen die
-nieuwe diensten. De eerste run legt de huidige stand vast en mailt niets.
+december 2027, en laat nachten weg. De eerste 5 runs na het starten mailen
+het volledige overzicht, als test. Daarna gaat er alleen een mail de deur
+uit als er diensten bij zijn gekomen sinds de vorige run, en die mail bevat
+alleen die nieuwe diensten.
 
 Een geldige token staat in .waarneemapp_token.json naast dit script.
 Het script logt alleen opnieuw in als die token ontbreekt of door de API wordt geweigerd.
@@ -53,6 +54,7 @@ STATUSES = (16, 26)
 TOKEN_PATH = Path(__file__).with_name(".waarneemapp_token.json")
 SEEN_PATH = Path(__file__).with_name(".waarneemapp_seen.json")
 INTERVAL_SECONDS = 60
+TEST_RUNS = 5
 AMSTERDAM = ZoneInfo("Europe/Amsterdam")
 MONTHS_NL = (
     "jan", "feb", "mrt", "apr", "mei", "jun",
@@ -294,17 +296,31 @@ def row_for(client: Client, shift: dict) -> tuple[str, ...]:
     )
 
 
-def run_once(client: Client) -> None:
+def run_once(client: Client, run_number: int) -> None:
     now = datetime.now(AMSTERDAM).strftime("%Y-%m-%d %H:%M:%S")
     kept = collect_shifts(client)
     if client.token and not client.logged_in and not client.token_ok_reported:
         print("Bestaande token is geldig, niet opnieuw ingelogd.")
         client.token_ok_reported = True
     current_ids = {shift["id"] for shift in kept}
+    if run_number <= TEST_RUNS:
+        rows = [row_for(client, shift) for shift in kept]
+        footer = (
+            f"Testmail {run_number} van {TEST_RUNS}. "
+            f"Volledig overzicht: {len(rows)} dienst(en), nachten weggelaten."
+        )
+        report = render_report(rows, footer)
+        print(report)
+        subject = f"Testoverzicht aangeboden diensten Leiderdorp ({run_number}/{TEST_RUNS})"
+        if send_report(report, subject):
+            print(f"Gemaild naar {MAIL_TO}: volledig overzicht, run {run_number}/{TEST_RUNS}.")
+        save_seen(current_ids)
+        return
+
     previous = load_seen()
     if previous is None:
         save_seen(current_ids)
-        print(f"{now} Eerste run: {len(current_ids)} diensten vastgelegd, geen mail.")
+        print(f"{now} Geen eerdere stand. {len(current_ids)} diensten vastgelegd, geen mail.")
         return
 
     new_shifts = [shift for shift in kept if shift["id"] not in previous]
@@ -330,10 +346,12 @@ def main() -> None:
     client = Client()
     if client.token:
         print("Opgeslagen token gevonden, eerst die gebruiken.")
+    run_number = 1
     while True:
         started = time.monotonic()
         try:
-            run_once(client)
+            run_once(client, run_number)
+            run_number += 1
         except SystemExit:
             raise
         except Exception as error:
